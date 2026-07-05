@@ -255,3 +255,16 @@ const durationTag = (duration) =>
   ['short', 'medium', 'long'].includes(duration)
     ? `<span class="tag tag--duration">${t('duration.' + duration)}</span>`
     : '';
+
+// Emoji-only badges for the compact card overlay; the full localized word
+// stays available as a tooltip.
+const typeEmoji = (type) =>
+  type === 'digital'
+    ? `<span class="img-badge" title="${t('type.digital')}">💻</span>`
+    : `<span class="img-badge" title="${t('type.analog')}">🎲</span>`;
+
+const durationEmoji = (duration) => {
+  if (!['short', 'medium', 'long'].includes(duration)) return '';
+  const emoji = { short: '⚡', medium: '⏱️', long: '🐢' }[duration];
+  return `<span class="img-badge" title="${t('duration.' + duration)}">${emoji}</span>`;
+};

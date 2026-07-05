@@ -219,25 +219,14 @@ async function showRound(rid) {
           ? `<span class="score-pill" style="background:${avgColor(avg)}">Ø ${avg.toFixed(1)}</span>`
           : `<span class="score-pill score-pill--none">${esc(t('games.scoreNew'))}</span>`;
       const gc = h(`<div class="game-card game-card--clickable">
-           <div class="game-card__img" ${imgStyle}>${fallback}${scorePill}</div>
+           <div class="game-card__img" ${imgStyle}>${fallback}
+             <div class="game-card__badges">${scorePill}${typeEmoji(g.type)}${durationEmoji(g.duration)}</div>
+           </div>
            <div class="game-card__body">
              <div class="game-card__title">${esc(g.title)}</div>
-             <div class="game-card__row">
-               <span>${typeTag(g.type)} ${durationTag(g.duration)}</span>
-               <button class="link-btn" style="color:var(--warn)">${esc(t('games.retire'))}</button>
-             </div>
            </div>
          </div>`);
       gc.addEventListener('click', () => showGameDetail(rid, g.id));
-      gc.querySelector('button').addEventListener('click', async (e) => {
-        e.stopPropagation(); // don't count as a click on the card
-        if (!confirm(t('games.retireConfirm', { title: g.title }))) return;
-        try {
-          await api('POST', `/api/rounds/${rid}/games/${g.id}/retire`, { retired: true });
-          toast(t('games.retired', { title: g.title }));
-          showRound(rid);
-        } catch (err) { toast(err.message); }
-      });
       cardById[g.id] = gc;
     });
 
@@ -369,24 +358,8 @@ async function showRound(rid) {
            <div class="card__meta">${esc(t('sessions.rated', { n: s.gameIds.length }))}</div>
            ${chosenLine}
            ${winnerLine}
-           <div class="card__row" style="margin-top:8px">
-             <button class="link-btn" data-act="open">${esc(t('sessions.view'))}</button>
-             <button class="link-btn" data-act="del" style="color:var(--danger)">${esc(t('common.delete'))}</button>
-           </div>
          </div>`);
-      card.addEventListener('click', (e) => {
-        if (e.target.dataset.act === 'del') return; // delete button is not "open"
-        showResults(round, s);
-      });
-      card.querySelector('[data-act="del"]').addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (!confirm(t('sessions.deleteConfirm', { when }))) return;
-        try {
-          await api('DELETE', `/api/rounds/${round.id}/sessions/${s.id}`);
-          toast(t('sessions.deleted'));
-          showRound(round.id);
-        } catch (err) { toast(err.message); }
-      });
+      card.addEventListener('click', () => showResults(round, s));
       list.appendChild(card);
     });
     sec.appendChild(list);

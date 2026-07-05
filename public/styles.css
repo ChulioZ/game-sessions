@@ -239,6 +239,26 @@ body {
   color: #6b6358;
   box-shadow: none;
 }
+
+/* Badge column on the card image: rating pill, then emoji-only type/duration */
+.game-card__badges {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.game-card__badges .score-pill { position: static; }
+.img-badge {
+  background: rgba(255, 255, 255, 0.88);
+  border-radius: 999px;
+  padding: 2px 7px;
+  font-size: 14px;
+  line-height: 1.3;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
 .game-card__body { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
 .game-card__title { font-weight: 700; font-size: 17px; }
 .game-card__row { display: flex; align-items: center; justify-content: space-between; }

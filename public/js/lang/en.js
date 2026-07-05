@@ -97,7 +97,6 @@ I18N.en = {
   'sessions.title': 'Earlier sessions',
   'sessions.rated': '{n} games rated',
   'sessions.played': '✓ Played',
-  'sessions.view': 'View result',
   'sessions.deleteConfirm': 'Really delete the session from {when}?',
   'sessions.deleted': 'Session deleted',
 
@@ -191,6 +190,7 @@ I18N.en = {
   'result.playedNoWinner': '✓ Played (no winner recorded)',
   'result.toast.saved': 'Result saved',
   'result.toast.reset': 'Reset done',
+  'result.deleteSession': 'Delete session',
 
   'design.crumb': 'Design',
   'design.title': 'Design',

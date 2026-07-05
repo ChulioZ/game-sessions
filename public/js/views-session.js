@@ -469,6 +469,18 @@ async function showResults(round, session, gamesHint) {
   back.querySelector('button').addEventListener('click', () => showRound(round.id));
   app.appendChild(back);
 
+  // Delete session (subtle, at the bottom – like deleting a round)
+  const del = h(`<div class="section center"><button class="link-btn" style="color:var(--danger)">${esc(t('result.deleteSession'))}</button></div>`);
+  del.querySelector('button').addEventListener('click', async () => {
+    if (!confirm(t('sessions.deleteConfirm', { when }))) return;
+    try {
+      await api('DELETE', `/api/rounds/${round.id}/sessions/${session.id}`);
+      toast(t('sessions.deleted'));
+      showRound(round.id);
+    } catch (e) { toast(e.message); }
+  });
+  app.appendChild(del);
+
   // The most relevant info (chosen game, results) is at the top.
   window.scrollTo(0, 0);
 }

@@ -97,7 +97,6 @@ I18N.de = {
   'sessions.title': 'Frühere Sessions',
   'sessions.rated': '{n} Spiele bewertet',
   'sessions.played': '✓ Gespielt',
-  'sessions.view': 'Ergebnis ansehen',
   'sessions.deleteConfirm': 'Session vom {when} wirklich löschen?',
   'sessions.deleted': 'Session gelöscht',
 
@@ -191,6 +190,7 @@ I18N.de = {
   'result.playedNoWinner': '✓ Gespielt (kein Gewinner eingetragen)',
   'result.toast.saved': 'Ergebnis gespeichert',
   'result.toast.reset': 'Zurückgesetzt',
+  'result.deleteSession': 'Session löschen',
 
   'design.crumb': 'Design',
   'design.title': 'Design',
