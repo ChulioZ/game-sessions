@@ -9,6 +9,10 @@ I18N.de = {
   'type.digital': '💻 Digital',
   'type.analog': '🎲 Analog',
 
+  'duration.short': '⚡ Kurz',
+  'duration.medium': '⏱️ Mittel',
+  'duration.long': '🐢 Lang',
+
   'home.title': 'Unsere Spielrunden',
   'home.newRound': '➕ Neue Runde',
   'home.empty.title': 'Noch keine Spielrunde angelegt.',
@@ -115,6 +119,8 @@ I18N.de = {
   'addGame.titleLabel': 'Titel',
   'addGame.titlePlaceholder': 'z. B. Die Siedler von Catan',
   'addGame.typeLabel': 'Art',
+  'addGame.durationLabel': 'Spieldauer',
+  'addGame.durationHint': 'Kurz: unter 30 Min. · Mittel: 30–60 Min. · Lang: über 60 Min.',
   'addGame.imageLabel': 'Bild (optional)',
   'addGame.pasteHint': 'Bild aus der Zwischenablage einfügen',
   'addGame.pasteSub': 'Bild kopieren, dann hier ⌘V drücken – oder den Knopf nutzen.',
@@ -135,6 +141,8 @@ I18N.de = {
   'startSession.filterAll': 'Alle ({n})',
   'startSession.filterAnalog': '🎲 Analog ({n})',
   'startSession.filterDigital': '💻 Digital ({n})',
+  'startSession.durationLabel': 'Welche Spieldauer?',
+  'startSession.durationNote': 'Alle ausgewählt = Spieldauer egal.',
   'startSession.countLabel': 'Wie viele Spiele auslosen?',
   'startSession.available': 'Verfügbar: {n} Spiel(e).',
   'startSession.draw': '🎲 Spiele auslosen',

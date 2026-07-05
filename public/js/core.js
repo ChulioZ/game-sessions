@@ -249,3 +249,9 @@ const typeTag = (type) =>
   type === 'digital'
     ? `<span class="tag tag--digital">${t('type.digital')}</span>`
     : `<span class="tag tag--analog">${t('type.analog')}</span>`;
+
+// Games from before the duration feature have duration null -> no tag.
+const durationTag = (duration) =>
+  ['short', 'medium', 'long'].includes(duration)
+    ? `<span class="tag tag--duration">${t('duration.' + duration)}</span>`
+    : '';

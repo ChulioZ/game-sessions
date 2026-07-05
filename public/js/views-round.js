@@ -223,7 +223,7 @@ async function showRound(rid) {
            <div class="game-card__body">
              <div class="game-card__title">${esc(g.title)}</div>
              <div class="game-card__row">
-               ${typeTag(g.type)}
+               <span>${typeTag(g.type)} ${durationTag(g.duration)}</span>
                <button class="link-btn" style="color:var(--warn)">${esc(t('games.retire'))}</button>
              </div>
            </div>
@@ -441,7 +441,7 @@ async function showRetired(rid) {
            <div class="game-card__img" ${imgStyle}>${fallback}</div>
            <div class="game-card__body">
              <div class="game-card__title">${esc(g.title)}</div>
-             <div class="game-card__row">${typeTag(g.type)}</div>
+             <div class="game-card__row">${typeTag(g.type)} ${durationTag(g.duration)}</div>
              <div class="card__meta">${esc(t('retired.at', { when }))}</div>
              <button class="btn" data-act="restore" style="margin-top:10px">${esc(t('retired.restore'))}</button>
              <button class="btn btn--danger" data-act="delete" style="margin-top:8px">${esc(t('retired.delete'))}</button>
@@ -574,7 +574,7 @@ async function showGameDetail(rid, gameId) {
     h(`<div class="gd-head">
          <div class="gd-img" ${imgStyle}>${fallback}</div>
          <div class="gd-info">
-           <h1>${esc(game.title)} ${typeTag(game.type)}${retiredBadge}</h1>
+           <h1>${esc(game.title)} ${typeTag(game.type)} ${durationTag(game.duration)}${retiredBadge}</h1>
            <div class="gd-stats">${scoreBig}${sortLine}</div>
          </div>
        </div>`)
@@ -680,6 +680,15 @@ function showAddGame(round) {
         </div>
       </div>
       <div class="field">
+        <label>${esc(t('addGame.durationLabel'))}</label>
+        <div class="segmented" id="durationSeg">
+          <label data-duration="short">${t('duration.short')}</label>
+          <label class="is-checked" data-duration="medium">${t('duration.medium')}</label>
+          <label data-duration="long">${t('duration.long')}</label>
+        </div>
+        <div class="muted" style="margin-top:6px;font-size:14px">${esc(t('addGame.durationHint'))}</div>
+      </div>
+      <div class="field">
         <label>${esc(t('addGame.imageLabel'))}</label>
         <div id="pasteZone" class="paste-zone" tabindex="0">
           <div class="paste-zone__hint">
@@ -708,6 +717,16 @@ function showAddGame(round) {
       seg.querySelectorAll('label').forEach((l) => l.classList.remove('is-checked'));
       lbl.classList.add('is-checked');
       type = lbl.dataset.type;
+    });
+  });
+
+  let duration = 'medium';
+  const durSeg = form.querySelector('#durationSeg');
+  durSeg.querySelectorAll('label').forEach((lbl) => {
+    lbl.addEventListener('click', () => {
+      durSeg.querySelectorAll('label').forEach((l) => l.classList.remove('is-checked'));
+      lbl.classList.add('is-checked');
+      duration = lbl.dataset.duration;
     });
   });
 
@@ -780,6 +799,7 @@ function showAddGame(round) {
     const fd = new FormData();
     fd.append('title', title);
     fd.append('type', type);
+    fd.append('duration', duration);
     if (pastedBlob) {
       const ext = (pastedBlob.type && pastedBlob.type.split('/')[1]) || 'png';
       fd.append('image', pastedBlob, 'pasted.' + ext);

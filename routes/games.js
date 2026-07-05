@@ -12,18 +12,22 @@ const upload = require('../lib/upload');
 
 const router = express.Router({ mergeParams: true });
 
+const DURATIONS = ['short', 'medium', 'long'];
+
 router.post('/', upload.single('image'), (req, res) => {
   const round = findRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   const title = String(req.body.title || '').trim();
   const type = req.body.type === 'digital' ? 'digital' : 'analog';
+  const duration = DURATIONS.includes(req.body.duration) ? req.body.duration : 'medium';
   if (!title) return res.status(400).json({ error: 'Title is missing' });
 
   const game = {
     id: id(),
     title,
     type,
+    duration,
     image: req.file ? '/uploads/' + req.file.filename : null,
     retired: false,
     retiredAt: null,

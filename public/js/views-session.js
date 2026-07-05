@@ -18,6 +18,7 @@ function showStartSession(round) {
     digital: round.games.filter((g) => !g.retired && g.type === 'digital').length,
     analog: round.games.filter((g) => !g.retired && g.type === 'analog').length,
   };
+  const DURATIONS = ['short', 'medium', 'long'];
 
   const form = h(`<div>
       <div class="field">
@@ -27,6 +28,13 @@ function showStartSession(round) {
           <label data-f="analog">${esc(t('startSession.filterAnalog', { n: counts.analog }))}</label>
           <label data-f="digital">${esc(t('startSession.filterDigital', { n: counts.digital }))}</label>
         </div>
+      </div>
+      <div class="field">
+        <label>${esc(t('startSession.durationLabel'))}</label>
+        <div class="segmented" id="durationSeg">
+          ${DURATIONS.map((d) => `<label class="is-checked" data-d="${d}">${t('duration.' + d)}</label>`).join('')}
+        </div>
+        <div class="muted" style="margin-top:6px;font-size:14px">${esc(t('startSession.durationNote'))}</div>
       </div>
       <div class="field">
         <label for="count">${esc(t('startSession.countLabel'))}</label>
@@ -40,11 +48,23 @@ function showStartSession(round) {
   app.appendChild(form);
 
   let filter = 'all';
+  // All durations selected by default = no duration filter.
+  const durations = new Set(DURATIONS);
   const seg = form.querySelector('#filterSeg');
+  const durSeg = form.querySelector('#durationSeg');
   const countInput = form.querySelector('#count');
   const hint = form.querySelector('#poolHint');
+  // Games matching both filters; with all durations selected, games without a
+  // duration (from before the feature) are included too.
+  const poolCount = () =>
+    round.games.filter(
+      (g) =>
+        !g.retired &&
+        (filter === 'all' || g.type === filter) &&
+        (durations.size === DURATIONS.length || durations.has(g.duration))
+    ).length;
   const updateHint = () => {
-    hint.textContent = t('startSession.available', { n: counts[filter] });
+    hint.textContent = t('startSession.available', { n: poolCount() });
   };
   updateHint();
   seg.querySelectorAll('label').forEach((lbl) => {
@@ -55,13 +75,27 @@ function showStartSession(round) {
       updateHint();
     });
   });
+  // Multi-select: each duration toggles independently.
+  durSeg.querySelectorAll('label').forEach((lbl) => {
+    lbl.addEventListener('click', () => {
+      const d = lbl.dataset.d;
+      if (durations.has(d)) durations.delete(d);
+      else durations.add(d);
+      lbl.classList.toggle('is-checked', durations.has(d));
+      updateHint();
+    });
+  });
 
   form.querySelector('#go').addEventListener('click', async () => {
     let count = parseInt(countInput.value, 10);
     if (!Number.isFinite(count) || count < 1) count = 1;
-    if (counts[filter] === 0) return toast(t('startSession.toast.noGames'));
+    if (durations.size === 0 || poolCount() === 0) return toast(t('startSession.toast.noGames'));
     try {
-      const data = await api('POST', `/api/rounds/${round.id}/sessions`, { count, filter });
+      const data = await api('POST', `/api/rounds/${round.id}/sessions`, {
+        count,
+        filter,
+        durations: [...durations],
+      });
       startVoting(round, data.session, data.games, data.members);
     } catch (e) { toast(e.message); }
   });
@@ -132,7 +166,7 @@ function startVoting(round, session, games, members) {
         <div class="vote__who">${esc(t('vote.who'))}<strong>${esc(member.name)}</strong></div>
         <div class="vote__img" ${imgStyle}>${fallback}</div>
         <div class="vote__title">${esc(game.title)}</div>
-        <div class="vote__type">${typeTag(game.type)}</div>
+        <div class="vote__type">${typeTag(game.type)} ${durationTag(game.duration)}</div>
         <div class="vote__q">${esc(t('vote.question'))}</div>
         <div class="rating"></div>
         <div class="rating-scale"><span>${esc(t('vote.scaleLow'))}</span><span>${esc(t('vote.scaleHigh'))}</span></div>
@@ -286,7 +320,7 @@ async function showResults(round, session, gamesHint) {
     const row = h(`<div class="result-row">
          <div class="result-row__img" ${imgStyle}>${fallback}</div>
          <div>
-           <div class="result-row__title">${medal}${esc(g.title)} ${typeTag(g.type)}${retiredBadge}</div>
+           <div class="result-row__title">${medal}${esc(g.title)} ${typeTag(g.type)} ${durationTag(g.duration)}${retiredBadge}</div>
            <div class="result-row__bars">${bars}</div>
            ${sortFlag}
          </div>

@@ -9,6 +9,10 @@ I18N.en = {
   'type.digital': '💻 Digital',
   'type.analog': '🎲 Analog',
 
+  'duration.short': '⚡ Short',
+  'duration.medium': '⏱️ Medium',
+  'duration.long': '🐢 Long',
+
   'home.title': 'Our game rounds',
   'home.newRound': '➕ New round',
   'home.empty.title': 'No game round yet.',
@@ -115,6 +119,8 @@ I18N.en = {
   'addGame.titleLabel': 'Title',
   'addGame.titlePlaceholder': 'e.g. Catan',
   'addGame.typeLabel': 'Type',
+  'addGame.durationLabel': 'Play time',
+  'addGame.durationHint': 'Short: under 30 min · Medium: 30–60 min · Long: over 60 min',
   'addGame.imageLabel': 'Image (optional)',
   'addGame.pasteHint': 'Paste an image from the clipboard',
   'addGame.pasteSub': 'Copy an image, then press ⌘V here – or use the button.',
@@ -135,6 +141,8 @@ I18N.en = {
   'startSession.filterAll': 'All ({n})',
   'startSession.filterAnalog': '🎲 Analog ({n})',
   'startSession.filterDigital': '💻 Digital ({n})',
+  'startSession.durationLabel': 'Which play time?',
+  'startSession.durationNote': 'All selected = play time doesn’t matter.',
   'startSession.countLabel': 'How many games to draw?',
   'startSession.available': 'Available: {n} game(s).',
   'startSession.draw': '🎲 Draw games',

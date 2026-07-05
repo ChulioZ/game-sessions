@@ -25,11 +25,21 @@ router.post('/', (req, res) => {
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   const filter = ['all', 'digital', 'analog'].includes(req.body.filter) ? req.body.filter : 'all';
+  // Duration filter: array of 'short'/'medium'/'long'. Missing, empty or the
+  // full set means "no duration filter" (games without a duration included).
+  const DURATIONS = ['short', 'medium', 'long'];
+  let durations = Array.isArray(req.body.durations)
+    ? req.body.durations.filter((d) => DURATIONS.includes(d))
+    : [];
+  if (durations.length === 0 || durations.length === DURATIONS.length) durations = null;
   let count = parseInt(req.body.count, 10);
   if (!Number.isFinite(count) || count < 1) count = 1;
 
   const pool = round.games.filter(
-    (g) => !g.retired && (filter === 'all' || g.type === filter)
+    (g) =>
+      !g.retired &&
+      (filter === 'all' || g.type === filter) &&
+      (!durations || durations.includes(g.duration))
   );
   if (pool.length === 0)
     return res.status(400).json({ error: 'No matching games in this round' });
@@ -40,6 +50,7 @@ router.post('/', (req, res) => {
     id: id(),
     createdAt: new Date().toISOString(),
     filter,
+    durations, // null = all durations
     requestedCount: count,
     gameIds: picked.map((g) => g.id),
     votes: {}, // votes[memberId][gameId] = { rating: 1..5|null, retire: bool }
