@@ -127,7 +127,7 @@ function startVoting(round, session, games, members) {
     const fallback = game.image ? '' : (game.type === 'digital' ? '💻' : '🎲');
 
     app.innerHTML = '';
-    const card = h(`<div class="vote">
+    const card = h(`<div class="vote vote--split">
         <div class="vote__progress"><div style="width:${pct}%"></div></div>
         <div class="vote__who">${esc(t('vote.who'))}<strong>${esc(member.name)}</strong></div>
         <div class="vote__img" ${imgStyle}>${fallback}</div>

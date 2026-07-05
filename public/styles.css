@@ -421,6 +421,35 @@ body {
 .vote__nav { display: flex; gap: 10px; padding: 0 20px 20px; }
 .vote__nav .btn { flex: 1; }
 
+/* Wide/landscape screens: image on the left, all controls on the right, so
+   the whole card (incl. the next button) fits without scrolling. */
+@media (min-width: 860px) {
+  .vote--split {
+    max-width: 940px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto auto auto auto auto 1fr auto;
+    column-gap: 10px;
+    padding-bottom: 4px;
+  }
+  .vote--split .vote__progress { grid-column: 1 / -1; }
+  .vote--split .vote__img {
+    grid-column: 1;
+    grid-row: 2 / -1;
+    align-self: center;
+    margin: 16px 10px 20px 20px;
+  }
+  .vote--split .vote__who,
+  .vote--split .vote__title,
+  .vote--split .vote__type,
+  .vote--split .vote__q,
+  .vote--split .rating,
+  .vote--split .rating-scale,
+  .vote--split .vote__sort,
+  .vote--split .vote__nav { grid-column: 2; }
+  .vote--split .vote__nav { align-self: end; }
+}
+
 /* Handover screen (you are up) */
 .handover {
   text-align: center;
