@@ -112,12 +112,18 @@ async function showRound(rid) {
     const VISIBLE = 5;
     const list = h('<div class="activity-feed"></div>');
     feed.forEach((e) => {
-      const item = h(`<div class="activity">
+      const item = h(`<div class="activity${e.nav ? ' activity--link' : ''}">
            <span class="activity__icon">${e.icon}</span>
            <span class="activity__text">${esc(e.text)}</span>
            <span class="activity__time">${fmtDateTime(e.at)}</span>
            ${e.id ? `<button class="activity__del" title="${esc(t('activity.delete'))}">✕</button>` : ''}
          </div>`);
+      if (e.nav) {
+        item.addEventListener('click', (ev) => {
+          if (ev.target.closest('.activity__del')) return; // delete is not "open"
+          e.nav();
+        });
+      }
       if (e.id) {
         item.querySelector('.activity__del').addEventListener('click', async () => {
           if (!confirm(t('activity.deleteConfirm'))) return;

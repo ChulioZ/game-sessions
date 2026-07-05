@@ -573,6 +573,8 @@ body {
   border-bottom: 1px solid var(--line);
 }
 .activity:last-child { border-bottom: none; }
+.activity--link { cursor: pointer; }
+.activity--link:hover { background: var(--surface-hover, rgba(0, 0, 0, 0.03)); }
 .activity__icon { font-size: 20px; width: 26px; text-align: center; flex: none; }
 .activity__text { flex: 1; }
 .activity__time { color: var(--ink-soft); font-size: 14px; white-space: nowrap; flex: none; }
