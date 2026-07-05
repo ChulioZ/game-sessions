@@ -42,7 +42,7 @@ router.post('/', (req, res) => {
     filter,
     requestedCount: count,
     gameIds: picked.map((g) => g.id),
-    votes: {}, // votes[memberId][gameId] = { rating: 1..5|null, retire: bool, veto: bool }
+    votes: {}, // votes[memberId][gameId] = { rating: 1..5|null, retire: bool }
     chosenGameId: null, // which game ends up being played
     chosenAt: null, // when a game was chosen
     finished: false, // whether the game was played/finished

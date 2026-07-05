@@ -404,9 +404,8 @@ body {
 .rating button.is-selected { background: var(--brand); border-color: var(--brand); color: #fff; }
 .rating-scale { display: flex; justify-content: space-between; padding: 2px 22px 0; color: var(--ink-soft); font-size: 13px; }
 
-.vote__sort { padding: 14px 20px 20px; display: flex; flex-direction: column; gap: 10px; }
-.sortBtn,
-.vetoBtn {
+.vote__sort { padding: 14px 20px 20px; }
+.sortBtn {
   width: 100%;
   padding: 14px;
   border-radius: 12px;
@@ -418,8 +417,6 @@ body {
   cursor: pointer;
 }
 .sortBtn.is-selected { background: var(--warn); color: #fff; border-style: solid; }
-.vetoBtn { border-color: var(--danger); color: var(--danger); }
-.vetoBtn.is-selected { background: var(--danger); color: #fff; border-style: solid; }
 
 .vote__nav { display: flex; gap: 10px; padding: 0 20px 20px; }
 .vote__nav .btn { flex: 1; }
@@ -466,16 +463,6 @@ body {
 .score-big { font-size: 30px; font-weight: 800; color: var(--brand-dark); line-height: 1; }
 .score-label { font-size: 13px; color: var(--ink-soft); }
 .sort-flag { color: var(--warn); font-size: 14px; font-weight: 700; margin-top: 4px; }
-.veto-flag { color: var(--danger); font-size: 14px; font-weight: 700; margin-top: 4px; }
-.vetoed-heading {
-  margin: 22px 0 10px;
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--danger);
-  border-top: 1px solid var(--line);
-  padding-top: 14px;
-}
-.result-row.is-vetoed { opacity: 0.75; }
 .sortflag-btn { color: var(--warn); font-weight: 700; text-decoration: underline; }
 .tag--retired { background: #fde9d2; color: #92400e; }
 .rank-medal { font-size: 22px; margin-right: 6px; }

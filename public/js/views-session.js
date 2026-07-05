@@ -77,7 +77,7 @@ function startVoting(round, session, games, members) {
   ]);
   setVotingCrumbs();
 
-  // votes[memberId][gameId] = { rating, retire, veto }
+  // votes[memberId][gameId] = { rating, retire }
   const votes = {};
   members.forEach((m) => (votes[m.id] = {}));
 
@@ -121,7 +121,7 @@ function startVoting(round, session, games, members) {
     }
 
     const { member, game } = step;
-    const current = votes[member.id][game.id] || { rating: null, retire: false, veto: false };
+    const current = votes[member.id][game.id] || { rating: null, retire: false };
 
     const imgStyle = game.image ? `style="background-image:url('${game.image}')"` : '';
     const fallback = game.image ? '' : (game.type === 'digital' ? '💻' : '🎲');
@@ -138,7 +138,6 @@ function startVoting(round, session, games, members) {
         <div class="rating-scale"><span>${esc(t('vote.scaleLow'))}</span><span>${esc(t('vote.scaleHigh'))}</span></div>
         <div class="vote__sort">
           <button class="sortBtn ${current.retire ? 'is-selected' : ''}">${esc(t('vote.suggestRetire'))}</button>
-          <button class="vetoBtn ${current.veto ? 'is-selected' : ''}">${esc(t('vote.veto'))}</button>
         </div>
         <div class="vote__nav">
           <button class="btn" id="backBtn">${esc(t('vote.back'))}</button>
@@ -150,7 +149,7 @@ function startVoting(round, session, games, members) {
     for (let n = 1; n <= 5; n++) {
       const b = h(`<button class="${current.rating === n ? 'is-selected' : ''}">${n}</button>`);
       b.addEventListener('click', () => {
-        votes[member.id][game.id] = { rating: n, retire: current.retire, veto: current.veto };
+        votes[member.id][game.id] = { rating: n, retire: current.retire };
         render();
       });
       ratingEl.appendChild(b);
@@ -158,13 +157,7 @@ function startVoting(round, session, games, members) {
 
     const sortBtn = card.querySelector('.sortBtn');
     sortBtn.addEventListener('click', () => {
-      votes[member.id][game.id] = { rating: current.rating, retire: !current.retire, veto: current.veto };
-      render();
-    });
-
-    const vetoBtn = card.querySelector('.vetoBtn');
-    vetoBtn.addEventListener('click', () => {
-      votes[member.id][game.id] = { rating: current.rating, retire: current.retire, veto: !current.veto };
+      votes[member.id][game.id] = { rating: current.rating, retire: !current.retire };
       render();
     });
 
@@ -174,7 +167,7 @@ function startVoting(round, session, games, members) {
 
     card.querySelector('#nextBtn').addEventListener('click', () => {
       const v = votes[member.id][game.id];
-      if (!v || (v.rating === null && !v.retire && !v.veto)) {
+      if (!v || (v.rating === null && !v.retire)) {
         return toast(t('vote.toast.needRating'));
       }
       if (idx === total - 1) finish();
@@ -218,27 +211,20 @@ async function showResults(round, session, gamesHint) {
   const rows = games.map((g) => {
     const ratings = [];
     let sortCount = 0;
-    let vetoCount = 0;
     members.forEach((m) => {
       const v = (session.votes[m.id] || {})[g.id];
       if (!v) return;
       if (v.retire) sortCount++;
-      if (v.veto) vetoCount++;
       if (typeof v.rating === 'number') ratings.push(v.rating);
     });
     const sum = ratings.reduce((a, b) => a + b, 0);
     const avg = ratings.length ? sum / ratings.length : 0;
     const dist = [0, 0, 0, 0, 0];
     ratings.forEach((r) => dist[r - 1]++);
-    return { game: g, avg, count: ratings.length, sortCount, vetoCount, dist };
+    return { game: g, avg, count: ratings.length, sortCount, dist };
   });
 
-  // Sort: vetoed games always below the rest; within each group highest
-  // average first (vetoed games additionally by fewest vetoes).
-  rows.sort((a, b) => {
-    if (!!a.vetoCount !== !!b.vetoCount) return a.vetoCount ? 1 : -1;
-    return a.vetoCount - b.vetoCount || b.avg - a.avg;
-  });
+  rows.sort((a, b) => b.avg - a.avg);
 
   app.innerHTML = '';
   const when = fmtDateTime(session.createdAt);
@@ -296,21 +282,12 @@ async function showResults(round, session, gamesHint) {
           g.retired ? '' : ` <button class="link-btn sortflag-btn">${esc(t('result.retireNow'))}</button>`
         }</div>`
       : '';
-    const vetoFlag = r.vetoCount
-      ? `<div class="veto-flag">${esc(t('result.vetoFlag', { n: r.vetoCount }))}</div>`
-      : '';
-    // Heading before the first vetoed row (vetoed rows are sorted to the end).
-    if (r.vetoCount && !(rows[i - 1] || {}).vetoCount) {
-      app.appendChild(h(`<div class="vetoed-heading">${esc(t('result.vetoedHeading'))}</div>`));
-    }
-    // Medals only go to games nobody vetoed.
-    const medal = i < 3 && !r.vetoCount ? `<span class="rank-medal">${medals[i]}</span>` : '';
-    const row = h(`<div class="result-row${r.vetoCount ? ' is-vetoed' : ''}">
+    const medal = i < 3 ? `<span class="rank-medal">${medals[i]}</span>` : '';
+    const row = h(`<div class="result-row">
          <div class="result-row__img" ${imgStyle}>${fallback}</div>
          <div>
            <div class="result-row__title">${medal}${esc(g.title)} ${typeTag(g.type)}${retiredBadge}</div>
            <div class="result-row__bars">${bars}</div>
-           ${vetoFlag}
            ${sortFlag}
          </div>
          <div class="result-row__score">
