@@ -579,35 +579,37 @@ body {
 .recommend-item__btn { flex: none; color: var(--warn); padding: 8px 14px; font-size: 15px; }
 .recommend-more { font-size: 14px; padding: 2px 4px; }
 
-/* Activity feed */
+/* Activity feed – deliberately quiet: secondary info, not main content. */
 .activity-feed {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
+  font-size: 15px;
+  color: var(--ink-soft);
 }
 .activity {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 7px 14px;
   border-bottom: 1px solid var(--line);
 }
 .activity:last-child { border-bottom: none; }
 .activity--link { cursor: pointer; }
 .activity--link:hover { background: var(--surface-hover, rgba(0, 0, 0, 0.03)); }
-.activity__icon { font-size: 20px; width: 26px; text-align: center; flex: none; }
+.activity__icon { font-size: 15px; width: 20px; text-align: center; flex: none; opacity: 0.75; }
 .activity__text { flex: 1; }
-.activity__time { color: var(--ink-soft); font-size: 14px; white-space: nowrap; flex: none; }
+.activity__time { color: var(--ink-soft); font-size: 12px; opacity: 0.8; white-space: nowrap; flex: none; }
 .activity__del {
   flex: none;
   border: none;
   background: transparent;
   color: var(--ink-soft);
   cursor: pointer;
-  font-size: 16px;
+  font-size: 13px;
   line-height: 1;
-  padding: 6px 8px;
+  padding: 5px 7px;
   border-radius: 8px;
 }
 .activity__del:hover { background: #f8e3e3; color: var(--danger); }
@@ -635,7 +637,7 @@ body {
 
 @media (max-width: 520px) {
   .activity { flex-wrap: wrap; }
-  .activity__time { width: 100%; padding-left: 38px; }
+  .activity__time { width: 100%; padding-left: 30px; }
 }
 
 /* Finish game / winners (inside the chosen game's result row) */
