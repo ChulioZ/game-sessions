@@ -107,8 +107,8 @@ data is never committed.
 
 ## About this project
 
-This project was **developed entirely by Claude Opus 4.8** (Anthropic's coding
-model), through an interactive, conversational process: a human described the
+This project was **developed entirely by Claude** (Anthropic's AI models,
+via Claude Code), through an interactive, conversational process: a human described the
 desired features and gave feedback, and Claude designed and wrote all of the
 code, comments, and documentation. It stands as a small example of what
 agentic, AI-assisted development can produce end to end.
