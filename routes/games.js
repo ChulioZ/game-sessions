@@ -23,11 +23,20 @@ router.post('/', upload.single('image'), (req, res) => {
   const duration = DURATIONS.includes(req.body.duration) ? req.body.duration : 'medium';
   if (!title) return res.status(400).json({ error: 'Title is missing' });
 
+  const minPlayers = parseInt(req.body.minPlayers, 10);
+  const maxPlayers = parseInt(req.body.maxPlayers, 10);
+  if (!Number.isInteger(minPlayers) || minPlayers < 1)
+    return res.status(400).json({ error: 'minPlayers is required (integer >= 1)' });
+  if (!Number.isInteger(maxPlayers) || maxPlayers < minPlayers)
+    return res.status(400).json({ error: 'maxPlayers is required (integer >= minPlayers)' });
+
   const game = {
     id: id(),
     title,
     type,
     duration,
+    minPlayers,
+    maxPlayers,
     image: req.file ? '/uploads/' + req.file.filename : null,
     retired: false,
     retiredAt: null,

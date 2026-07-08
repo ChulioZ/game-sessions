@@ -549,7 +549,7 @@ async function showGameDetail(rid, gameId) {
     h(`<div class="gd-head">
          <div class="gd-img" ${imgStyle}>${fallback}</div>
          <div class="gd-info">
-           <h1>${esc(game.title)} ${typeTag(game.type)} ${durationTag(game.duration)}${retiredBadge}</h1>
+           <h1>${esc(game.title)} ${typeTag(game.type)} ${durationTag(game.duration)} ${playersTag(game.minPlayers, game.maxPlayers)}${retiredBadge}</h1>
            <div class="gd-stats">${scoreBig}${sortLine}</div>
          </div>
        </div>`)
@@ -666,6 +666,16 @@ function showAddGame(round) {
         <div class="muted" style="margin-top:6px;font-size:14px">${esc(t('addGame.durationHint'))}</div>
       </div>
       <div class="field">
+        <label>${esc(t('addGame.playersLabel'))}</label>
+        <div class="toolbar">
+          <input id="minPlayers" class="input" style="width:110px" inputmode="numeric"
+                 placeholder="${esc(t('addGame.minPlayersPlaceholder'))}" />
+          <span>–</span>
+          <input id="maxPlayers" class="input" style="width:110px" inputmode="numeric"
+                 placeholder="${esc(t('addGame.maxPlayersPlaceholder'))}" />
+        </div>
+      </div>
+      <div class="field">
         <label>${esc(t('addGame.imageLabel'))}</label>
         <div id="pasteZone" class="paste-zone" tabindex="0">
           <div class="paste-zone__hint">
@@ -704,6 +714,17 @@ function showAddGame(round) {
       durSeg.querySelectorAll('label').forEach((l) => l.classList.remove('is-checked'));
       lbl.classList.add('is-checked');
       duration = lbl.dataset.duration;
+    });
+  });
+
+  // Player-count inputs accept digits only (text + filter is stricter than
+  // type="number", which still lets "e", "-" etc. through).
+  const minInput = form.querySelector('#minPlayers');
+  const maxInput = form.querySelector('#maxPlayers');
+  [minInput, maxInput].forEach((inp) => {
+    inp.addEventListener('input', () => {
+      const digits = inp.value.replace(/\D/g, '');
+      if (inp.value !== digits) inp.value = digits;
     });
   });
 
@@ -773,10 +794,17 @@ function showAddGame(round) {
   async function save(again) {
     const title = form.querySelector('#title').value.trim();
     if (!title) return toast(t('addGame.toast.needTitle'));
+    const minPlayers = parseInt(minInput.value, 10);
+    const maxPlayers = parseInt(maxInput.value, 10);
+    if (!Number.isInteger(minPlayers) || minPlayers < 1 || !Number.isInteger(maxPlayers) || maxPlayers < 1)
+      return toast(t('addGame.toast.needPlayers'));
+    if (maxPlayers < minPlayers) return toast(t('addGame.toast.playersRange'));
     const fd = new FormData();
     fd.append('title', title);
     fd.append('type', type);
     fd.append('duration', duration);
+    fd.append('minPlayers', minPlayers);
+    fd.append('maxPlayers', maxPlayers);
     if (pastedBlob) {
       const ext = (pastedBlob.type && pastedBlob.type.split('/')[1]) || 'png';
       fd.append('image', pastedBlob, 'pasted.' + ext);
