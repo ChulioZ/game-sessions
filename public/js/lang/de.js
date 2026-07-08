@@ -146,6 +146,8 @@ I18N.de = {
 
   'startSession.crumb': 'Session starten',
   'startSession.title': 'Neue Session',
+  'startSession.membersLabel': 'Wer spielt mit?',
+  'startSession.membersNote': 'Die Anzahl der Spieler filtert die Spiele.',
   'startSession.whichGames': 'Welche Spiele?',
   'startSession.filterAll': 'Alle ({n})',
   'startSession.filterAnalog': '🎲 Analog ({n})',
@@ -156,6 +158,7 @@ I18N.de = {
   'startSession.available': 'Verfügbar: {n} Spiel(e).',
   'startSession.draw': '🎲 Spiele auslosen',
   'startSession.toast.noGames': 'Keine passenden Spiele vorhanden',
+  'startSession.toast.noMembers': 'Mindestens ein Spieler muss mitspielen',
 
   'vote.crumb': 'Abstimmung',
   'vote.handover': 'ist dran mit Abstimmen!',

@@ -656,6 +656,25 @@ body {
   padding-top: 14px;
 }
 .row-finish h3 { margin: 0 0 6px; }
+.member-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.member-chip {
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 2px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.member-chip:hover { border-color: var(--brand); }
+.member-chip.is-selected {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
 .winner-chips { display: flex; flex-wrap: wrap; gap: 10px; }
 .winner-chip {
   font-family: inherit;

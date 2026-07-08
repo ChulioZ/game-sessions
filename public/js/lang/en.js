@@ -146,6 +146,8 @@ I18N.en = {
 
   'startSession.crumb': 'Start session',
   'startSession.title': 'New session',
+  'startSession.membersLabel': 'Who’s playing?',
+  'startSession.membersNote': 'The number of players filters the games.',
   'startSession.whichGames': 'Which games?',
   'startSession.filterAll': 'All ({n})',
   'startSession.filterAnalog': '🎲 Analog ({n})',
@@ -156,6 +158,7 @@ I18N.en = {
   'startSession.available': 'Available: {n} game(s).',
   'startSession.draw': '🎲 Draw games',
   'startSession.toast.noGames': 'No matching games available',
+  'startSession.toast.noMembers': 'At least one player must join',
 
   'vote.crumb': 'Voting',
   'vote.handover': 'is up to vote!',

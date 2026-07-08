@@ -35,11 +35,25 @@ router.post('/', (req, res) => {
   let count = parseInt(req.body.count, 10);
   if (!Number.isFinite(count) || count < 1) count = 1;
 
+  // Members joining this session. Missing/empty means everyone (back-compat).
+  // The joining count filters games by their player range below.
+  const memberById = new Set(round.members.map((m) => m.id));
+  let memberIds = Array.isArray(req.body.memberIds)
+    ? req.body.memberIds.map(String).filter((mid) => memberById.has(mid))
+    : [];
+  if (memberIds.length === 0) memberIds = round.members.map((m) => m.id);
+  if (memberIds.length === 0)
+    return res.status(400).json({ error: 'At least one member must join' });
+  const playerCount = memberIds.length;
+  const members = round.members.filter((m) => memberIds.includes(m.id));
+
   const pool = round.games.filter(
     (g) =>
       !g.retired &&
       (filter === 'all' || g.type === filter) &&
-      (!durations || durations.includes(g.duration))
+      (!durations || durations.includes(g.duration)) &&
+      (typeof g.minPlayers !== 'number' || playerCount >= g.minPlayers) &&
+      (typeof g.maxPlayers !== 'number' || playerCount <= g.maxPlayers)
   );
   if (pool.length === 0)
     return res.status(400).json({ error: 'No matching games in this round' });
@@ -52,6 +66,7 @@ router.post('/', (req, res) => {
     filter,
     durations, // null = all durations
     requestedCount: count,
+    memberIds, // members who joined this session
     gameIds: picked.map((g) => g.id),
     votes: {}, // votes[memberId][gameId] = { rating: 1..5|null, retire: bool }
     chosenGameId: null, // which game ends up being played
@@ -67,7 +82,7 @@ router.post('/', (req, res) => {
   saveData();
 
   // Convenience for the frontend: send the picked games right away.
-  res.status(201).json({ session, games: picked, members: round.members });
+  res.status(201).json({ session, games: picked, members });
 });
 
 // Save a session's complete result (hot-seat: all at once at the end).

@@ -22,6 +22,18 @@ function showStartSession(round) {
 
   const form = h(`<div>
       <div class="field">
+        <label>${esc(t('startSession.membersLabel'))}</label>
+        <div class="member-chips" id="memberChips">
+          ${round.members
+            .map(
+              (m) =>
+                `<button type="button" class="member-chip is-selected" data-mid="${esc(m.id)}">${esc(m.name)}</button>`
+            )
+            .join('')}
+        </div>
+        <div class="muted" style="margin-top:6px;font-size:14px">${esc(t('startSession.membersNote'))}</div>
+      </div>
+      <div class="field">
         <label>${esc(t('startSession.whichGames'))}</label>
         <div class="segmented" id="filterSeg">
           <label class="is-checked" data-f="all">${esc(t('startSession.filterAll', { n: counts.all }))}</label>
@@ -50,23 +62,44 @@ function showStartSession(round) {
   let filter = 'all';
   // All durations selected by default = no duration filter.
   const durations = new Set(DURATIONS);
+  // All members join by default; the number of joining members filters the
+  // games by their player count.
+  const joining = new Set(round.members.map((m) => m.id));
   const seg = form.querySelector('#filterSeg');
   const durSeg = form.querySelector('#durationSeg');
+  const memberChips = form.querySelector('#memberChips');
   const countInput = form.querySelector('#count');
   const hint = form.querySelector('#poolHint');
-  // Games matching both filters; with all durations selected, games without a
-  // duration (from before the feature) are included too.
+  // Games matching all filters; with all durations selected, games without a
+  // duration (from before the feature) are included too. The joining member
+  // count must fall within a game's player range.
   const poolCount = () =>
     round.games.filter(
       (g) =>
         !g.retired &&
         (filter === 'all' || g.type === filter) &&
-        (durations.size === DURATIONS.length || durations.has(g.duration))
+        (durations.size === DURATIONS.length || durations.has(g.duration)) &&
+        (typeof g.minPlayers !== 'number' || joining.size >= g.minPlayers) &&
+        (typeof g.maxPlayers !== 'number' || joining.size <= g.maxPlayers)
     ).length;
   const updateHint = () => {
     hint.textContent = t('startSession.available', { n: poolCount() });
   };
   updateHint();
+  // Toggle a member's participation; keep at least one joining.
+  memberChips.querySelectorAll('.member-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const mid = chip.dataset.mid;
+      if (joining.has(mid)) {
+        if (joining.size === 1) return toast(t('startSession.toast.noMembers'));
+        joining.delete(mid);
+      } else {
+        joining.add(mid);
+      }
+      chip.classList.toggle('is-selected', joining.has(mid));
+      updateHint();
+    });
+  });
   seg.querySelectorAll('label').forEach((lbl) => {
     lbl.addEventListener('click', () => {
       seg.querySelectorAll('label').forEach((l) => l.classList.remove('is-checked'));
@@ -89,12 +122,14 @@ function showStartSession(round) {
   form.querySelector('#go').addEventListener('click', async () => {
     let count = parseInt(countInput.value, 10);
     if (!Number.isFinite(count) || count < 1) count = 1;
+    if (joining.size === 0) return toast(t('startSession.toast.noMembers'));
     if (durations.size === 0 || poolCount() === 0) return toast(t('startSession.toast.noGames'));
     try {
       const data = await api('POST', `/api/rounds/${round.id}/sessions`, {
         count,
         filter,
         durations: [...durations],
+        memberIds: [...joining],
       });
       startVoting(round, data.session, data.games, data.members);
     } catch (e) { toast(e.message); }
@@ -239,7 +274,11 @@ async function showResults(round, session, gamesHint) {
   const games = session.gameIds
     .map((gid) => round.games.find((g) => g.id === gid) || (gamesHint || []).find((g) => g.id === gid))
     .filter(Boolean);
-  const members = round.members;
+  // Only the members who joined the session (older sessions have no list, so
+  // fall back to all members of the round).
+  const members = Array.isArray(session.memberIds)
+    ? round.members.filter((m) => session.memberIds.includes(m.id))
+    : round.members;
 
   // Tally per game.
   const rows = games.map((g) => {
