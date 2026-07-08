@@ -156,7 +156,9 @@ function buildActivityFeed(round) {
     const game = s.chosenGameId && round.games.find((g) => g.id === s.chosenGameId);
     const gname = game ? game.title : null;
     const nav = () => showResults(round, s);
-    if (s.finished) {
+    if (s.cancelled) {
+      entries.push({ at: s.cancelledAt || s.createdAt, icon: '✕', text: t('activity.sessionCancelled'), nav });
+    } else if (s.finished) {
       const names = (s.winnerIds || [])
         .map((wid) => (round.members.find((m) => m.id === wid) || {}).name)
         .filter(Boolean);

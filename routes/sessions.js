@@ -1,7 +1,7 @@
 'use strict';
 
 /* Routes for game sessions: start (random pick), save results, choose game,
-   finish/winners, delete.
+   finish/winners, cancel, delete.
    Mounted under /api/rounds/:rid/sessions (mergeParams for rid). */
 
 const express = require('express');
@@ -59,6 +59,8 @@ router.post('/', (req, res) => {
     finished: false, // whether the game was played/finished
     finishedAt: null, // when it was finished
     winnerIds: [], // winners (member ids, multiple allowed)
+    cancelled: false, // final state: no game appealed, nothing was played
+    cancelledAt: null, // when it was cancelled
     done: false,
   };
   round.sessions.push(session);
@@ -88,6 +90,8 @@ router.post('/:sid/choice', (req, res) => {
   const session = findSession(round, req.params.sid);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
+  if (session.cancelled)
+    return res.status(400).json({ error: 'Session is cancelled' });
   const gameId = req.body.gameId === null ? null : String(req.body.gameId || '');
   if (gameId !== null && !session.gameIds.includes(gameId))
     return res.status(400).json({ error: 'Game does not belong to this session' });
@@ -111,11 +115,35 @@ router.post('/:sid/finish', (req, res) => {
     session.finishedAt = null;
     session.winnerIds = [];
   } else {
+    if (session.cancelled)
+      return res.status(400).json({ error: 'Session is cancelled' });
     const ids = Array.isArray(req.body.winnerIds) ? req.body.winnerIds.map(String) : [];
     const memberIds = new Set(round.members.map((m) => m.id));
     session.winnerIds = ids.filter((mid) => memberIds.has(mid));
     session.finished = true;
     session.finishedAt = new Date().toISOString();
+  }
+  saveData();
+  res.json(session);
+});
+
+// Cancel the session: no game appealed, nothing gets played (cancelled:false
+// undoes it). A final state, mutually exclusive with choosing/finishing a game.
+router.post('/:sid/cancel', (req, res) => {
+  const round = findRound(req.params.rid);
+  if (!round) return res.status(404).json({ error: 'Round not found' });
+  const session = findSession(round, req.params.sid);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const cancelled = req.body.cancelled !== false; // default: true
+  if (cancelled) {
+    if (session.chosenGameId || session.finished)
+      return res.status(400).json({ error: 'A game is already chosen for this session' });
+    session.cancelled = true;
+    session.cancelledAt = new Date().toISOString();
+  } else {
+    session.cancelled = false;
+    session.cancelledAt = null;
   }
   saveData();
   res.json(session);

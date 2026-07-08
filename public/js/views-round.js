@@ -352,7 +352,9 @@ async function showRound(rid) {
         .filter(Boolean);
       const winnerLine = s.finished
         ? `<div class="card__meta">${winnerNames.length ? '🏆 ' + winnerNames.map(esc).join(', ') : esc(t('sessions.played'))}</div>`
-        : '';
+        : s.cancelled
+          ? `<div class="card__meta" style="color:var(--danger)">${esc(t('sessions.cancelled'))}</div>`
+          : '';
       const card = h(`<div class="card">
            <h3>${when}</h3>
            <div class="card__meta">${esc(t('sessions.rated', { n: s.gameIds.length }))}</div>
@@ -601,6 +603,8 @@ async function showGameDetail(rid, gameId) {
         status = s.finished
           ? `${esc(t('detail.played'))}${names.length ? ' · 🏆 ' + names.map(esc).join(', ') : ''}`
           : esc(t('detail.chosen'));
+      } else if (s.cancelled) {
+        status = `<span class="muted">${esc(t('detail.sessionCancelled'))}</span>`;
       } else {
         status = `<span class="muted">${esc(t('detail.notChosen'))}</span>`;
       }

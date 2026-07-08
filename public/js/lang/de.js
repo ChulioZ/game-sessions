@@ -67,6 +67,7 @@ I18N.de = {
   'activity.wonMany': '{names} haben „{game}“ gewonnen',
   'activity.played': '„{game}“ wurde gespielt',
   'activity.sessionPlayed': 'Eine Spielrunde wurde gespielt',
+  'activity.sessionCancelled': 'Eine Session wurde abgebrochen – es wurde nichts gespielt',
   'activity.started': '„{game}“ wurde gestartet',
   'activity.voteDone': 'Neue Spielrunde – Abstimmung abgeschlossen',
 
@@ -97,6 +98,7 @@ I18N.de = {
   'sessions.title': 'Frühere Sessions',
   'sessions.rated': '{n} Spiele bewertet',
   'sessions.played': '✓ Gespielt',
+  'sessions.cancelled': '✕ Abgebrochen',
   'sessions.deleteConfirm': 'Session vom {when} wirklich löschen?',
   'sessions.deleted': 'Session gelöscht',
 
@@ -111,6 +113,7 @@ I18N.de = {
   'detail.played': '🎮 gespielt',
   'detail.chosen': '🎮 gewählt',
   'detail.notChosen': 'nicht gewählt',
+  'detail.sessionCancelled': 'Session abgebrochen',
   'detail.retireConfirm': '„{title}“ aussortieren?',
 
   'addGame.crumb': 'Spiel hinzufügen',
@@ -180,6 +183,14 @@ I18N.de = {
   'result.retiredTag': '🗑️ aussortiert',
   'result.toast.willPlay': '„{title}“ wird gespielt',
   'result.toast.choiceCleared': 'Auswahl aufgehoben',
+  'result.titleCancelled': 'Session abgebrochen – es wurde nichts gespielt.',
+  'result.bannerCancelled': '✕ Session abgebrochen – es wird kein Spiel gespielt.',
+  'result.cancel': '✕ Kein Spiel gefällt – Session abbrechen',
+  'result.cancelConfirm': 'Diese Session abbrechen? Danach kann kein Spiel mehr zum Spielen gewählt werden.',
+  'result.cancelUndo': 'Abbruch rückgängig machen',
+  'result.cancelledHint': 'Erst den Abbruch rückgängig machen, um ein Spiel zu wählen',
+  'result.toast.cancelled': 'Session abgebrochen',
+  'result.toast.cancelUndone': 'Abbruch rückgängig gemacht',
   'result.finishTitleDone': '🏆 Ergebnis eingetragen',
   'result.finishTitle': 'Spiel abschließen',
   'result.whoWon': 'Wer hat „{game}“ gewonnen? (Mehrfachauswahl möglich)',

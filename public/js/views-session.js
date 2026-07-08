@@ -270,7 +270,9 @@ async function showResults(round, session, gamesHint) {
   const titleEl = head.querySelector('.result-title');
 
   function updateTitle() {
-    if (finished && chosenId) {
+    if (cancelled) {
+      titleEl.textContent = t('result.titleCancelled');
+    } else if (finished && chosenId) {
       const g = games.find((x) => x.id === chosenId);
       const gname = g ? g.title : '';
       const names = winnerIds
@@ -293,6 +295,10 @@ async function showResults(round, session, gamesHint) {
   let chosenId = session.chosenGameId || null;
   const banner = h('<div class="chosen-banner"></div>');
   app.appendChild(banner);
+
+  // Cancel session (the alternative to choosing a game; see renderCancel).
+  const cancelWrap = h('<div class="cancel-area"></div>');
+  app.appendChild(cancelWrap);
 
   const medals = ['🥇', '🥈', '🥉'];
   const maxBar = Math.max(1, ...rows.map((r) => Math.max(...r.dist)));
@@ -365,11 +371,16 @@ async function showResults(round, session, gamesHint) {
       row.classList.toggle('is-chosen', isChosen);
       btn.classList.toggle('btn--primary', isChosen);
       btn.textContent = isChosen ? t('result.willPlay') : t('result.play');
-      // Once the result is recorded, the choice can no longer be changed.
-      btn.disabled = finished;
-      btn.title = finished ? t('result.lockedHint') : '';
+      // Once the result is recorded or the session cancelled, the choice can
+      // no longer be changed.
+      btn.disabled = finished || cancelled;
+      btn.title = finished ? t('result.lockedHint') : cancelled ? t('result.cancelledHint') : '';
     });
-    if (chosenId) {
+    banner.classList.toggle('is-cancelled', cancelled);
+    if (cancelled) {
+      banner.textContent = t('result.bannerCancelled');
+      banner.classList.remove('is-set');
+    } else if (chosenId) {
       const g = games.find((x) => x.id === chosenId);
       banner.innerHTML = t('result.bannerChosen', { title: '<strong>' + esc(g ? g.title : '') + '</strong>' });
       banner.classList.add('is-set');
@@ -377,12 +388,48 @@ async function showResults(round, session, gamesHint) {
       banner.textContent = t('result.bannerPrompt');
       banner.classList.remove('is-set');
     }
+    renderCancel();
     renderFinish();
   }
 
   // --- Finish game / record winners (rendered inside the chosen game's tile) ---
   let finished = !!session.finished;
+  let cancelled = !!session.cancelled;
   let winnerIds = Array.isArray(session.winnerIds) ? session.winnerIds.slice() : [];
+
+  // Cancel is the alternative final state: only offered while no game is
+  // chosen, and undoable like the finish reset.
+  function renderCancel() {
+    cancelWrap.innerHTML = '';
+    if (finished || chosenId) return;
+    if (cancelled) {
+      const undo = h(`<button class="btn btn--ghost">${esc(t('result.cancelUndo'))}</button>`);
+      undo.addEventListener('click', async () => {
+        try {
+          await api('POST', `/api/rounds/${round.id}/sessions/${session.id}/cancel`, { cancelled: false });
+          cancelled = false;
+          session.cancelled = false;
+          session.cancelledAt = null;
+          toast(t('result.toast.cancelUndone'));
+          updateChosen();
+        } catch (e) { toast(e.message); }
+      });
+      cancelWrap.appendChild(undo);
+    } else {
+      const btn = h(`<button class="btn btn--ghost">${esc(t('result.cancel'))}</button>`);
+      btn.addEventListener('click', async () => {
+        if (!confirm(t('result.cancelConfirm'))) return;
+        try {
+          await api('POST', `/api/rounds/${round.id}/sessions/${session.id}/cancel`, { cancelled: true });
+          cancelled = true;
+          session.cancelled = true;
+          toast(t('result.toast.cancelled'));
+          updateChosen();
+        } catch (e) { toast(e.message); }
+      });
+      cancelWrap.appendChild(btn);
+    }
+  }
 
   function renderFinish() {
     updateTitle();

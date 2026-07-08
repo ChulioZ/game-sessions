@@ -67,6 +67,7 @@ I18N.en = {
   'activity.wonMany': '{names} won “{game}”',
   'activity.played': '“{game}” was played',
   'activity.sessionPlayed': 'A session was played',
+  'activity.sessionCancelled': 'A session was cancelled – nothing was played',
   'activity.started': '“{game}” was started',
   'activity.voteDone': 'New session – voting finished',
 
@@ -97,6 +98,7 @@ I18N.en = {
   'sessions.title': 'Earlier sessions',
   'sessions.rated': '{n} games rated',
   'sessions.played': '✓ Played',
+  'sessions.cancelled': '✕ Cancelled',
   'sessions.deleteConfirm': 'Really delete the session from {when}?',
   'sessions.deleted': 'Session deleted',
 
@@ -111,6 +113,7 @@ I18N.en = {
   'detail.played': '🎮 played',
   'detail.chosen': '🎮 chosen',
   'detail.notChosen': 'not chosen',
+  'detail.sessionCancelled': 'session cancelled',
   'detail.retireConfirm': 'Retire “{title}”?',
 
   'addGame.crumb': 'Add game',
@@ -180,6 +183,14 @@ I18N.en = {
   'result.retiredTag': '🗑️ retired',
   'result.toast.willPlay': '“{title}” will be played',
   'result.toast.choiceCleared': 'Choice cleared',
+  'result.titleCancelled': 'Session cancelled – nothing was played.',
+  'result.bannerCancelled': '✕ Session cancelled – no game will be played.',
+  'result.cancel': '✕ No game appeals – cancel session',
+  'result.cancelConfirm': 'Cancel this session? No game can be chosen to play anymore.',
+  'result.cancelUndo': 'Undo cancellation',
+  'result.cancelledHint': 'Undo the cancellation first to choose a game',
+  'result.toast.cancelled': 'Session cancelled',
+  'result.toast.cancelUndone': 'Cancellation undone',
   'result.finishTitleDone': '🏆 Result recorded',
   'result.finishTitle': 'Finish game',
   'result.whoWon': 'Who won “{game}”? (multiple possible)',
