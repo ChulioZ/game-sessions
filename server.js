@@ -11,22 +11,10 @@
  * Note: intentionally no authentication – meant for a local home network only.
  */
 
-const express = require('express');
-const path = require('path');
+const { DATA_FILE, UPLOAD_DIR } = require('./lib/store');
+const { createApp } = require('./lib/app');
 
-const { ROOT, DATA_FILE, UPLOAD_DIR } = require('./lib/store');
-
-const app = express();
-app.use(express.json());
-app.use(express.static(path.join(ROOT, 'public')));
-app.use('/uploads', express.static(UPLOAD_DIR));
-
-// API routes (split by resource).
-app.use('/api/rounds', require('./routes/rounds'));
-app.use('/api/rounds/:rid/games', require('./routes/games'));
-app.use('/api/rounds/:rid/sessions', require('./routes/sessions'));
-app.use('/api/rounds/:rid/activities', require('./routes/activities'));
-app.use('/api/rounds/:rid/background', require('./routes/background'));
+const app = createApp();
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

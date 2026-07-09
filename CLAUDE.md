@@ -66,6 +66,8 @@ accounts, or cloud services unless explicitly asked.
 ## Running & verifying
 
 - Start: `npm start` (serves on `http://localhost:3000`; `PORT` env to change).
+- Tests: `npm test` (Node's built-in `node --test`; specs in `test/*.test.js`).
+  Add/update tests with new features and keep them green — see `.claude/rules/`.
 - Quick syntax check: `node --check <file>`.
 - API smoke tests: `curl` against `http://localhost:3000/api/...`.
 - For UI changes, verify in a real browser. Note: a non-painted/headless preview
