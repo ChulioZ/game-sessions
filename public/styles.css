@@ -368,13 +368,28 @@ body {
   cursor: pointer;
   font-weight: 600;
   background: var(--surface);
+  /* Unselected buttons read as "off": faded and dashed. */
+  color: var(--ink-soft);
+  border-style: dashed;
+  opacity: 0.7;
+  transition: all 0.12s ease;
 }
+.segmented label:hover { opacity: 1; border-color: var(--brand-edge); }
 .segmented input { position: absolute; opacity: 0; }
 .segmented input:checked + label,
 .segmented label.is-checked {
+  /* Selected buttons read as "on": solid brand fill, like the primary button. */
   border-color: var(--brand);
-  background: var(--brand-tint);
-  color: var(--brand-dark);
+  border-style: solid;
+  background: var(--brand);
+  color: #fff;
+  opacity: 1;
+}
+/* Checkmark makes the selected state unmistakable. */
+.segmented input:checked + label::before,
+.segmented label.is-checked::before {
+  content: '✓ ';
+  font-weight: 700;
 }
 
 /* ---- Session game (voting) ---- */
