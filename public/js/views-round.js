@@ -233,13 +233,16 @@ async function showRound(rid) {
     const avgMap = {};
     activeGames.forEach((g) => (avgMap[g.id] = statsByGame[g.id].avg));
 
-    // Sort picker next to the heading; the choice is kept for the session.
+    // Search + sort next to the heading. Sort is kept for the session; the
+    // search query is local to this view.
+    const searchInput = h(`<input class="games-search" type="search" placeholder="${esc(t('games.search'))}" aria-label="${esc(t('games.search'))}" />`);
     const sortSel = h(`<select class="sort-select" aria-label="${esc(t('games.sort.random'))}">
         <option value="random">${esc(t('games.sort.random'))}</option>
         <option value="name">${esc(t('games.sort.name'))}</option>
         <option value="avg">${esc(t('games.sort.rating'))}</option>
       </select>`);
     sortSel.value = gamesSort;
+    gamesTools.appendChild(searchInput);
     gamesTools.appendChild(sortSel);
 
     const grid = h('<div class="cards"></div>');
@@ -269,20 +272,18 @@ async function showRound(rid) {
 
     // When collapsed we show the first row fully and only the top of the second,
     // increasingly blurred/faded toward the bottom as a hint that there is more.
+    // A single control (the pill) toggles expand/collapse in both directions.
     const clip = h('<div class="games-clip"></div>');
     const fade = h('<div class="games-fade"></div>');
-    const expandBtn = h(`<button class="games-expand">${esc(t('games.showAllShort'))}</button>`);
+    const expandBtn = h('<button class="games-expand"></button>');
     clip.appendChild(grid);
     clip.appendChild(fade);
     clip.appendChild(expandBtn);
     gamesSec.appendChild(clip);
-    expandBtn.addEventListener('click', () => { expanded = true; applyCollapse(); });
-
-    // Toggle next to the heading (only visible when needed).
-    const toggleBtn = h('<button class="section-toggle" hidden></button>');
-    gamesTools.appendChild(toggleBtn);
+    expandBtn.addEventListener('click', () => { expanded = !expanded; applyCollapse(); });
 
     let expanded = false;
+    let query = '';
     let cards = [];
     function columnsInGrid() {
       if (cards.length === 0) return 1;
@@ -294,28 +295,35 @@ async function showRound(rid) {
       }
       return Math.max(1, cols);
     }
-    function expand() {
+    // Full grid, no clip/fade. With a "show less" pill below when the user
+    // expanded a long list; hidden when there is nothing to collapse.
+    function showFull(withLessBtn) {
       grid.style.maxHeight = '';
       grid.style.overflow = '';
       fade.style.display = 'none';
-      expandBtn.style.display = 'none';
-      toggleBtn.textContent = t('games.showLess');
+      if (withLessBtn) {
+        expandBtn.style.display = '';
+        expandBtn.classList.add('games-expand--less');
+        expandBtn.textContent = t('games.showLess');
+      } else {
+        expandBtn.style.display = 'none';
+      }
     }
     function applyCollapse() {
+      // While searching, show every match; collapsing would hide results.
+      const searching = query.trim() !== '';
       const cols = columnsInGrid();
       const totalRows = Math.ceil(cards.length / cols);
-      if (totalRows <= 2) {
-        // Fits in two rows -> nothing to collapse.
-        toggleBtn.hidden = true;
-        expand();
+      if (searching || totalRows <= 2) {
+        showFull(false);
         return;
       }
-      toggleBtn.hidden = false;
       if (expanded) {
-        expand();
+        showFull(true);
         return;
       }
-      // First row fully + about half the second row visible.
+      // Collapsed: first row fully + about half the second row visible.
+      expandBtn.classList.remove('games-expand--less');
       const cardHeight = cards[0].offsetHeight;
       const rowPitch = cards[cols] ? cards[cols].offsetTop - cards[0].offsetTop : cardHeight;
       const gap = Math.max(0, rowPitch - cardHeight);
@@ -326,7 +334,6 @@ async function showRound(rid) {
       fade.style.height = Math.round(cardHeight * 0.6) + 'px';
       expandBtn.style.display = '';
       expandBtn.textContent = t('games.showAll', { n: cards.length });
-      toggleBtn.textContent = t('games.showAll', { n: cards.length });
     }
 
     function orderedGames() {
@@ -341,26 +348,38 @@ async function showRound(rid) {
       }
       return randomOrderedGames(round, activeGames);
     }
-    // Only reorder the cards (no page rebuild) and re-collapse.
+    function visibleGames() {
+      const q = query.trim().toLowerCase();
+      const ordered = orderedGames();
+      return q ? ordered.filter((g) => g.title.toLowerCase().includes(q)) : ordered;
+    }
+    // Reorder/filter the existing card nodes (no page rebuild) and re-collapse.
     function renderGames() {
-      cards = orderedGames().map((g) => cardById[g.id]);
+      cards = visibleGames().map((g) => cardById[g.id]);
+      if (cards.length === 0) {
+        grid.replaceChildren(h(`<div class="muted games-nomatch">${esc(t('games.noMatch', { q: query.trim() }))}</div>`));
+        fade.style.display = 'none';
+        expandBtn.style.display = 'none';
+        return;
+      }
       grid.replaceChildren(...cards);
       applyCollapse();
     }
 
+    searchInput.addEventListener('input', () => {
+      query = searchInput.value;
+      expanded = false;
+      renderGames();
+    });
     sortSel.addEventListener('change', () => {
       gamesSort = sortSel.value;
       renderGames();
-    });
-    toggleBtn.addEventListener('click', () => {
-      expanded = !expanded;
-      applyCollapse();
     });
     // First arrangement after layout; re-collapse on resize.
     requestAnimationFrame(renderGames);
     function onResize() {
       if (!document.body.contains(grid)) return window.removeEventListener('resize', onResize);
-      applyCollapse();
+      if (cards.length) applyCollapse();
     }
     window.addEventListener('resize', onResize);
   }

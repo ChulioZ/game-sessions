@@ -174,6 +174,7 @@ body {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 .section-head h3 { margin: 0; }
 .section-toggle {
@@ -190,7 +191,19 @@ body {
   white-space: nowrap;
 }
 .section-toggle:hover { background: var(--brand-tint); }
-.section-tools { display: flex; align-items: center; gap: 8px; flex: none; }
+.section-tools { display: flex; align-items: center; gap: 8px; flex: none; flex-wrap: wrap; }
+.games-search {
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 7px 12px;
+  width: 170px;
+  max-width: 100%;
+}
+.games-search:focus { outline: 2px solid var(--brand); border-color: var(--brand); }
 .sort-select {
   font-family: inherit;
   font-size: 15px;
@@ -405,6 +418,14 @@ body {
   white-space: nowrap;
 }
 .games-expand:hover { background: #fff; }
+/* Expanded state: the same control becomes a "show less" button below the grid. */
+.games-expand--less {
+  position: static;
+  transform: none;
+  display: block;
+  margin: 16px auto 0;
+}
+.games-nomatch { padding: 24px 4px; }
 
 .empty {
   text-align: center;
