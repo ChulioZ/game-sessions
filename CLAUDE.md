@@ -62,6 +62,11 @@ accounts, or cloud services unless explicitly asked.
   migration code around permanently.
 - Data is small (one family). Prefer simple, readable code over optimization.
 - Keep the `data/` folder out of git (already in `.gitignore`).
+- **Never read the production `data/` directory** (`data/data.json`,
+  `data/uploads/`) — it is private household data. Reference the schema from code
+  and tests, and generate your own data in an isolated `DATA_DIR` when you need
+  something to run against. See `.claude/rules/no-reading-production-data.md` and
+  the `test-data` skill.
 
 ## Running & verifying
 
