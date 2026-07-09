@@ -366,44 +366,61 @@ async function showRound(rid) {
   }
   app.appendChild(gamesSec);
 
-  // Link to the retired games.
-  const retiredLink = h(
-    `<div style="margin-top:12px"><button class="link-btn">${esc(t('retired.link', { n: retiredGames.length }))}</button></div>`
-  );
-  retiredLink.querySelector('button').addEventListener('click', () => showRetired(round.id));
-  app.appendChild(retiredLink);
-
-  // Past sessions
+  // History: past sessions, promoted right below the library and anchored by the
+  // chosen game's cover. This is the round's memory — newest first.
   const done = round.sessions.filter((s) => s.done).reverse();
   if (done.length) {
     const sec = h(`<div class="section"><h3>${esc(t('sessions.title'))}</h3></div>`);
-    const list = h('<div class="cards"></div>');
+    const list = h('<div class="session-list"></div>');
     done.forEach((s) => {
       const when = fmtDateTime(s.createdAt);
       const chosen = s.chosenGameId && round.games.find((g) => g.id === s.chosenGameId);
-      const chosenLine = chosen
-        ? `<div class="card__meta" style="color:var(--brand-dark);font-weight:700">🎮 ${esc(chosen.title)}</div>`
-        : '';
       const winnerNames = (s.winnerIds || [])
         .map((wid) => (round.members.find((m) => m.id === wid) || {}).name)
         .filter(Boolean);
-      const winnerLine = s.finished
-        ? `<div class="card__meta">${winnerNames.length ? '🏆 ' + winnerNames.map(esc).join(', ') : esc(t('sessions.played'))}</div>`
-        : s.cancelled
-          ? `<div class="card__meta" style="color:var(--danger)">${esc(t('sessions.cancelled'))}</div>`
-          : '';
-      const card = h(`<div class="card">
-           <h3>${when}</h3>
-           <div class="card__meta">${esc(t('sessions.rated', { n: s.gameIds.length }))}</div>
-           ${chosenLine}
-           ${winnerLine}
-         </div>`);
+
+      // Thumbnail: the chosen game's cover (fallback to its type emoji), or a
+      // neutral marker when nothing was chosen / the session was cancelled.
+      const thumbStyle = chosen && chosen.image ? `style="background-image:url('${chosen.image}')"` : '';
+      const thumbFallback = chosen
+        ? chosen.image ? '' : chosen.type === 'digital' ? '💻' : '🎲'
+        : s.cancelled ? '✕' : '🗳️';
+
+      // Headline is the chosen game (with a rating pill); the date leads only when
+      // no game was played. The meta line carries the rest.
+      const title = chosen ? `🎮 ${esc(chosen.title)}` : esc(when);
+      let pill = '';
+      if (chosen) {
+        const sst = gameStatsForSession(round, s, chosen.id);
+        if (sst.avg !== null) pill = `<span class="score-pill" style="background:${avgColor(sst.avg)}">Ø ${sst.avg.toFixed(1)}</span>`;
+      }
+
+      const parts = [];
+      if (chosen) parts.push(esc(when));
+      if (s.finished) parts.push(winnerNames.length ? '🏆 ' + winnerNames.map(esc).join(', ') : esc(t('sessions.played')));
+      else if (s.cancelled) parts.push(`<span style="color:var(--danger)">${esc(t('sessions.cancelled'))}</span>`);
+      parts.push(esc(t('sessions.rated', { n: s.gameIds.length })));
+
+      const card = h(`<button class="session-card">
+           <div class="session-card__img" ${thumbStyle}>${thumbFallback}</div>
+           <div class="session-card__body">
+             <div class="session-card__title">${title}${pill}</div>
+             <div class="session-card__meta">${parts.join(' · ')}</div>
+           </div>
+         </button>`);
       card.addEventListener('click', () => showResults(round, s));
       list.appendChild(card);
     });
     sec.appendChild(list);
     app.appendChild(sec);
   }
+
+  // Link to the retired games.
+  const retiredLink = h(
+    `<div style="margin-top:12px"><button class="link-btn">${esc(t('retired.link', { n: retiredGames.length }))}</button></div>`
+  );
+  retiredLink.querySelector('button').addEventListener('click', () => showRetired(round.id));
+  app.appendChild(retiredLink);
 
   // Delete round (subtle, at the bottom)
   const del = h(`<div class="section center"><button class="link-btn" style="color:var(--danger)">${esc(t('round.deleteRound'))}</button></div>`);

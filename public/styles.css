@@ -253,6 +253,51 @@ body {
 .card__meta { color: var(--ink-soft); font-size: 15px; }
 .card__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
+/* History: past-session cards, anchored by the chosen game's cover thumbnail. */
+.session-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.session-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.08s ease;
+}
+.session-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+.session-card__img {
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  background: var(--sunken) center/cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #c8bfae;
+  flex: none;
+}
+.session-card__body { min-width: 0; flex: 1; }
+.session-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--brand-dark);
+}
+.session-card__title .score-pill { position: static; }
+.session-card__meta { color: var(--ink-soft); font-size: 14px; margin-top: 3px; }
+
 /* Game cards with image */
 .game-card {
   background: var(--surface);
