@@ -55,6 +55,7 @@ I18N.de = {
   'rec.reasonAvg': 'Ø {avg}',
   'rec.retire': '🗑️ Aussortieren',
   'rec.more': '… und {n} weitere',
+  'rec.dismiss': 'Ausblenden',
 
   'activity.title': 'Aktivitäten',
   'activity.empty': 'Noch keine Aktivitäten.',

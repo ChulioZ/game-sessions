@@ -55,6 +55,7 @@ I18N.en = {
   'rec.reasonAvg': 'Ø {avg}',
   'rec.retire': '🗑️ Retire',
   'rec.more': '… and {n} more',
+  'rec.dismiss': 'Dismiss',
 
   'activity.title': 'Activity',
   'activity.empty': 'No activity yet.',

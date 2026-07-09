@@ -683,27 +683,37 @@ body {
   background: var(--brand-tint-soft);
 }
 
-/* Retirement suggestions */
-.recommend-box {
+/* Retirement suggestions: a slim, dismissible banner. */
+.rec-banner {
   margin-top: 20px;
   background: #fdf2e3;
   border: 1px solid #f0d8a8;
   border-left: 5px solid var(--warn);
   border-radius: var(--radius);
-  padding: 16px 18px;
+  padding: 10px 14px;
 }
-.recommend-box__head {
+.rec-banner__bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-weight: 800;
-  font-size: 17px;
-  color: var(--warn);
 }
-.recommend-box__toggle { color: var(--ink-soft); font-size: 14px; }
-.recommend-box.is-min { padding-bottom: 14px; }
-.recommend-box__sub { font-size: 14px; margin: 2px 0 12px; }
+.rec-banner__text { font-weight: 700; font-size: 15px; color: var(--warn); }
+.rec-banner__actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.rec-banner__toggle { color: var(--ink-soft); font-size: 14px; }
+.rec-banner__dismiss {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px 7px;
+  border-radius: 8px;
+}
+.rec-banner__dismiss:hover { background: rgba(0, 0, 0, 0.06); color: var(--ink); }
+.rec-banner__body { margin-top: 12px; }
+.rec-banner__sub { font-size: 14px; margin: 0 0 12px; }
 .recommend-list { display: flex; flex-direction: column; gap: 8px; }
 .recommend-item {
   display: flex;
@@ -721,6 +731,19 @@ body {
 .recommend-item__reason { color: var(--warn); font-size: 14px; font-weight: 600; }
 .recommend-item__btn { flex: none; color: var(--warn); padding: 8px 14px; font-size: 15px; }
 .recommend-more { font-size: 14px; padding: 2px 4px; }
+
+/* Utility footer: quiet, grouped maintenance actions. */
+.round-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.round-footer__danger { color: var(--danger); }
 
 /* Activity feed – deliberately quiet: secondary info, not main content. A
    capped scroll region: shows a few rows, scrolls for the rest. */

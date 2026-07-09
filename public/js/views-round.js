@@ -81,38 +81,37 @@ async function showRound(rid) {
   }
   app.appendChild(hero);
 
-  // Retirement suggestions: only shown when something qualifies. Enough data =
-  // at least three times as many votes as members.
+  // Retirement suggestions: a slim, dismissible banner. Enough data = at least
+  // three times as many votes as members. Collapsed by default; expand to see
+  // the list, or dismiss it for this session.
   const recs = retireRecommendations(activeGames, statsByGame, round.members.length * 3);
-  if (recs.length) {
-    const minimized = minimizedRecs.has(round.id);
-    const box = h(`<div class="recommend-box${minimized ? ' is-min' : ''}">
-         <div class="recommend-box__head">
-           <span>${esc(t('rec.title', { n: recs.length }))}</span>
-           <button class="link-btn recommend-box__toggle">${minimized ? esc(t('rec.show')) : esc(t('rec.minimize'))}</button>
+  if (recs.length && !minimizedRecs.has(round.id)) {
+    const banner = h(`<div class="rec-banner">
+         <div class="rec-banner__bar">
+           <span class="rec-banner__text">${esc(t('rec.title', { n: recs.length }))}</span>
+           <div class="rec-banner__actions">
+             <button class="link-btn rec-banner__toggle">${esc(t('rec.show'))}</button>
+             <button class="rec-banner__dismiss" title="${esc(t('rec.dismiss'))}" aria-label="${esc(t('rec.dismiss'))}">✕</button>
+           </div>
          </div>
-         <div class="recommend-box__body">
-           <div class="muted recommend-box__sub">${esc(t('rec.sub'))}</div>
+         <div class="rec-banner__body" hidden>
+           <div class="muted rec-banner__sub">${esc(t('rec.sub'))}</div>
            <div class="recommend-list"></div>
          </div>
        </div>`);
-    const body = box.querySelector('.recommend-box__body');
-    const toggle = box.querySelector('.recommend-box__toggle');
-    if (minimized) body.style.display = 'none';
+    const body = banner.querySelector('.rec-banner__body');
+    const toggle = banner.querySelector('.rec-banner__toggle');
+    let expanded = false;
     toggle.addEventListener('click', () => {
-      if (minimizedRecs.has(round.id)) {
-        minimizedRecs.delete(round.id);
-        body.style.display = '';
-        box.classList.remove('is-min');
-        toggle.textContent = t('rec.minimize');
-      } else {
-        minimizedRecs.add(round.id);
-        body.style.display = 'none';
-        box.classList.add('is-min');
-        toggle.textContent = t('rec.show');
-      }
+      expanded = !expanded;
+      body.hidden = !expanded;
+      toggle.textContent = expanded ? t('rec.minimize') : t('rec.show');
     });
-    const list = box.querySelector('.recommend-list');
+    banner.querySelector('.rec-banner__dismiss').addEventListener('click', () => {
+      minimizedRecs.add(round.id);
+      banner.remove();
+    });
+    const list = banner.querySelector('.recommend-list');
     recs.slice(0, 5).forEach(({ game, reasons }) => {
       const item = h(`<div class="recommend-item">
            <div class="recommend-item__info">
@@ -135,7 +134,7 @@ async function showRound(rid) {
     if (recs.length > 5) {
       list.appendChild(h(`<div class="muted recommend-more">${esc(t('rec.more', { n: recs.length - 5 }))}</div>`));
     }
-    app.appendChild(box);
+    app.appendChild(banner);
   }
 
   // Games
@@ -390,21 +389,20 @@ async function showRound(rid) {
   }
   app.appendChild(feedSec);
 
-  // Link to the retired games.
-  const retiredLink = h(
-    `<div style="margin-top:12px"><button class="link-btn">${esc(t('retired.link', { n: retiredGames.length }))}</button></div>`
-  );
-  retiredLink.querySelector('button').addEventListener('click', () => showRetired(round.id));
-  app.appendChild(retiredLink);
-
-  // Delete round (subtle, at the bottom)
-  const del = h(`<div class="section center"><button class="link-btn" style="color:var(--danger)">${esc(t('round.deleteRound'))}</button></div>`);
-  del.querySelector('button').addEventListener('click', async () => {
+  // Utility footer: quiet, grouped maintenance actions (view retired games,
+  // delete the round) set off from the content above.
+  const footer = h('<div class="round-footer"></div>');
+  const retiredBtn = h(`<button class="link-btn">${esc(t('retired.link', { n: retiredGames.length }))}</button>`);
+  retiredBtn.addEventListener('click', () => showRetired(round.id));
+  const delBtn = h(`<button class="link-btn round-footer__danger">${esc(t('round.deleteRound'))}</button>`);
+  delBtn.addEventListener('click', async () => {
     if (!confirm(t('round.deleteConfirm', { name: round.name }))) return;
     await api('DELETE', '/api/rounds/' + rid);
     showHome();
   });
-  app.appendChild(del);
+  footer.appendChild(retiredBtn);
+  footer.appendChild(delBtn);
+  app.appendChild(footer);
 }
 
 // =================== Retired games ===================
