@@ -87,6 +87,8 @@ I18N.de = {
   'games.showAll': '▼ Alle {n} Spiele anzeigen',
   'games.showLess': '▲ Weniger anzeigen',
   'games.showAllShort': '▼ Alle anzeigen',
+  'games.search': 'Spiele suchen',
+  'games.noMatch': 'Keine Spiele passen zu „{q}“.',
 
   'retired.link': '🗑️ Aussortierte Spiele ansehen ({n})',
   'retired.crumb': 'Aussortierte Spiele',

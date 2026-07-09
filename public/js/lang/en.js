@@ -87,6 +87,8 @@ I18N.en = {
   'games.showAll': '▼ Show all {n} games',
   'games.showLess': '▲ Show less',
   'games.showAllShort': '▼ Show all',
+  'games.search': 'Search games',
+  'games.noMatch': 'No games match “{q}”.',
 
   'retired.link': '🗑️ View retired games ({n})',
   'retired.crumb': 'Retired games',
