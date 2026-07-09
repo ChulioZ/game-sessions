@@ -235,6 +235,70 @@ function avgColor(avg) {
   return `hsl(${hue}, 60%, 42%)`;
 }
 
+// --- Anchored popover (small floating menu next to a clicked element) ---
+// Used for the inline edit menus on the game detail page. Only one is open at a
+// time; it closes on Escape, an outside click, or a page scroll/resize.
+let activePopover = null;
+function closePopover() {
+  if (!activePopover) return;
+  activePopover.el.remove();
+  document.removeEventListener('mousedown', activePopover.onDoc, true);
+  document.removeEventListener('keydown', activePopover.onKey, true);
+  window.removeEventListener('resize', activePopover.onGone, true);
+  window.removeEventListener('scroll', activePopover.onGone, true);
+  activePopover = null;
+}
+function openPopover(anchor, build) {
+  closePopover();
+  const el = h('<div class="popover"></div>');
+  const close = () => closePopover();
+  build(el, close);
+  document.body.appendChild(el);
+
+  // Prefer below the anchor; flip above if it wouldn't fit. Clamp horizontally.
+  const r = anchor.getBoundingClientRect();
+  const margin = 8;
+  const below = window.scrollY + r.bottom + 6;
+  const above = window.scrollY + r.top - el.offsetHeight - 6;
+  const fitsBelow = r.bottom + el.offsetHeight + 6 <= window.innerHeight;
+  el.style.top = (fitsBelow || above < window.scrollY ? below : above) + 'px';
+  let left = window.scrollX + r.left;
+  const maxLeft = window.scrollX + document.documentElement.clientWidth - el.offsetWidth - margin;
+  left = Math.max(window.scrollX + margin, Math.min(left, maxLeft));
+  el.style.left = left + 'px';
+
+  const onDoc = (e) => { if (!el.contains(e.target) && !anchor.contains(e.target)) close(); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const onGone = () => close();
+  document.addEventListener('mousedown', onDoc, true);
+  document.addEventListener('keydown', onKey, true);
+  window.addEventListener('resize', onGone, true);
+  window.addEventListener('scroll', onGone, true);
+  activePopover = { el, onDoc, onKey, onGone };
+  return { el, close };
+}
+
+// Read a single image from the clipboard (used to set a cover image on click).
+// Returns a Blob, or null after showing a toast explaining what went wrong.
+async function readClipboardImage() {
+  try {
+    if (!navigator.clipboard || !navigator.clipboard.read) {
+      toast(t('addGame.toast.useShortcut'));
+      return null;
+    }
+    const items = await navigator.clipboard.read();
+    for (const it of items) {
+      const imgType = it.types.find((ty) => ty.startsWith('image/'));
+      if (imgType) return await it.getType(imgType);
+    }
+    toast(t('addGame.toast.noImage'));
+    return null;
+  } catch (err) {
+    toast(t('addGame.toast.pasteFail'));
+    return null;
+  }
+}
+
 // Copy of an array in random order (Fisher–Yates).
 function shuffled(arr) {
   const a = arr.slice();

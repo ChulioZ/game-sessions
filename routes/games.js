@@ -47,6 +47,60 @@ router.post('/', upload.single('image'), (req, res) => {
   res.status(201).json(game);
 });
 
+// Edit game details. Accepts any subset of title, type, duration, min/max
+// players and the cover image. Sent as JSON, or as multipart when an image is
+// involved (new file, or removeImage=true to clear the current one).
+router.patch('/:gid', upload.single('image'), (req, res) => {
+  const round = findRound(req.params.rid);
+  if (!round) return res.status(404).json({ error: 'Round not found' });
+  const game = round.games.find((g) => g.id === req.params.gid);
+  if (!game) return res.status(404).json({ error: 'Game not found' });
+
+  const b = req.body;
+
+  if (b.title !== undefined) {
+    const title = String(b.title).trim();
+    if (!title) return res.status(400).json({ error: 'Title is missing' });
+    game.title = title;
+  }
+  if (b.type !== undefined) {
+    game.type = b.type === 'digital' ? 'digital' : 'analog';
+  }
+  if (b.duration !== undefined) {
+    if (!DURATIONS.includes(b.duration))
+      return res.status(400).json({ error: 'Invalid duration' });
+    game.duration = b.duration;
+  }
+  if (b.minPlayers !== undefined || b.maxPlayers !== undefined) {
+    const minPlayers = b.minPlayers !== undefined ? parseInt(b.minPlayers, 10) : game.minPlayers;
+    const maxPlayers = b.maxPlayers !== undefined ? parseInt(b.maxPlayers, 10) : game.maxPlayers;
+    if (!Number.isInteger(minPlayers) || minPlayers < 1)
+      return res.status(400).json({ error: 'minPlayers must be an integer >= 1' });
+    if (!Number.isInteger(maxPlayers) || maxPlayers < minPlayers)
+      return res.status(400).json({ error: 'maxPlayers must be an integer >= minPlayers' });
+    game.minPlayers = minPlayers;
+    game.maxPlayers = maxPlayers;
+  }
+
+  // Image: a new upload replaces the old file; removeImage clears it. The old
+  // file is deleted unless another game still references it.
+  const oldImage = game.image;
+  if (req.file) {
+    game.image = '/uploads/' + req.file.filename;
+  } else if (b.removeImage === 'true' || b.removeImage === true) {
+    game.image = null;
+  }
+  if (oldImage && oldImage !== game.image) {
+    const stillUsed = data.rounds.some((r) => r.games.some((g) => g.image === oldImage));
+    if (!stillUsed) fs.unlink(path.join(UPLOAD_DIR, path.basename(oldImage)), () => {});
+  }
+
+  // No activity entry: with inline editing, small tweaks are frequent and would
+  // just clutter the feed. Retire/restore/add/delete remain the noteworthy events.
+  saveData();
+  res.json(game);
+});
+
 // Retire a game (or take it back into the collection). The game is kept, only
 // flagged as retired with a timestamp.
 router.post('/:gid/retire', (req, res) => {

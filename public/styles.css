@@ -733,9 +733,89 @@ body {
   flex: none;
 }
 .gd-info { flex: 1; min-width: 240px; }
-.gd-info h1 { margin: 0 0 14px; font-size: 26px; }
+.gd-info h1 { margin: 0 0 14px; font-size: 26px; line-height: 1.5; }
 .gd-score { font-size: 54px; font-weight: 800; line-height: 1; }
 .gd-score--none { color: var(--ink-soft); }
+
+/* --- Inline editing on the game detail page --- */
+.gd-title {
+  cursor: text;
+  border-radius: 6px;
+  padding: 0 4px;
+  margin: 0 -4px;
+  box-decoration-break: clone;
+  transition: background 0.12s;
+}
+.gd-title:hover { background: var(--brand-tint); }
+.gd-title-input {
+  font-size: 26px;
+  font-weight: 800;
+  padding: 2px 6px;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+/* Tags become clickable edit controls. */
+.tag--edit { cursor: pointer; transition: filter 0.12s, box-shadow 0.12s; }
+.tag--edit:hover { filter: brightness(0.96); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16); }
+.tag--empty {
+  background: transparent;
+  border: 1px dashed var(--brand-edge, var(--line));
+  color: var(--ink-soft);
+}
+
+/* Cover image: hover overlay hinting it can be changed. */
+.gd-img--edit { position: relative; cursor: pointer; overflow: hidden; }
+.gd-img__edit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.62), rgba(0, 0, 0, 0));
+  opacity: 0;
+  transition: opacity 0.14s;
+  pointer-events: none;
+}
+.gd-img--edit:hover .gd-img__edit,
+.gd-img--edit:focus-visible .gd-img__edit { opacity: 1; }
+
+/* Anchored popover used by the edit menus. */
+.popover {
+  position: absolute;
+  z-index: 100;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 300px;
+}
+.popover__opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.popover__opt:hover { background: var(--brand-tint); }
+.popover__opt.is-current { border-color: var(--brand); background: var(--brand-tint); }
+.popover--players .pp-row { display: flex; align-items: center; gap: 8px; }
+.popover--players .pp-row .input { width: 68px; }
+.popover--image { min-width: 220px; }
+.popover__hint { font-size: 13px; }
 
 .ds-list { display: flex; flex-direction: column; gap: 10px; }
 .ds-row {

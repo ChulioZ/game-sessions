@@ -530,9 +530,137 @@ async function showGameDetail(rid, gameId) {
   const st = gameStats(round, gameId);
   const imgStyle = game.image ? `style="background-image:url('${game.image}')"` : '';
   const fallback = game.image ? '' : (game.type === 'digital' ? '💻' : '🎲');
-  const retiredBadge = game.retired ? ` <span class="tag tag--retired">${t('result.retiredTag')}</span>` : '';
-
   app.innerHTML = '';
+
+  // Send a partial update, then re-render the page from fresh data.
+  async function updateGame(updates) {
+    const { imageBlob, removeImage, ...fields } = updates;
+    let body;
+    if (imageBlob || removeImage) {
+      // Image involved → multipart. Scalar fields ride along as form fields.
+      body = new FormData();
+      Object.entries(fields).forEach(([k, v]) => body.append(k, v));
+      if (imageBlob) {
+        const ext = (imageBlob.type && imageBlob.type.split('/')[1]) || 'png';
+        body.append('image', imageBlob, 'cover.' + ext);
+      }
+      if (removeImage) body.append('removeImage', 'true');
+    } else {
+      body = fields;
+    }
+    try {
+      await api('PATCH', `/api/rounds/${rid}/games/${gameId}`, body);
+      toast(t('detail.saved'));
+      showGameDetail(rid, gameId);
+    } catch (e) {
+      toast(e.message);
+    }
+  }
+
+  // Turn a tag into a click-to-edit control.
+  function makeEditableTag(el, onClick) {
+    el.classList.add('tag--edit');
+    el.title = t('detail.editHint');
+    el.addEventListener('click', onClick);
+  }
+
+  // Click the title → inline input; Enter/blur saves, Escape cancels.
+  function startTitleEdit(spanEl) {
+    const input = h('<input class="input gd-title-input" />');
+    input.value = game.title;
+    spanEl.replaceWith(input);
+    input.focus();
+    input.select();
+    let handled = false;
+    const commit = () => {
+      if (handled) return;
+      handled = true;
+      const val = input.value.trim();
+      if (!val || val === game.title) {
+        input.replaceWith(spanEl); // nothing changed
+        return;
+      }
+      updateGame({ title: val });
+    };
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+      else if (e.key === 'Escape') { handled = true; input.replaceWith(spanEl); }
+    });
+  }
+
+  // A little menu of mutually exclusive options (type, duration).
+  function openMenu(anchor, options, current, onPick) {
+    openPopover(anchor, (el, close) => {
+      el.classList.add('popover--menu');
+      options.forEach((opt) => {
+        const btn = h(`<button class="popover__opt${opt.value === current ? ' is-current' : ''}">${opt.label}</button>`);
+        btn.addEventListener('click', () => {
+          close();
+          if (opt.value !== current) onPick(opt.value);
+        });
+        el.appendChild(btn);
+      });
+    });
+  }
+
+  // Min–max player inputs in a popover.
+  function openPlayersPopover(anchor) {
+    openPopover(anchor, (el, close) => {
+      el.classList.add('popover--players');
+      const min = h('<input class="input" inputmode="numeric" />');
+      const max = h('<input class="input" inputmode="numeric" />');
+      if (Number.isInteger(game.minPlayers)) min.value = game.minPlayers;
+      if (Number.isInteger(game.maxPlayers)) max.value = game.maxPlayers;
+      [min, max].forEach((inp) => inp.addEventListener('input', () => {
+        const digits = inp.value.replace(/\D/g, '');
+        if (inp.value !== digits) inp.value = digits;
+      }));
+      const okBtn = h(`<button class="btn btn--primary">${esc(t('common.ok'))}</button>`);
+      const save = () => {
+        const mn = parseInt(min.value, 10);
+        const mx = parseInt(max.value, 10);
+        if (!Number.isInteger(mn) || mn < 1 || !Number.isInteger(mx) || mx < 1)
+          return toast(t('addGame.toast.needPlayers'));
+        if (mx < mn) return toast(t('addGame.toast.playersRange'));
+        close();
+        updateGame({ minPlayers: mn, maxPlayers: mx });
+      };
+      okBtn.addEventListener('click', save);
+      [min, max].forEach((inp) => inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); save(); }
+      }));
+      const row = h('<div class="pp-row"></div>');
+      row.appendChild(min);
+      row.appendChild(h('<span>–</span>'));
+      row.appendChild(max);
+      row.appendChild(okBtn);
+      el.appendChild(row);
+      min.focus();
+      min.select();
+    });
+  }
+
+  // Paste a new cover image, or remove the current one.
+  function openImagePopover(anchor) {
+    openPopover(anchor, (el, close) => {
+      el.classList.add('popover--image');
+      const paste = h(`<button class="btn btn--primary">${esc(t('detail.pasteImage'))}</button>`);
+      paste.addEventListener('click', async () => {
+        const blob = await readClipboardImage();
+        if (!blob) return; // toast already shown; keep popover open to retry
+        close();
+        updateGame({ imageBlob: blob });
+      });
+      el.appendChild(paste);
+      if (game.image) {
+        const rm = h(`<button class="btn btn--ghost">${esc(t('addGame.removeImage'))}</button>`);
+        rm.addEventListener('click', () => { close(); updateGame({ removeImage: true }); });
+        el.appendChild(rm);
+      }
+      el.appendChild(h(`<div class="muted popover__hint">${esc(t('detail.imageHint'))}</div>`));
+    });
+  }
 
   // Header: image + title + average.
   const ratingsLine = t(st.count === 1 ? 'detail.ratingsLineOne' : 'detail.ratingsLine', { n: st.count, s: st.sessions });
@@ -545,15 +673,52 @@ async function showGameDetail(rid, gameId) {
     ? `<div class="sort-flag" style="margin-top:8px">${esc(t('detail.totalSort', { n: st.sortCount }))}</div>`
     : '';
 
-  app.appendChild(
-    h(`<div class="gd-head">
-         <div class="gd-img" ${imgStyle}>${fallback}</div>
-         <div class="gd-info">
-           <h1>${esc(game.title)} ${typeTag(game.type)} ${durationTag(game.duration)} ${playersTag(game.minPlayers, game.maxPlayers)}${retiredBadge}</h1>
-           <div class="gd-stats">${scoreBig}${sortLine}</div>
-         </div>
-       </div>`)
-  );
+  const head = h(`<div class="gd-head">
+       <div class="gd-info">
+         <h1></h1>
+         <div class="gd-stats">${scoreBig}${sortLine}</div>
+       </div>
+     </div>`);
+
+  // Editable cover image (click to paste a new one or remove it).
+  const imgEl = h(`<div class="gd-img gd-img--edit" ${imgStyle} title="${esc(t('detail.changeImage'))}">${fallback}<span class="gd-img__edit">${esc(t('detail.changeImage'))}</span></div>`);
+  imgEl.addEventListener('click', () => openImagePopover(imgEl));
+  head.prepend(imgEl);
+
+  // Title + editable tags.
+  const h1 = head.querySelector('h1');
+  const space = () => document.createTextNode(' ');
+
+  const titleEl = h(`<span class="gd-title" title="${esc(t('detail.editName'))}">${esc(game.title)}</span>`);
+  titleEl.addEventListener('click', () => startTitleEdit(titleEl));
+  h1.append(titleEl, space());
+
+  const typeEl = h(typeTag(game.type));
+  makeEditableTag(typeEl, () => openMenu(typeEl, [
+    { value: 'analog', label: t('type.analog') },
+    { value: 'digital', label: t('type.digital') },
+  ], game.type, (v) => updateGame({ type: v })));
+
+  const hasDur = ['short', 'medium', 'long'].includes(game.duration);
+  const durEl = hasDur
+    ? h(durationTag(game.duration))
+    : h(`<span class="tag tag--duration tag--empty">${esc(t('detail.setDuration'))}</span>`);
+  makeEditableTag(durEl, () => openMenu(durEl, [
+    { value: 'short', label: t('duration.short') },
+    { value: 'medium', label: t('duration.medium') },
+    { value: 'long', label: t('duration.long') },
+  ], game.duration, (v) => updateGame({ duration: v })));
+
+  const hasPl = Number.isInteger(game.minPlayers) && Number.isInteger(game.maxPlayers);
+  const plEl = hasPl
+    ? h(playersTag(game.minPlayers, game.maxPlayers))
+    : h(`<span class="tag tag--players tag--empty">${esc(t('detail.setPlayers'))}</span>`);
+  makeEditableTag(plEl, () => openPlayersPopover(plEl));
+
+  h1.append(typeEl, space(), durEl, space(), plEl);
+  if (game.retired) h1.append(space(), h(`<span class="tag tag--retired">${esc(t('result.retiredTag'))}</span>`));
+
+  app.appendChild(head);
 
   // Retire / restore right from here.
   const actionWrap = h('<div class="toolbar" style="margin-top:18px"></div>');
