@@ -43,6 +43,9 @@ I18N.de = {
   'round.addGame': '➕ Spiel hinzufügen',
   'round.deleteRound': 'Diese Runde löschen',
   'round.deleteConfirm': 'Runde „{name}“ mit allen Spielen und Sessions löschen?',
+  'round.statLine': '🎮 {g} Spiele · 🗳️ {s}× gespielt',
+  'round.lastPlayed': '🎲 Zuletzt gespielt: {game}',
+  'round.lastPlayedWon': '🎲 Zuletzt gespielt: {game} · 🏆 {names}',
 
   'rec.title': '🗑️ Aussortieren empfohlen ({n})',
   'rec.minimize': '▾ Minimieren',

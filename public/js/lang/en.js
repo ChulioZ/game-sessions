@@ -43,6 +43,9 @@ I18N.en = {
   'round.addGame': '➕ Add game',
   'round.deleteRound': 'Delete this round',
   'round.deleteConfirm': 'Delete round “{name}” with all its games and sessions?',
+  'round.statLine': '🎮 {g} games · 🗳️ played {s}×',
+  'round.lastPlayed': '🎲 Last played: {game}',
+  'round.lastPlayedWon': '🎲 Last played: {game} · 🏆 {names}',
 
   'rec.title': '🗑️ Retirement suggested ({n})',
   'rec.minimize': '▾ Minimize',

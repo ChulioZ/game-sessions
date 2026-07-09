@@ -12,15 +12,6 @@ async function showRound(rid) {
   setCrumbs([{ label: t('nav.home'), onClick: showHome }, { label: round.name }]);
 
   app.innerHTML = '';
-  const head = h(`<div class="page-head">
-       <div>
-         <h1>${esc(round.name)}</h1>
-         <div class="muted">👥 ${round.members.map((m) => esc(m.name)).join(', ')}</div>
-       </div>
-       <button class="btn" id="bgBtn">${esc(t('round.design'))}</button>
-     </div>`);
-  head.querySelector('#bgBtn').addEventListener('click', () => showBackground(rid));
-  app.appendChild(head);
 
   // Active games (in the collection) vs. retired games.
   const activeGames = round.games.filter((g) => !g.retired);
@@ -30,19 +21,65 @@ async function showRound(rid) {
   const statsByGame = {};
   activeGames.forEach((g) => (statsByGame[g.id] = gameStats(round, g.id)));
 
-  // Actions
-  const actions = h('<div class="toolbar"></div>');
+  // --- Hero band: the round's identity plus the primary "start session" action.
+  // This is the launchpad; the start button is the single accent CTA, add-game
+  // and design are quieter secondary buttons beside it.
+  const playedCount = round.sessions.filter((s) => s.finished).length;
+  const initials = (name) => {
+    const parts = String(name).trim().split(/\s+/).filter(Boolean);
+    const raw = parts.length >= 2 ? parts[0][0] + parts[1][0] : String(name).trim().slice(0, 2);
+    return raw.toUpperCase();
+  };
+  const hero = h(`<div class="hero">
+       <div class="hero__top">
+         <div class="hero__id">
+           <h1>${esc(round.name)}</h1>
+           <div class="hero__members">${round.members
+             .map((m) => `<span class="avatar" title="${esc(m.name)}">${esc(initials(m.name))}</span>`)
+             .join('')}</div>
+           <div class="hero__stats muted">${esc(t('round.statLine', { g: activeGames.length, s: playedCount }))}</div>
+         </div>
+         <div class="hero__actions"></div>
+       </div>
+     </div>`);
+  const heroActions = hero.querySelector('.hero__actions');
+
+  const addGameBtn = h(`<button class="btn">${esc(t('round.addGame'))}</button>`);
+  addGameBtn.addEventListener('click', () => showAddGame(round));
+  const bgBtn = h(`<button class="btn">${esc(t('round.design'))}</button>`);
+  bgBtn.addEventListener('click', () => showBackground(rid));
   const startBtn = h(`<button class="btn btn--primary btn--lg">${esc(t('round.startSession'))}</button>`);
   startBtn.addEventListener('click', () => showStartSession(round));
   if (activeGames.length === 0) {
     startBtn.disabled = true;
     startBtn.title = t('round.startSessionDisabled');
   }
-  const addGameBtn = h(`<button class="btn btn--lg">${esc(t('round.addGame'))}</button>`);
-  addGameBtn.addEventListener('click', () => showAddGame(round));
-  actions.appendChild(startBtn);
-  actions.appendChild(addGameBtn);
-  app.appendChild(actions);
+  heroActions.appendChild(addGameBtn);
+  heroActions.appendChild(bgBtn);
+  heroActions.appendChild(startBtn);
+
+  // "Last played" highlight: the newest finished session whose chosen game still
+  // exists. Delivers the emotional payoff above the fold; tap opens that result.
+  const lastPlayed = round.sessions
+    .filter((s) => s.finished && s.chosenGameId && round.games.some((g) => g.id === s.chosenGameId))
+    .sort((a, b) =>
+      String(b.finishedAt || b.chosenAt || b.createdAt).localeCompare(
+        String(a.finishedAt || a.chosenAt || a.createdAt)
+      )
+    )[0];
+  if (lastPlayed) {
+    const game = round.games.find((g) => g.id === lastPlayed.chosenGameId);
+    const winnerNames = (lastPlayed.winnerIds || [])
+      .map((wid) => (round.members.find((m) => m.id === wid) || {}).name)
+      .filter(Boolean);
+    const label = winnerNames.length
+      ? t('round.lastPlayedWon', { game: game.title, names: joinNames(winnerNames) })
+      : t('round.lastPlayed', { game: game.title });
+    const lastEl = h(`<button class="hero__last">${esc(label)}</button>`);
+    lastEl.addEventListener('click', () => showResults(round, lastPlayed));
+    hero.appendChild(lastEl);
+  }
+  app.appendChild(hero);
 
   // Retirement suggestions: only shown when something qualifies. Enough data =
   // at least three times as many votes as members.

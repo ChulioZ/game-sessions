@@ -107,6 +107,59 @@ body {
 .page-head h1 { font-size: 28px; margin: 0; }
 .page-head h2 { font-size: 22px; margin: 0; }
 .muted { color: var(--ink-soft); }
+
+/* ---- Round hero band (launchpad: identity + start-session CTA) ---- */
+.hero { margin-bottom: 24px; }
+.hero__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.hero__id { min-width: 0; }
+.hero__id h1 { font-size: 28px; margin: 0; }
+.hero__members { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--brand-tint);
+  color: var(--brand-dark);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.hero__stats { margin-top: 10px; font-size: 15px; }
+.hero__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  flex-wrap: wrap;
+}
+.hero__last {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--brand-dark);
+  background: var(--brand-tint-soft);
+  border: 1px solid var(--brand-edge);
+  border-radius: 999px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.hero__last:hover { background: var(--brand-tint); }
+
 .section { margin-top: 32px; }
 .section h3 {
   font-size: 16px;
