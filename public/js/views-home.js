@@ -54,7 +54,7 @@ async function showHome() {
            <span class="round-card__meta">
              <span class="avatar-stack">${stack}</span>
              <span class="stat-chip"><i class="ti ti-cards" aria-hidden="true"></i>${esc(tn(r.gameCount, 'home.chip.gamesOne', 'home.chip.games'))}</span>
-             <span class="stat-chip"><i class="ti ti-confetti" aria-hidden="true"></i>${esc(tn(r.playedCount, 'home.chip.nightsOne', 'home.chip.nights'))}</span>
+             <span class="stat-chip"><i class="ti ti-confetti" aria-hidden="true"></i>${esc(tn(r.playedCount, 'home.chip.sessionsOne', 'home.chip.sessions'))}</span>
            </span>
            ${lastLine}
          </span>

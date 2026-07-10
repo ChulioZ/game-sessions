@@ -60,7 +60,7 @@ function renderStartTab(round, activeGames) {
          .join('')}</div>
        <div class="hero__chips">
          <span class="stat-chip"><i class="ti ti-cards" aria-hidden="true"></i>${esc(tn(activeGames.length, 'home.chip.gamesOne', 'home.chip.games'))}</span>
-         <span class="stat-chip"><i class="ti ti-confetti" aria-hidden="true"></i>${esc(tn(playedCount, 'home.chip.nightsOne', 'home.chip.nights'))}</span>
+         <span class="stat-chip"><i class="ti ti-confetti" aria-hidden="true"></i>${esc(tn(playedCount, 'home.chip.sessionsOne', 'home.chip.sessions'))}</span>
        </div>
      </div>`);
   app.appendChild(hero);
@@ -387,7 +387,7 @@ function renderRegalTab(round, activeGames) {
   app.appendChild(foot);
 }
 
-// --- Chronik tab: one timeline of game nights and shelf changes.
+// --- Chronik tab: one timeline of sessions and shelf changes.
 function renderChronikTab(round) {
   const rid = round.id;
 
@@ -411,7 +411,7 @@ function renderChronikTab(round) {
   const sec = h('<div class="section"></div>');
   sec.appendChild(h(`<div class="section-head"><h3>${esc(t('chronik.title'))}</h3></div>`));
 
-  // Filter chips: everything / game nights only / shelf changes only.
+  // Filter chips: everything / sessions only / shelf changes only.
   let filter = 'all';
   const chips = h(`<div class="filter-chips">
       <button class="chip is-on" data-f="all">${esc(t('chronik.filter.all'))}</button>
@@ -627,7 +627,7 @@ function renderPokaleTab(round) {
     .map((gid) => round.games.find((x) => x.id === gid).title);
   if (mostTitles.length) {
     cards.appendChild(
-      statCard('ti-flame', t('pokale.mostPlayed'), mostTitles.join(', '), tn(maxPlays, 'home.chip.nightsOne', 'home.chip.nights'))
+      statCard('ti-flame', t('pokale.mostPlayed'), mostTitles.join(', '), tn(maxPlays, 'home.chip.sessionsOne', 'home.chip.sessions'))
     );
   }
 
