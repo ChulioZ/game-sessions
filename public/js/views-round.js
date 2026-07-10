@@ -75,6 +75,45 @@ function renderStartTab(round, activeGames) {
   }
   app.appendChild(startBtn);
 
+  // "In progress" tickets: sessions whose voting is done but that have not yet
+  // reached a final state (no winner recorded, not cancelled). Shown above the
+  // last-played ticket, newest first; tapping resumes on the results screen.
+  round.sessions
+    .filter((s) => s.done && !s.finished && !s.cancelled)
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .forEach((session) => {
+      const game = session.chosenGameId && round.games.find((g) => g.id === session.chosenGameId);
+      const when = fmtDateTime(session.chosenAt || session.createdAt);
+      const imgStyle = game && game.image ? ` style="background-image:url('${game.image}')"` : '';
+      const fallback = game
+        ? game.image
+          ? ''
+          : `<i class="ti ${game.type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3'}" aria-hidden="true"></i>`
+        : '<i class="ti ti-dice-5" aria-hidden="true"></i>';
+      let pill = '';
+      if (game) {
+        const sst = gameStatsForSession(round, session, game.id);
+        if (sst.avg !== null) pill = `<span class="score-pill" style="background:${avgColor(sst.avg)}">Ø ${sst.avg.toFixed(1)}</span>`;
+      }
+      const title = game ? esc(game.title) : esc(t('round.inProgressDeciding'));
+      const ticket = h(`<button class="ticket ticket--live">
+           <span class="ticket__main">
+             <span class="ticket__img"${imgStyle}>${fallback}</span>
+             <span class="ticket__info">
+               <span class="ticket__label">${esc(t('round.inProgressLabel'))}</span>
+               <span class="ticket__title">${title}</span>
+               <span class="ticket__meta">${esc(when)}${pill}</span>
+             </span>
+           </span>
+           <span class="ticket__stub">
+             <i class="ti ti-player-play" aria-hidden="true"></i>
+             <span class="ticket__names">${esc(t('round.resume'))}</span>
+           </span>
+         </button>`);
+      ticket.addEventListener('click', () => showResults(round, session));
+      app.appendChild(ticket);
+    });
+
   // "Last played" ticket: the newest finished session whose chosen game still
   // exists. Delivers the emotional payoff above the fold; tap opens that result.
   const lastPlayed = round.sessions

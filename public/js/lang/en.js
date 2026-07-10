@@ -55,6 +55,9 @@ I18N.en = {
   'round.deleteRound': 'Delete this round',
   'round.deleteConfirm': 'Delete round “{name}” with all its games and sessions?',
   'round.lastPlayedLabel': 'Last played',
+  'round.inProgressLabel': 'In progress',
+  'round.inProgressDeciding': 'Choosing a game',
+  'round.resume': 'Resume',
 
   'hub.tab.start': 'Start',
   'hub.tab.regal': 'Shelf',

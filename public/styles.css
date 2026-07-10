@@ -257,6 +257,10 @@ h1, h2, h3 { font-family: var(--font-display); }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* In-progress ticket: an unfinished game night waiting to be resumed. */
+.ticket--live { border-color: var(--brand); box-shadow: inset 3px 0 0 0 var(--brand); }
+.ticket--live .ticket__label { color: var(--brand-dark); }
+.ticket--live .ticket__stub .ti { color: var(--brand); }
 
 /* Floating dock: the hub's tab bar, pinned above the page bottom. */
 .dock {

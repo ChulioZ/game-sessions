@@ -55,6 +55,9 @@ I18N.de = {
   'round.deleteRound': 'Diese Runde löschen',
   'round.deleteConfirm': 'Runde „{name}“ mit allen Spielen und Sessions löschen?',
   'round.lastPlayedLabel': 'Zuletzt gespielt',
+  'round.inProgressLabel': 'Läuft gerade',
+  'round.inProgressDeciding': 'Spiel wird gewählt',
+  'round.resume': 'Fortsetzen',
 
   'hub.tab.start': 'Start',
   'hub.tab.regal': 'Regal',
