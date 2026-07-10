@@ -39,6 +39,42 @@ test('GET /api/rounds returns a compact list counting only active games', async 
   assert.equal(entry.memberCount, 2);
 });
 
+test('GET /api/rounds summary carries members, background and lastPlayed', async () => {
+  const round = await createRound(request); // Alice, Bob
+
+  let res = await request(app).get('/api/rounds');
+  let entry = res.body.find((r) => r.id === round.id);
+  assert.deepEqual(entry.members.map((m) => m.name), ['Alice', 'Bob']);
+  assert.equal(entry.background, null);
+  assert.equal(entry.lastPlayed, null);
+  assert.equal(entry.playedCount, 0);
+
+  // Play one full session: draw, choose the game, finish with Alice winning.
+  const game = (
+    await request(app)
+      .post(`/api/rounds/${round.id}/games`)
+      .field('title', 'Chess')
+      .field('minPlayers', '2')
+      .field('maxPlayers', '2')
+  ).body;
+  const session = (await request(app).post(`/api/rounds/${round.id}/sessions`).send({})).body
+    .session;
+  await request(app)
+    .post(`/api/rounds/${round.id}/sessions/${session.id}/choice`)
+    .send({ gameId: game.id });
+  const alice = round.members[0];
+  await request(app)
+    .post(`/api/rounds/${round.id}/sessions/${session.id}/finish`)
+    .send({ finished: true, winnerIds: [alice.id] });
+
+  res = await request(app).get('/api/rounds');
+  entry = res.body.find((r) => r.id === round.id);
+  assert.equal(entry.playedCount, 1);
+  assert.equal(entry.lastPlayed.gameTitle, 'Chess');
+  assert.deepEqual(entry.lastPlayed.winnerNames, ['Alice']);
+  assert.ok(entry.lastPlayed.at);
+});
+
 test('GET /api/rounds/:rid 404s for an unknown round', async () => {
   const res = await request(app).get('/api/rounds/does-not-exist');
   assert.equal(res.status, 404);
