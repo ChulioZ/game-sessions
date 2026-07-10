@@ -184,7 +184,7 @@ function renderStartTab(round, activeGames) {
   app.appendChild(actions);
 }
 
-// --- Regal tab: the games library.
+// --- Regal tab: the games library — search, filter chips, cover grid.
 function renderRegalTab(round, activeGames) {
   const rid = round.id;
 
@@ -196,26 +196,73 @@ function renderRegalTab(round, activeGames) {
   const gamesHead = h(`<div class="section-head"><h3>${esc(t('games.title', { n: activeGames.length }))}</h3><div class="section-tools"></div></div>`);
   const gamesTools = gamesHead.querySelector('.section-tools');
   gamesSec.appendChild(gamesHead);
+
+  const grid = h('<div class="cards"></div>');
+
+  // The dashed "add a game" tile always closes the grid.
+  const addTile = h(`<button class="add-tile">
+       <i class="ti ti-plus" aria-hidden="true"></i>
+       <span>${esc(t('round.addGame'))}</span>
+     </button>`);
+  addTile.addEventListener('click', () => showAddGame(round));
+
   if (activeGames.length === 0) {
     gamesSec.appendChild(h(`<div class="empty"><p>${esc(t('games.empty'))}</p></div>`));
+    grid.appendChild(addTile);
+    gamesSec.appendChild(grid);
   } else {
     // Average per game (from the already computed stats) for pill and sorting.
     const avgMap = {};
     activeGames.forEach((g) => (avgMap[g.id] = statsByGame[g.id].avg));
 
-    // Search + sort next to the heading. Sort is kept for the session; the
-    // search query is local to this view.
-    const searchInput = h(`<input class="games-search" type="search" placeholder="${esc(t('games.search'))}" aria-label="${esc(t('games.search'))}" />`);
-    const sortSel = h(`<select class="sort-select" aria-label="${esc(t('games.sort.random'))}">
+    // Search pill + sort next to the heading. Sort is kept for the session;
+    // search and filter chips are local to this view.
+    const search = h(`<label class="search-pill"><i class="ti ti-search" aria-hidden="true"></i><input type="search" placeholder="${esc(t('games.search'))}" aria-label="${esc(t('games.search'))}" /></label>`);
+    const searchInput = search.querySelector('input');
+    const sortSel = h(`<select class="sort-select" aria-label="${esc(t('games.sortLabel'))}">
         <option value="random">${esc(t('games.sort.random'))}</option>
         <option value="name">${esc(t('games.sort.name'))}</option>
         <option value="avg">${esc(t('games.sort.rating'))}</option>
       </select>`);
     sortSel.value = gamesSort;
-    gamesTools.appendChild(searchInput);
+    gamesTools.appendChild(search);
     gamesTools.appendChild(sortSel);
 
-    const grid = h('<div class="cards"></div>');
+    // Filter chips: type behaves like a radio group, durations toggle freely
+    // (none selected = duration doesn't matter).
+    const counts = {
+      analog: activeGames.filter((g) => g.type === 'analog').length,
+      digital: activeGames.filter((g) => g.type === 'digital').length,
+    };
+    let typeFilter = 'all';
+    const durFilter = new Set();
+    let query = '';
+    const chips = h(`<div class="filter-chips">
+        <button class="chip is-on" data-type="all">${esc(t('games.filter.all', { n: activeGames.length }))}</button>
+        <button class="chip" data-type="analog"><i class="ti ti-dice-3" aria-hidden="true"></i>${esc(t('games.filter.analog', { n: counts.analog }))}</button>
+        <button class="chip" data-type="digital"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i>${esc(t('games.filter.digital', { n: counts.digital }))}</button>
+        <span class="filter-chips__sep"></span>
+        <button class="chip" data-dur="short"><i class="ti ti-bolt" aria-hidden="true"></i>${esc(t('duration.short'))}</button>
+        <button class="chip" data-dur="medium"><i class="ti ti-clock" aria-hidden="true"></i>${esc(t('duration.medium'))}</button>
+        <button class="chip" data-dur="long"><i class="ti ti-hourglass" aria-hidden="true"></i>${esc(t('duration.long'))}</button>
+      </div>`);
+    chips.querySelectorAll('[data-type]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        typeFilter = chip.dataset.type;
+        chips.querySelectorAll('[data-type]').forEach((c) => c.classList.toggle('is-on', c === chip));
+        renderGames();
+      });
+    });
+    chips.querySelectorAll('[data-dur]').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        const d = chip.dataset.dur;
+        if (durFilter.has(d)) durFilter.delete(d);
+        else durFilter.add(d);
+        chip.classList.toggle('is-on', durFilter.has(d));
+        renderGames();
+      });
+    });
+    gamesSec.appendChild(chips);
 
     // Build the cards once and remember them by game id. When re-sorting we only
     // reorder these existing nodes – no page rebuild that would reset the scroll.
@@ -230,7 +277,7 @@ function renderRegalTab(round, activeGames) {
           : `<span class="score-pill score-pill--none">${esc(t('games.scoreNew'))}</span>`;
       const gc = h(`<div class="game-card game-card--clickable">
            <div class="game-card__img" ${imgStyle}>${fallback}
-             <div class="game-card__badges">${scorePill}${typeEmoji(g.type)}${durationEmoji(g.duration)}</div>
+             <div class="game-card__badges">${scorePill}${typeBadge(g.type)}${durationBadge(g.duration)}</div>
            </div>
            <div class="game-card__body">
              <div class="game-card__title">${esc(g.title)}</div>
@@ -239,72 +286,7 @@ function renderRegalTab(round, activeGames) {
       gc.addEventListener('click', () => showGameDetail(rid, g.id));
       cardById[g.id] = gc;
     });
-
-    // When collapsed we show the first row fully and only the top of the second,
-    // increasingly blurred/faded toward the bottom as a hint that there is more.
-    // A single control (the pill) toggles expand/collapse in both directions.
-    const clip = h('<div class="games-clip"></div>');
-    const fade = h('<div class="games-fade"></div>');
-    const expandBtn = h('<button class="games-expand"></button>');
-    clip.appendChild(grid);
-    clip.appendChild(fade);
-    clip.appendChild(expandBtn);
-    gamesSec.appendChild(clip);
-    expandBtn.addEventListener('click', () => { expanded = !expanded; applyCollapse(); });
-
-    let expanded = false;
-    let query = '';
-    let cards = [];
-    function columnsInGrid() {
-      if (cards.length === 0) return 1;
-      const top = cards[0].offsetTop;
-      let cols = 0;
-      for (const c of cards) {
-        if (c.offsetTop === top) cols++;
-        else break;
-      }
-      return Math.max(1, cols);
-    }
-    // Full grid, no clip/fade. With a "show less" pill below when the user
-    // expanded a long list; hidden when there is nothing to collapse.
-    function showFull(withLessBtn) {
-      grid.style.maxHeight = '';
-      grid.style.overflow = '';
-      fade.style.display = 'none';
-      if (withLessBtn) {
-        expandBtn.style.display = '';
-        expandBtn.classList.add('games-expand--less');
-        expandBtn.textContent = t('games.showLess');
-      } else {
-        expandBtn.style.display = 'none';
-      }
-    }
-    function applyCollapse() {
-      // While searching, show every match; collapsing would hide results.
-      const searching = query.trim() !== '';
-      const cols = columnsInGrid();
-      const totalRows = Math.ceil(cards.length / cols);
-      if (searching || totalRows <= 2) {
-        showFull(false);
-        return;
-      }
-      if (expanded) {
-        showFull(true);
-        return;
-      }
-      // Collapsed: first row fully + about half the second row visible.
-      expandBtn.classList.remove('games-expand--less');
-      const cardHeight = cards[0].offsetHeight;
-      const rowPitch = cards[cols] ? cards[cols].offsetTop - cards[0].offsetTop : cardHeight;
-      const gap = Math.max(0, rowPitch - cardHeight);
-      const clipHeight = Math.round(cardHeight + gap + cardHeight * 0.5);
-      grid.style.maxHeight = clipHeight + 'px';
-      grid.style.overflow = 'hidden';
-      fade.style.display = '';
-      fade.style.height = Math.round(cardHeight * 0.6) + 'px';
-      expandBtn.style.display = '';
-      expandBtn.textContent = t('games.showAll', { n: cards.length });
-    }
+    gamesSec.appendChild(grid);
 
     function orderedGames() {
       if (gamesSort === 'name') {
@@ -318,40 +300,36 @@ function renderRegalTab(round, activeGames) {
       }
       return randomOrderedGames(round, activeGames);
     }
-    function visibleGames() {
+    function matchesFilters(g) {
+      if (typeFilter !== 'all' && g.type !== typeFilter) return false;
+      if (durFilter.size && !durFilter.has(g.duration)) return false;
       const q = query.trim().toLowerCase();
-      const ordered = orderedGames();
-      return q ? ordered.filter((g) => g.title.toLowerCase().includes(q)) : ordered;
+      if (q && !g.title.toLowerCase().includes(q)) return false;
+      return true;
     }
-    // Reorder/filter the existing card nodes (no page rebuild) and re-collapse.
+    // Reorder/filter the existing card nodes (no page rebuild); the add tile
+    // always closes the grid.
     function renderGames() {
-      cards = visibleGames().map((g) => cardById[g.id]);
+      const cards = orderedGames().filter(matchesFilters).map((g) => cardById[g.id]);
       if (cards.length === 0) {
-        grid.replaceChildren(h(`<div class="muted games-nomatch">${esc(t('games.noMatch', { q: query.trim() }))}</div>`));
-        fade.style.display = 'none';
-        expandBtn.style.display = 'none';
+        const msg = query.trim()
+          ? t('games.noMatch', { q: query.trim() })
+          : t('games.noMatchFilters');
+        grid.replaceChildren(h(`<div class="muted games-nomatch">${esc(msg)}</div>`), addTile);
         return;
       }
-      grid.replaceChildren(...cards);
-      applyCollapse();
+      grid.replaceChildren(...cards, addTile);
     }
 
     searchInput.addEventListener('input', () => {
       query = searchInput.value;
-      expanded = false;
       renderGames();
     });
     sortSel.addEventListener('change', () => {
       gamesSort = sortSel.value;
       renderGames();
     });
-    // First arrangement after layout; re-collapse on resize.
-    requestAnimationFrame(renderGames);
-    function onResize() {
-      if (!document.body.contains(grid)) return window.removeEventListener('resize', onResize);
-      if (cards.length) applyCollapse();
-    }
-    window.addEventListener('resize', onResize);
+    renderGames();
   }
   app.appendChild(gamesSec);
 

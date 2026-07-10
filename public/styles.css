@@ -324,30 +324,70 @@ h1, h2, h3 { font-family: var(--font-display); }
 }
 .section-toggle:hover { background: var(--brand-tint); }
 .section-tools { display: flex; align-items: center; gap: 8px; flex: none; flex-wrap: wrap; }
-.games-search {
-  font-family: inherit;
-  font-size: 15px;
-  color: var(--ink);
+/* Search as a friendly pill with a leading icon. */
+.search-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 7px 12px;
-  width: 170px;
-  max-width: 100%;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 14px;
+  color: var(--ink-soft);
 }
-.games-search:focus { outline: 2px solid var(--brand); border-color: var(--brand); }
-.sort-select {
+.search-pill:focus-within { border-color: var(--brand); }
+.search-pill .ti { font-size: 16px; flex: none; }
+.search-pill input {
+  border: none;
+  background: none;
   font-family: inherit;
   font-size: 15px;
-  font-weight: 600;
   color: var(--ink);
+  width: 150px;
+  max-width: 100%;
+  outline: none;
+  padding: 0;
+}
+.sort-select {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-soft);
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 7px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 12px;
   cursor: pointer;
 }
 .sort-select:focus { outline: 2px solid var(--brand); border-color: var(--brand); }
+
+/* Filter chips: type (radio-like) and duration (multi-toggle). */
+.filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 2px 0 16px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.chip .ti { font-size: 15px; }
+.chip:hover { border-color: var(--brand-edge); }
+.chip.is-on { background: var(--brand); border-color: var(--brand-dark); color: #fff; }
+.filter-chips__sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; flex: none; }
 
 /* ---- Buttons ----
    Chunky and pressable: a thicker bottom border acts as the button's "base";
@@ -661,9 +701,10 @@ h1, h2, h3 { font-family: var(--font-display); }
 .img-badge {
   background: rgba(255, 255, 255, 0.88);
   border-radius: 999px;
-  padding: 2px 7px;
+  padding: 4px 7px 2px;
   font-size: 14px;
   line-height: 1.3;
+  color: var(--ink-soft);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 .game-card__body { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
@@ -677,51 +718,35 @@ h1, h2, h3 { font-family: var(--font-display); }
   padding: 3px 10px;
   border-radius: 999px;
 }
+.tag .ti { font-size: 12px; vertical-align: -1px; }
 .tag--digital { background: #dbeafe; color: #1e40af; }
 .tag--analog { background: #dcfce7; color: #166534; }
 .tag--duration { background: #ede9fe; color: #5b21b6; }
 .tag--players { background: #e0f2fe; color: #075985; }
 
-/* Collapsed games list: increasingly blurred + faded out at the bottom. */
-.games-clip { position: relative; }
-.games-fade {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  background: linear-gradient(to bottom, transparent 0%, var(--page-bg) 85%);
-  -webkit-backdrop-filter: blur(2.5px);
-  backdrop-filter: blur(2.5px);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.6) 45%, #000 100%);
-  mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.6) 45%, #000 100%);
-}
-.games-expand {
-  position: absolute;
-  left: 50%;
-  bottom: 10px;
-  transform: translateX(-50%);
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--brand-dark);
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 10px 22px;
+.games-nomatch { padding: 24px 4px; grid-column: 1 / -1; }
+
+/* Dashed "add a game" tile closing the grid. */
+.add-tile {
+  border: 2px dashed var(--brand-edge);
+  background: transparent;
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 180px;
   cursor: pointer;
-  box-shadow: var(--shadow);
-  white-space: nowrap;
+  color: var(--ink-soft);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 16px;
+  transition: background 0.12s ease;
 }
-.games-expand:hover { background: #fff; }
-/* Expanded state: the same control becomes a "show less" button below the grid. */
-.games-expand--less {
-  position: static;
-  transform: none;
-  display: block;
-  margin: 16px auto 0;
-}
-.games-nomatch { padding: 24px 4px; }
+.add-tile .ti { font-size: 28px; }
+.add-tile:hover { background: var(--brand-tint-soft); }
 
 .empty {
   text-align: center;

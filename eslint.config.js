@@ -32,8 +32,8 @@ const frontendGlobals = {
   themeAccent: 'readonly',
   activePopover: 'writable', closePopover: 'readonly', openPopover: 'readonly',
   readClipboardImage: 'readonly', shuffled: 'readonly', typeTag: 'readonly',
-  durationTag: 'readonly', playersTag: 'readonly', typeEmoji: 'readonly',
-  durationEmoji: 'readonly',
+  durationTag: 'readonly', playersTag: 'readonly', typeBadge: 'readonly',
+  durationBadge: 'readonly',
   // views-home.js
   showHome: 'readonly', showNewRound: 'readonly', buildActivityFeed: 'readonly',
   // views-round.js

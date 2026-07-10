@@ -343,14 +343,15 @@ function shuffled(arr) {
 
 const typeTag = (type) =>
   type === 'digital'
-    ? `<span class="tag tag--digital">${t('type.digital')}</span>`
-    : `<span class="tag tag--analog">${t('type.analog')}</span>`;
+    ? `<span class="tag tag--digital"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i> ${t('type.digital')}</span>`
+    : `<span class="tag tag--analog"><i class="ti ti-dice-3" aria-hidden="true"></i> ${t('type.analog')}</span>`;
 
 // Games from before the duration feature have duration null -> no tag.
-const durationTag = (duration) =>
-  ['short', 'medium', 'long'].includes(duration)
-    ? `<span class="tag tag--duration">${t('duration.' + duration)}</span>`
-    : '';
+const durationTag = (duration) => {
+  if (!['short', 'medium', 'long'].includes(duration)) return '';
+  const icon = { short: 'ti-bolt', medium: 'ti-clock', long: 'ti-hourglass' }[duration];
+  return `<span class="tag tag--duration"><i class="ti ${icon}" aria-hidden="true"></i> ${t('duration.' + duration)}</span>`;
+};
 
 // Games from before the player-count feature could lack the fields -> no tag.
 const playersTag = (min, max) => {
@@ -359,15 +360,15 @@ const playersTag = (min, max) => {
   return `<span class="tag tag--players">${text}</span>`;
 };
 
-// Emoji-only badges for the compact card overlay; the full localized word
+// Icon-only badges for the compact card overlay; the full localized word
 // stays available as a tooltip.
-const typeEmoji = (type) =>
+const typeBadge = (type) =>
   type === 'digital'
-    ? `<span class="img-badge" title="${t('type.digital')}">💻</span>`
-    : `<span class="img-badge" title="${t('type.analog')}">🎲</span>`;
+    ? `<span class="img-badge" title="${t('type.digital')}"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i></span>`
+    : `<span class="img-badge" title="${t('type.analog')}"><i class="ti ti-dice-3" aria-hidden="true"></i></span>`;
 
-const durationEmoji = (duration) => {
+const durationBadge = (duration) => {
   if (!['short', 'medium', 'long'].includes(duration)) return '';
-  const emoji = { short: '⚡', medium: '⏱️', long: '🐢' }[duration];
-  return `<span class="img-badge" title="${t('duration.' + duration)}">${emoji}</span>`;
+  const icon = { short: 'ti-bolt', medium: 'ti-clock', long: 'ti-hourglass' }[duration];
+  return `<span class="img-badge" title="${t('duration.' + duration)}"><i class="ti ${icon}" aria-hidden="true"></i></span>`;
 };
