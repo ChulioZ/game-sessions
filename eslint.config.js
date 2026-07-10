@@ -17,7 +17,7 @@ const frontendGlobals = {
   I18N: 'writable', SUPPORTED_LOCALES: 'readonly', LOCALE_LABELS: 'readonly',
   locale: 'writable', detectLocale: 'readonly', initLocale: 'readonly',
   getLocale: 'readonly', setLocale: 'readonly', t: 'readonly', tn: 'readonly',
-  fmtDateTime: 'readonly',
+  fmtDateTime: 'readonly', fmtMonth: 'readonly',
   // core.js
   app: 'readonly', crumbs: 'readonly', toastEl: 'readonly',
   currentView: 'writable', h: 'readonly', esc: 'readonly', toastTimer: 'writable',
@@ -35,7 +35,7 @@ const frontendGlobals = {
   durationTag: 'readonly', playersTag: 'readonly', typeBadge: 'readonly',
   durationBadge: 'readonly',
   // views-home.js
-  showHome: 'readonly', showNewRound: 'readonly', buildActivityFeed: 'readonly',
+  showHome: 'readonly', showNewRound: 'readonly',
   // views-round.js
   showRound: 'readonly', showRetired: 'readonly', THEMES: 'readonly',
   showBackground: 'readonly', showGameDetail: 'readonly', showAddGame: 'readonly',

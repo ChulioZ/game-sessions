@@ -342,96 +342,144 @@ function renderRegalTab(round, activeGames) {
   app.appendChild(foot);
 }
 
-// --- Chronik tab: the round's memory — past sessions and the activity log.
+// --- Chronik tab: one timeline of game nights and shelf changes.
 function renderChronikTab(round) {
   const rid = round.id;
 
-  // History: past sessions, anchored by the chosen game's cover — newest first.
-  const done = round.sessions.filter((s) => s.done).reverse();
-  if (done.length) {
-    const sec = h(`<div class="section"><h3>${esc(t('sessions.title'))}</h3></div>`);
-    const list = h('<div class="session-list"></div>');
-    done.forEach((s) => {
-      const when = fmtDateTime(s.createdAt);
-      const chosen = s.chosenGameId && round.games.find((g) => g.id === s.chosenGameId);
-      const winnerNames = (s.winnerIds || [])
-        .map((wid) => (round.members.find((m) => m.id === wid) || {}).name)
-        .filter(Boolean);
+  // Collect all entries: done sessions as cards, game activities as quiet rows.
+  const entries = [];
+  round.sessions
+    .filter((s) => s.done)
+    .forEach((s) => entries.push({ kind: 'session', at: s.createdAt, session: s }));
+  (round.activities || []).forEach((a) => {
+    const meta = {
+      game_added: { icon: 'ti-plus', text: t('activity.gameAdded', { title: a.title }) },
+      game_retired: { icon: 'ti-armchair', text: t('activity.gameRetired', { title: a.title }) },
+      game_restored: { icon: 'ti-arrow-back-up', text: t('activity.gameRestored', { title: a.title }) },
+      game_deleted: { icon: 'ti-trash', text: t('activity.gameDeleted', { title: a.title }) },
+    }[a.type];
+    if (!meta) return;
+    entries.push({ kind: 'activity', at: a.at, id: a.id, gameId: a.gameId, type: a.type, ...meta });
+  });
+  entries.sort((a, b) => String(b.at).localeCompare(String(a.at)));
 
-      // Thumbnail: the chosen game's cover (fallback to its type emoji), or a
-      // neutral marker when nothing was chosen / the session was cancelled.
-      const thumbStyle = chosen && chosen.image ? `style="background-image:url('${chosen.image}')"` : '';
-      const thumbFallback = chosen
-        ? chosen.image ? '' : chosen.type === 'digital' ? '💻' : '🎲'
-        : s.cancelled ? '✕' : '🗳️';
+  const sec = h('<div class="section"></div>');
+  sec.appendChild(h(`<div class="section-head"><h3>${esc(t('chronik.title'))}</h3></div>`));
 
-      // Headline is the chosen game (with a rating pill); the date leads only when
-      // no game was played. The meta line carries the rest.
-      const title = chosen ? `🎮 ${esc(chosen.title)}` : esc(when);
-      let pill = '';
-      if (chosen) {
-        const sst = gameStatsForSession(round, s, chosen.id);
-        if (sst.avg !== null) pill = `<span class="score-pill" style="background:${avgColor(sst.avg)}">Ø ${sst.avg.toFixed(1)}</span>`;
-      }
-
-      const parts = [];
-      if (chosen) parts.push(esc(when));
-      if (s.finished) parts.push(winnerNames.length ? '🏆 ' + winnerNames.map(esc).join(', ') : esc(t('sessions.played')));
-      else if (s.cancelled) parts.push(`<span style="color:var(--danger)">${esc(t('sessions.cancelled'))}</span>`);
-      parts.push(esc(t('sessions.rated', { n: s.gameIds.length })));
-
-      const card = h(`<button class="session-card">
-           <div class="session-card__img" ${thumbStyle}>${thumbFallback}</div>
-           <div class="session-card__body">
-             <div class="session-card__title">${title}${pill}</div>
-             <div class="session-card__meta">${parts.join(' · ')}</div>
-           </div>
-         </button>`);
-      card.addEventListener('click', () => showResults(round, s));
-      list.appendChild(card);
+  // Filter chips: everything / game nights only / shelf changes only.
+  let filter = 'all';
+  const chips = h(`<div class="filter-chips">
+      <button class="chip is-on" data-f="all">${esc(t('chronik.filter.all'))}</button>
+      <button class="chip" data-f="sessions"><i class="ti ti-confetti" aria-hidden="true"></i>${esc(t('chronik.filter.sessions'))}</button>
+      <button class="chip" data-f="changes"><i class="ti ti-cards" aria-hidden="true"></i>${esc(t('chronik.filter.changes'))}</button>
+    </div>`);
+  chips.querySelectorAll('[data-f]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      filter = chip.dataset.f;
+      chips.querySelectorAll('[data-f]').forEach((c) => c.classList.toggle('is-on', c === chip));
+      renderTimeline();
     });
-    sec.appendChild(list);
-    app.appendChild(sec);
+  });
+  sec.appendChild(chips);
+
+  const tl = h('<div class="timeline"></div>');
+  sec.appendChild(tl);
+  app.appendChild(sec);
+
+  function buildSessionCard(s) {
+    const when = fmtDateTime(s.createdAt);
+    const chosen = s.chosenGameId && round.games.find((g) => g.id === s.chosenGameId);
+    const winnerNames = (s.winnerIds || [])
+      .map((wid) => (round.members.find((m) => m.id === wid) || {}).name)
+      .filter(Boolean);
+
+    // Thumbnail: the chosen game's cover, or an icon for the session's state.
+    const thumbStyle = chosen && chosen.image ? `style="background-image:url('${chosen.image}')"` : '';
+    const thumbIcon = chosen
+      ? chosen.image ? '' : `<i class="ti ${chosen.type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3'}" aria-hidden="true"></i>`
+      : `<i class="ti ${s.cancelled ? 'ti-x' : 'ti-cards'}" aria-hidden="true"></i>`;
+
+    // Headline is the chosen game (with a rating pill); the date leads only
+    // when no game was played. The meta line carries the rest.
+    const title = chosen ? esc(chosen.title) : esc(when);
+    let pill = '';
+    if (chosen) {
+      const sst = gameStatsForSession(round, s, chosen.id);
+      if (sst.avg !== null) pill = `<span class="score-pill" style="background:${avgColor(sst.avg)}">Ø ${sst.avg.toFixed(1)}</span>`;
+    }
+
+    const parts = [];
+    if (chosen) parts.push(esc(when));
+    if (s.finished) parts.push(winnerNames.length ? '🏆 ' + winnerNames.map(esc).join(', ') : esc(t('sessions.played')));
+    else if (s.cancelled) parts.push(`<span style="color:var(--danger)">${esc(t('sessions.cancelled'))}</span>`);
+    parts.push(esc(t('sessions.rated', { n: s.gameIds.length })));
+
+    const card = h(`<button class="session-card">
+         <div class="session-card__img" ${thumbStyle}>${thumbIcon}</div>
+         <div class="session-card__body">
+           <div class="session-card__title">${title}${pill}</div>
+           <div class="session-card__meta">${parts.join(' · ')}</div>
+         </div>
+       </button>`);
+    card.addEventListener('click', () => showResults(round, s));
+    return card;
   }
 
-  // Activity feed: a quiet, secondary log below the history. A capped scroll
-  // region keeps the page short — scroll is expected in a feed, so no
-  // height-measuring or collapse machinery is needed.
-  const feed = buildActivityFeed(round);
-  const feedSec = h('<div class="section"></div>');
-  feedSec.appendChild(h(`<div class="section-head"><h3>${esc(t('activity.title'))}</h3></div>`));
-  if (feed.length === 0) {
-    feedSec.appendChild(h(`<div class="muted">${esc(t('activity.empty'))}</div>`));
-  } else {
-    const list = h('<div class="activity-feed"></div>');
-    feed.forEach((e) => {
-      const item = h(`<div class="activity${e.nav ? ' activity--link' : ''}">
-           <span class="activity__icon">${e.icon}</span>
-           <span class="activity__text">${esc(e.text)}</span>
-           <span class="activity__time">${fmtDateTime(e.at)}</span>
-           ${e.id ? `<button class="activity__del" title="${esc(t('activity.delete'))}">✕</button>` : ''}
-         </div>`);
-      if (e.nav) {
-        item.addEventListener('click', (ev) => {
-          if (ev.target.closest('.activity__del')) return; // delete is not "open"
-          e.nav();
-        });
-      }
-      if (e.id) {
-        item.querySelector('.activity__del').addEventListener('click', async () => {
-          if (!confirm(t('activity.deleteConfirm'))) return;
-          try {
-            await api('DELETE', `/api/rounds/${rid}/activities/${e.id}`);
-            toast(t('activity.deleted'));
-            showRound(rid, 'chronik');
-          } catch (err) { toast(err.message); }
-        });
-      }
-      list.appendChild(item);
+  function buildActivityRow(e) {
+    // Navigate to the game (if it still exists) or to the archive.
+    const gameExists = e.gameId && round.games.some((g) => g.id === e.gameId);
+    const nav =
+      e.type === 'game_retired'
+        ? () => showRetired(rid)
+        : gameExists
+          ? () => showGameDetail(rid, e.gameId)
+          : null;
+    const row = h(`<div class="tl-act${nav ? ' tl-act--link' : ''}">
+         <span class="tl-act__icon"><i class="ti ${e.icon}" aria-hidden="true"></i></span>
+         <span class="tl-act__text">${esc(e.text)}</span>
+         <span class="tl-act__time">${fmtDateTime(e.at)}</span>
+         <button class="tl-act__del" title="${esc(t('activity.delete'))}" aria-label="${esc(t('activity.delete'))}"><i class="ti ti-x" aria-hidden="true"></i></button>
+       </div>`);
+    if (nav) {
+      row.addEventListener('click', (ev) => {
+        if (ev.target.closest('.tl-act__del')) return; // delete is not "open"
+        nav();
+      });
+    }
+    row.querySelector('.tl-act__del').addEventListener('click', async () => {
+      if (!confirm(t('activity.deleteConfirm'))) return;
+      try {
+        await api('DELETE', `/api/rounds/${rid}/activities/${e.id}`);
+        toast(t('activity.deleted'));
+        showRound(rid, 'chronik');
+      } catch (err) { toast(err.message); }
     });
-    feedSec.appendChild(list);
+    return row;
   }
-  app.appendChild(feedSec);
+
+  // Month-grouped timeline, newest first.
+  function renderTimeline() {
+    tl.innerHTML = '';
+    const visible = entries.filter((e) =>
+      filter === 'all' ? true : filter === 'sessions' ? e.kind === 'session' : e.kind === 'activity'
+    );
+    if (visible.length === 0) {
+      tl.appendChild(h(`<div class="muted">${esc(t('chronik.empty'))}</div>`));
+      return;
+    }
+    let lastMonth = '';
+    visible.forEach((e) => {
+      const month = fmtMonth(e.at);
+      if (month !== lastMonth) {
+        lastMonth = month;
+        tl.appendChild(h(`<div class="tl-month">${esc(month)}</div>`));
+      }
+      const item = h(`<div class="tl-item"><span class="tl-dot${e.kind === 'session' ? ' tl-dot--session' : ''}"></span></div>`);
+      item.appendChild(e.kind === 'session' ? buildSessionCard(e.session) : buildActivityRow(e));
+      tl.appendChild(item);
+    });
+  }
+  renderTimeline();
 
   // Utility footer: deleting the round lives with its history, out of the way.
   const footer = h('<div class="round-footer"></div>');

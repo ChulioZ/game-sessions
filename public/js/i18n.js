@@ -55,3 +55,9 @@ function fmtDateTime(iso) {
   const tag = locale === 'de' ? 'de-DE' : 'en-US';
   return new Date(iso).toLocaleString(tag, { dateStyle: 'medium', timeStyle: 'short' });
 }
+
+// Month + year, for timeline group labels ("Juli 2026").
+function fmtMonth(iso) {
+  const tag = locale === 'de' ? 'de-DE' : 'en-US';
+  return new Date(iso).toLocaleString(tag, { month: 'long', year: 'numeric' });
+}

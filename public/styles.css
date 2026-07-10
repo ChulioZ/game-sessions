@@ -601,12 +601,83 @@ h1, h2, h3 { font-family: var(--font-display); }
 .import-card__body { flex: 1; min-width: 0; }
 .import-card__note { margin-top: 6px; font-size: 14px; }
 
-/* History: past-session cards, anchored by the chosen game's cover thumbnail. */
-.session-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 12px;
+/* ---- Chronik: month-grouped timeline of game nights + shelf changes ---- */
+.timeline {
+  position: relative;
+  padding-left: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.tl-month {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin: 10px 0 2px;
+}
+.tl-month:first-child { margin-top: 0; }
+.tl-item { position: relative; }
+.tl-dot {
+  position: absolute;
+  left: -23px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--line);
+  border: 2px solid var(--page-bg);
+}
+.tl-dot--session { background: var(--brand); width: 12px; height: 12px; left: -24px; }
+
+/* Quiet shelf-change rows on the timeline. */
+.tl-act {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+.tl-act--link { cursor: pointer; }
+.tl-act--link:hover { box-shadow: var(--shadow); }
+.tl-act__icon { flex: none; display: flex; opacity: 0.75; }
+.tl-act__icon .ti { font-size: 16px; }
+.tl-act__text { flex: 1; min-width: 0; }
+.tl-act__time { color: var(--ink-soft); font-size: 12px; opacity: 0.8; white-space: nowrap; flex: none; }
+.tl-act__del {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  line-height: 1;
+  padding: 5px 7px;
+  border-radius: 8px;
+}
+.tl-act__del .ti { font-size: 13px; }
+.tl-act__del:hover { background: #f8e3e3; color: var(--danger); }
+
+@media (max-width: 520px) {
+  .tl-act { flex-wrap: wrap; }
+  .tl-act__time { width: 100%; padding-left: 26px; }
+}
+
+/* Past-session cards, anchored by the chosen game's cover thumbnail. */
 .session-card {
   display: flex;
   align-items: center;
@@ -1046,49 +1117,6 @@ h1, h2, h3 { font-family: var(--font-display); }
   border-top: 1px solid var(--line);
 }
 .round-footer__danger { color: var(--danger); }
-
-/* Activity feed – deliberately quiet: secondary info, not main content. A
-   capped scroll region: shows a few rows, scrolls for the rest. */
-.activity-feed {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  max-height: 16rem;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-  font-size: 15px;
-  color: var(--ink-soft);
-}
-.activity {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 14px;
-  border-bottom: 1px solid var(--line);
-}
-.activity:last-child { border-bottom: none; }
-.activity--link { cursor: pointer; }
-.activity--link:hover { background: var(--surface-hover, rgba(0, 0, 0, 0.03)); }
-.activity__icon { font-size: 15px; width: 20px; text-align: center; flex: none; opacity: 0.75; }
-.activity__text { flex: 1; }
-.activity__time { color: var(--ink-soft); font-size: 12px; opacity: 0.8; white-space: nowrap; flex: none; }
-.activity__del {
-  flex: none;
-  border: none;
-  background: transparent;
-  color: var(--ink-soft);
-  cursor: pointer;
-  font-size: 13px;
-  line-height: 1;
-  padding: 5px 7px;
-  border-radius: 8px;
-}
-.activity__del:hover { background: #f8e3e3; color: var(--danger); }
-
-@media (max-width: 520px) {
-  .activity { flex-wrap: wrap; }
-  .activity__time { width: 100%; padding-left: 30px; }
-}
 
 /* Finish game / winners (inside the chosen game's result row) */
 .row-finish {

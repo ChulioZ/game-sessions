@@ -1,4 +1,4 @@
-/* Familien-Spielesammlung – views: home, new round, activity feed.
+/* Familien-Spielesammlung – views: home (lobby), new round.
    Part of the frontend; all files share one global script scope. */
 
 // =================== Home: lobby ===================
@@ -194,58 +194,4 @@ async function showNewRound() {
   });
 
   nameInput.focus();
-}
-
-// Build a round's activity feed: persisted game events plus session entries
-// derived from live status, newest first.
-function buildActivityFeed(round) {
-  const entries = [];
-
-  // Navigate to the game's detail page, if the game still exists.
-  const gameNav = (gameId) => {
-    if (!gameId || !round.games.some((g) => g.id === gameId)) return null;
-    return () => showGameDetail(round.id, gameId);
-  };
-
-  (round.activities || []).forEach((a) => {
-    if (a.type === 'game_added')
-      entries.push({ id: a.id, at: a.at, icon: '➕', text: t('activity.gameAdded', { title: a.title }), nav: gameNav(a.gameId) });
-    else if (a.type === 'game_retired')
-      entries.push({ id: a.id, at: a.at, icon: '🗑️', text: t('activity.gameRetired', { title: a.title }), nav: () => showRetired(round.id) });
-    else if (a.type === 'game_restored')
-      entries.push({ id: a.id, at: a.at, icon: '↩︎', text: t('activity.gameRestored', { title: a.title }), nav: gameNav(a.gameId) });
-    else if (a.type === 'game_deleted')
-      entries.push({ id: a.id, at: a.at, icon: '✕', text: t('activity.gameDeleted', { title: a.title }) });
-  });
-
-  round.sessions.forEach((s) => {
-    if (!s.done) return; // running vote not in the feed yet
-    const game = s.chosenGameId && round.games.find((g) => g.id === s.chosenGameId);
-    const gname = game ? game.title : null;
-    const nav = () => showResults(round, s);
-    if (s.cancelled) {
-      entries.push({ at: s.cancelledAt || s.createdAt, icon: '✕', text: t('activity.sessionCancelled'), nav });
-    } else if (s.finished) {
-      const names = (s.winnerIds || [])
-        .map((wid) => (round.members.find((m) => m.id === wid) || {}).name)
-        .filter(Boolean);
-      const at = s.finishedAt || s.chosenAt || s.createdAt;
-      if (gname && names.length)
-        entries.push({
-          at,
-          icon: '🏆',
-          text: t(names.length === 1 ? 'activity.wonOne' : 'activity.wonMany', { names: joinNames(names), game: gname }),
-          nav,
-        });
-      else if (gname) entries.push({ at, icon: '🎲', text: t('activity.played', { game: gname }), nav });
-      else entries.push({ at, icon: '🎲', text: t('activity.sessionPlayed'), nav });
-    } else if (gname) {
-      entries.push({ at: s.chosenAt || s.createdAt, icon: '▶️', text: t('activity.started', { game: gname }), nav });
-    } else {
-      entries.push({ at: s.createdAt, icon: '🗳️', text: t('activity.voteDone'), nav });
-    }
-  });
-
-  entries.sort((a, b) => String(b.at).localeCompare(String(a.at)));
-  return entries;
 }
