@@ -225,7 +225,7 @@ I18N.de = {
   'result.titleWonOne': '„{game}“ wurde gespielt. {names} hat gewonnen!',
   'result.titleWonMany': '„{game}“ wurde gespielt. {names} haben gewonnen!',
   'result.titlePlayed': '„{game}“ wurde gespielt.',
-  'result.bannerChosen': '🎮 Gespielt wird: {title}',
+  'result.bannerChosen': 'Gespielt wird: {title}',
   'result.bannerPrompt': 'Tippe bei einem Spiel auf „▶ Spielen“, um festzuhalten, was ihr spielt.',
   'result.play': '▶ Spielen',
   'result.willPlay': '✓ Wird gespielt',

@@ -31,7 +31,8 @@ const frontendGlobals = {
   MEMBER_COLORS: 'readonly', memberColor: 'readonly', initials: 'readonly',
   themeAccent: 'readonly',
   activePopover: 'writable', closePopover: 'readonly', openPopover: 'readonly',
-  readClipboardImage: 'readonly', shuffled: 'readonly', typeTag: 'readonly',
+  readClipboardImage: 'readonly', shuffled: 'readonly', typeIcon: 'readonly',
+  typeTag: 'readonly',
   durationTag: 'readonly', playersTag: 'readonly', typeBadge: 'readonly',
   durationBadge: 'readonly',
   // views-home.js

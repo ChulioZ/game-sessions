@@ -342,6 +342,9 @@ function shuffled(arr) {
   return a;
 }
 
+// Tabler icon class for a game type: digital -> gamepad, analog -> dice.
+const typeIcon = (type) => (type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3');
+
 const typeTag = (type) =>
   type === 'digital'
     ? `<span class="tag tag--digital"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i> ${t('type.digital')}</span>`
