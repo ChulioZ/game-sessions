@@ -76,8 +76,12 @@ npm run check:syntax
 
 - All three must pass. Read the diff critically for correctness, edge cases, and
   the repo constraints above — not just "tests are green."
-- For UI-affecting changes, verify in a real browser via the preview workflow
-  (the `verify` skill / preview tools), not tests alone.
+- For **substantial** UI changes (new views/layouts, non-trivial interaction or
+  state, anything easy to get visibly wrong), verify in a real browser via the
+  preview workflow (the `verify` skill / preview tools), not tests alone. For
+  small, straightforward, low-risk UI tweaks (copy, a class, an icon, a spacing
+  value), it's enough to confirm the diff looks correct — a human does the visual
+  review. Use judgement; when unsure, verify.
 - Consider running `/code-review` on the working diff for a second pass.
 - Only proceed once you genuinely expect it to behave as intended. If review
   turns up problems, fix them and re-run this phase.
