@@ -1,0 +1,124 @@
+---
+name: pick-issue
+description: >-
+  Survey all open GitHub issues (and pending Dependabot PRs), rank them by
+  value-for-effort with security/breakage jumping the queue, pick the single best
+  next thing to work on, and hand it to the right builder skill. Use when asked
+  "what should I work on/implement next?", to triage the backlog, or to choose and
+  start the next issue. Hands the winner to `implement` (issues) or `dependabot`
+  (dependency PRs).
+---
+
+# Pick the next thing to implement
+
+Goal: look at everything that's open, decide what is the **best single next thing
+to build**, justify the choice briefly, and then hand it off to the skill that
+builds it. The judgement is a **value-for-effort** call — not simply "the
+smallest" and not simply "the flashiest" — with a few things that override the
+ranking and jump straight to the front.
+
+This skill only *chooses and hands off*; the actual shipping (branch, PR, merge)
+happens in `implement` / `dependabot`, which are outward-facing. So the only
+caution here is: don't kick off a build the user didn't intend — confirm the pick
+before handing off (see phase 4).
+
+## 1. Gather all the candidates
+
+Open work comes in two forms — collect both:
+
+```bash
+gh issue list --state open --limit 100 \
+  --json number,title,labels,body,createdAt,updatedAt,comments
+gh pr list --state open --author "app/dependabot" \
+  --json number,title,labels,createdAt
+```
+
+- Issues are candidates for `implement`.
+- **Dependabot PRs** are candidates too (the user considers keeping deps current
+  important) — they're handled by the `dependabot` skill, not `implement`.
+- Ignore PRs from other authors (those are for `review-pr`, not for picking new
+  work) and issues labeled `wontfix`, `invalid`, `duplicate`, or `question`
+  awaiting the user's answer.
+
+If there's nothing open, say so and stop.
+
+## 2. Understand each candidate well enough to judge it
+
+For each realistic candidate, read enough to estimate **value** and **effort**.
+Skim the issue body (and for a Dependabot PR, whether it's flagged as a *security*
+update and whether it's a major-vs-patch bump). Where an issue is vague, glance at
+the code it would touch (`CLAUDE.md`, `routes/`, `public/js/`, the relevant
+`.claude/rules/`) so your effort estimate is real, not a guess. Note anything that
+makes an issue **not actionable yet**: missing decisions, "needs discussion",
+blocked on another issue, or too underspecified to build without more input.
+
+## 3. Rank them — value for effort, with overrides
+
+Score each candidate on these axes and combine them with judgement (this is a
+guide, not a formula — the criteria in the request are inspiration, weigh them
+yourself):
+
+**Overrides — these jump to the front regardless of size:**
+
+1. **Security** — a CVE fix or a Dependabot *security* update. Keeping the app
+   safe beats feature work even though there's "no auth" (deps still ship code).
+   A patch/minor security bump that CI already validates is both urgent *and*
+   cheap → near-automatic top pick.
+2. **Broken core functionality** — a bug that makes a main flow (voting, saving a
+   session, ratings) wrong or unusable. Correctness before polish.
+
+**Value — how much it matters to the app:**
+
+- New user-facing **functionality** > **enhancement** of existing behaviour >
+  cosmetic / rename / pure-docs. A rename or copy tweak is low value even if it's
+  trivial; don't let cheapness alone float it to the top.
+- Weight `enhancement`, user-requested, and long-standing pain higher; weight
+  "nice to have" lower.
+
+**Effort / risk — cheaper and safer is better:**
+
+- Smaller diff, well-scoped, clear acceptance criteria, an obvious place in the
+  code, no data migration, no risky cross-cutting change → lower effort.
+- A **ready-to-implement** issue (specific, unambiguous — e.g. one produced by
+  the `create-issue` skill) beats an equally valuable but vague one, because the
+  vague one really costs a clarification round first.
+
+**Tie-breakers:** routine dependency freshness (batch the safe Dependabot bumps),
+`good first issue`, age/staleness, and any explicit priority the user has voiced.
+
+Prefer the candidate with the **best value-for-effort**: high value and low effort
+win outright; a small, safe, moderately useful change usually beats a large risky
+one; but don't pick a purely cosmetic change over a genuinely valuable feature
+just because it's smaller.
+
+## 4. Present the pick and confirm
+
+Show the user a short ranked shortlist (top ~3) as a compact list: for each,
+`#number — title`, its rough value and effort, and a one-line reason. Then state
+**the winner** and *why it beat the runner-up* in one or two sentences.
+
+Because the handoff will branch, open a PR, and possibly merge, get the user's
+go-ahead before starting — unless they've already told you to just run with it.
+If two candidates are genuinely close or the top one is under-specified, say so
+and let the user steer rather than guessing.
+
+## 5. Hand off to the builder
+
+Once the pick is confirmed, invoke the appropriate skill with the chosen item:
+
+- **An issue →** invoke the **`implement`** skill on it (pass the issue number;
+  `implement` reads it with `gh issue view <N>`, branches, builds, opens the PR,
+  reviews, and — if safe — merges). If the issue is still underspecified, run
+  **`create-issue`**'s interview first (or ask the user) so `implement` gets a
+  clear spec.
+- **A Dependabot PR →** invoke the **`dependabot`** skill (it reviews and merges
+  the safe ones). Don't try to "implement" a dependency bump by hand.
+
+Hand off exactly one chosen item; don't start several builds at once.
+
+## Report
+
+State what you picked and why, the shortlist you considered, and which builder
+skill you handed it to (with the issue/PR number). If nothing was actionable
+(empty backlog, or everything blocked/underspecified), say that plainly and, if
+useful, suggest filing a fresh issue via `create-issue`.
