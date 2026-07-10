@@ -265,7 +265,7 @@ function startVoting(round, session, games, members) {
         <div class="rating"></div>
         <div class="rating-scale"><span>${esc(t('vote.scaleLow'))}</span><span>${esc(t('vote.scaleHigh'))}</span></div>
         <div class="vote__sort">
-          <button class="sortBtn ${current.retire ? 'is-selected' : ''}"><i class="ti ti-armchair" aria-hidden="true"></i> ${esc(t('vote.suggestRetire'))}</button>
+          <button class="sortBtn ${current.retire ? 'is-selected' : ''}"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('vote.suggestRetire'))}</button>
         </div>
         <div class="vote__nav">
           <button class="btn" id="backBtn"><i class="ti ti-chevron-left" aria-hidden="true"></i> ${esc(t('vote.back'))}</button>
@@ -506,7 +506,7 @@ async function showResults(round, session, gamesHint, reveal) {
     const retiredBadge = g.retired ? ` <span class="tag tag--retired">${t('result.retiredTag')}</span>` : '';
     // "Suggested for retirement" line; with a direct action if not retired yet.
     const sortFlag = r.sortCount
-      ? `<div class="sort-flag"><i class="ti ti-armchair" aria-hidden="true"></i> ${esc(t('result.sortFlag', { n: r.sortCount }))}${
+      ? `<div class="sort-flag"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('result.sortFlag', { n: r.sortCount }))}${
           g.retired ? '' : ` <button class="link-btn sortflag-btn">${esc(t('result.retireNow'))}</button>`
         }</div>`
       : '';
