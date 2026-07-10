@@ -222,6 +222,7 @@ I18N.de = {
   'result.crumb': 'Ergebnis',
   'result.title': 'Ergebnis',
   'result.subtitle': '{when} · {n} Spiele',
+  'result.participants': 'Wer dabei war',
   'result.titleWonOne': '„{game}“ wurde gespielt. {names} hat gewonnen!',
   'result.titleWonMany': '„{game}“ wurde gespielt. {names} haben gewonnen!',
   'result.titlePlayed': '„{game}“ wurde gespielt.',

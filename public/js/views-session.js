@@ -419,6 +419,22 @@ async function showResults(round, session, gamesHint, reveal) {
   app.appendChild(head);
   const titleEl = head.querySelector('.result-title');
 
+  // Who joined this session — the members whose votes make up the result.
+  if (members.length) {
+    const people = h(`<div class="result-people">
+         <span class="result-people__label">${esc(t('result.participants'))}</span>
+         <span class="result-people__list">${members
+           .map(
+             (m) => `<span class="result-people__person">
+                <span class="avatar" style="background:${memberColor(round, m.id)}">${esc(initials(m.name))}</span>
+                <span class="result-people__name">${esc(m.name)}</span>
+              </span>`
+           )
+           .join('')}</span>
+       </div>`);
+    app.appendChild(people);
+  }
+
   // Podium: the top three as a stage. With `reveal` the pedestals rise
   // 3rd → 1st and confetti falls — the finale's payoff moment.
   if (rows.length >= 2 && !session.cancelled) {

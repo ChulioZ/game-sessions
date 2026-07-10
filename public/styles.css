@@ -1707,6 +1707,26 @@ kbd {
 .stage__note { font-size: 12px; font-weight: 700; color: var(--stage-faint); margin-top: 12px; }
 
 /* ---- Results: podium reveal + confetti ---- */
+/* Who joined the session — avatar + name chips under the result header. */
+.result-people {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: -4px 0 18px;
+}
+.result-people__label {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--placeholder);
+}
+.result-people__list { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.result-people__person { display: inline-flex; align-items: center; gap: 7px; }
+.result-people__person .avatar { width: 28px; height: 28px; font-size: 11px; }
+.result-people__name { font-size: 14px; font-weight: 700; }
+
 .result-podium {
   position: relative;
   display: flex;

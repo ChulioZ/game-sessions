@@ -222,6 +222,7 @@ I18N.en = {
   'result.crumb': 'Result',
   'result.title': 'Result',
   'result.subtitle': '{when} · {n} games',
+  'result.participants': 'Who played',
   'result.titleWonOne': '“{game}” was played. {names} won!',
   'result.titleWonMany': '“{game}” was played. {names} won!',
   'result.titlePlayed': '“{game}” was played.',
