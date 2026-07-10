@@ -1,5 +1,16 @@
 /* Familien-Spielesammlung – Styles.
-   Goal: large, clear, finger-friendly. Works on tablet and laptop. */
+   Goal: large, clear, finger-friendly, playful. Works on tablet and laptop. */
+
+/* ---- Self-hosted fonts (files + licenses in public/fonts/). Nunito is the
+   body face, Baloo 2 the friendly display face for headings, buttons and
+   score tokens. Self-hosted so the app keeps working without internet. */
+@font-face { font-family: 'Baloo 2'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/baloo-2-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Baloo 2'; font-style: normal; font-weight: 600; font-display: swap; src: url('fonts/baloo-2-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Baloo 2'; font-style: normal; font-weight: 700; font-display: swap; src: url('fonts/baloo-2-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Nunito'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/nunito-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Nunito'; font-style: normal; font-weight: 600; font-display: swap; src: url('fonts/nunito-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Nunito'; font-style: normal; font-weight: 700; font-display: swap; src: url('fonts/nunito-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Nunito'; font-style: normal; font-weight: 800; font-display: swap; src: url('fonts/nunito-latin-800-normal.woff2') format('woff2'); }
 
 :root {
   /* Per-round design: page background + accent color.
@@ -26,9 +37,10 @@
   --good: #16a34a;
   --warn: #b45309;
   --danger: #dc2626;
-  --radius: 16px;
+  --radius: 18px;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Baloo 2", "Nunito", -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -47,6 +59,9 @@ body {
 /* Organic background textures are generated in JS from SVG noise (feTurbulence)
    and tinted with the accent color – see applyBackground(). */
 
+/* Headings speak in the display face. */
+h1, h2, h3 { font-family: var(--font-display); }
+
 /* ---- Topbar ---- */
 .topbar {
   position: sticky;
@@ -60,8 +75,9 @@ body {
   border-bottom: 1px solid var(--line);
 }
 .topbar__home {
+  font-family: var(--font-display);
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--brand);
   background: none;
   border: none;
@@ -121,11 +137,13 @@ body {
 .hero__id h1 { font-size: 28px; margin: 0; }
 .hero__members { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .avatar {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: var(--brand-tint);
-  color: var(--brand-dark);
+  /* Per-member color injected inline via memberColor(); accent as fallback. */
+  background: var(--brand);
+  color: #fff;
+  font-family: var(--font-display);
   font-size: 13px;
   font-weight: 700;
   line-height: 1;
@@ -133,6 +151,7 @@ body {
   align-items: center;
   justify-content: center;
   flex: none;
+  border: 2px solid var(--surface);
 }
 .hero__stats { margin-top: 10px; font-size: 15px; }
 .hero__actions {
@@ -147,7 +166,7 @@ body {
   align-items: center;
   gap: 8px;
   margin-top: 16px;
-  font-family: inherit;
+  font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
   color: var(--brand-dark);
@@ -217,32 +236,37 @@ body {
 }
 .sort-select:focus { outline: 2px solid var(--brand); border-color: var(--brand); }
 
-/* ---- Buttons ---- */
+/* ---- Buttons ----
+   Chunky and pressable: a thicker bottom border acts as the button's "base";
+   pressing pushes the face down onto it. The :active margin compensates the
+   shrinking border so surrounding layout doesn't shift. */
 .btn {
-  font-family: inherit;
-  font-size: 18px;
-  font-weight: 600;
-  padding: 12px 20px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  padding: 11px 20px;
+  border-radius: 14px;
+  border: 1.5px solid var(--line);
+  border-bottom-width: 4px;
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
-  transition: transform 0.05s ease, box-shadow 0.15s ease, background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
-.btn:hover { box-shadow: var(--shadow); }
-.btn:active { transform: translateY(1px); }
+.btn:hover { background: var(--brand-tint-soft); border-color: var(--brand-edge); }
+.btn:active { transform: translateY(2px); border-bottom-width: 1.5px; margin-bottom: 2.5px; }
 .btn--primary {
   background: var(--brand);
-  border-color: var(--brand);
+  border-color: var(--brand-dark);
   color: #fff;
 }
-.btn--primary:hover { background: var(--brand-dark); }
-.btn--ghost { background: transparent; }
+.btn--primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
+.btn--ghost { background: transparent; border-bottom-width: 1.5px; }
+.btn--ghost:active { transform: translateY(1px); margin-bottom: 0; }
 .btn--danger { color: var(--danger); border-color: #f1c4c4; }
-.btn--lg { font-size: 20px; padding: 16px 28px; }
+.btn--lg { font-size: 20px; padding: 15px 28px; }
 .btn--block { width: 100%; }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* ---- Cards / grids ---- */
 .cards {
@@ -261,7 +285,7 @@ body {
   flex-direction: column;
   gap: 6px;
 }
-.card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+.card:hover { box-shadow: var(--shadow); transform: translateY(-2px) rotate(-0.3deg); }
 .card h3 { font-size: 20px; margin: 0; text-transform: none; letter-spacing: 0; color: var(--ink); }
 .card__meta { color: var(--ink-soft); font-size: 15px; }
 .card__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -331,7 +355,7 @@ body {
   color: #c8bfae;
 }
 .game-card--clickable { cursor: pointer; transition: box-shadow 0.15s ease, transform 0.08s ease; }
-.game-card--clickable:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+.game-card--clickable:hover { box-shadow: var(--shadow); transform: translateY(-2px) rotate(-0.3deg); }
 
 /* Rating pill (average), colored by quality */
 .score-pill {
@@ -339,7 +363,8 @@ body {
   top: 8px;
   right: 8px;
   color: #fff;
-  font-weight: 800;
+  font-family: var(--font-display);
+  font-weight: 700;
   font-size: 14px;
   padding: 3px 10px;
   border-radius: 999px;
@@ -405,7 +430,7 @@ body {
   left: 50%;
   bottom: 10px;
   transform: translateX(-50%);
-  font-family: inherit;
+  font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
   color: var(--brand-dark);
@@ -797,7 +822,7 @@ body {
 .row-finish h3 { margin: 0 0 6px; }
 .member-chips { display: flex; flex-wrap: wrap; gap: 10px; }
 .member-chip {
-  font-family: inherit;
+  font-family: var(--font-display);
   font-size: 17px;
   font-weight: 600;
   padding: 10px 18px;
@@ -816,7 +841,7 @@ body {
 
 .winner-chips { display: flex; flex-wrap: wrap; gap: 10px; }
 .winner-chip {
-  font-family: inherit;
+  font-family: var(--font-display);
   font-size: 17px;
   font-weight: 600;
   padding: 10px 18px;

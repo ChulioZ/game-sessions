@@ -35,7 +35,7 @@ async function showRound(rid) {
          <div class="hero__id">
            <h1>${esc(round.name)}</h1>
            <div class="hero__members">${round.members
-             .map((m) => `<span class="avatar" title="${esc(m.name)}">${esc(initials(m.name))}</span>`)
+             .map((m) => `<span class="avatar" style="background:${memberColor(round, m.id)}" title="${esc(m.name)}">${esc(initials(m.name))}</span>`)
              .join('')}</div>
            <div class="hero__stats muted">${esc(t('round.statLine', { g: activeGames.length, s: playedCount }))}</div>
          </div>
