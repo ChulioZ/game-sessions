@@ -39,6 +39,8 @@ const frontendGlobals = {
   // views-round.js
   showRound: 'readonly', showRetired: 'readonly', THEMES: 'readonly',
   showBackground: 'readonly', showGameDetail: 'readonly', showAddGame: 'readonly',
+  HUB_TABS: 'readonly', renderHubDock: 'readonly', renderStartTab: 'readonly',
+  renderRegalTab: 'readonly', renderChronikTab: 'readonly',
   // views-session.js
   showStartSession: 'readonly', startVoting: 'readonly', showResults: 'readonly',
 };

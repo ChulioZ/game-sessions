@@ -2,58 +2,78 @@
    game detail, add game. Part of the frontend; all files share one global
    script scope. */
 
-// =================== Round: overview ===================
+// =================== Round: hub (Start / Regal / Chronik) ===================
 
-async function showRound(rid) {
-  currentView = () => showRound(rid);
+// The round screen is a hub with tabs, switched by the floating dock at the
+// bottom. Pokale (hall of fame) joins as a fourth tab in a later step.
+const HUB_TABS = ['start', 'regal', 'chronik'];
+
+async function showRound(rid, tab) {
+  const activeTab = HUB_TABS.includes(tab) ? tab : 'start';
+  currentView = () => showRound(rid, activeTab);
   app.innerHTML = '<p class="muted">…</p>';
   const round = await api('GET', '/api/rounds/' + rid);
   applyBackground(round.background);
   setCrumbs([{ label: t('nav.home'), onClick: showHome }, { label: round.name }]);
 
   app.innerHTML = '';
-
-  // Active games (in the collection) vs. retired games.
   const activeGames = round.games.filter((g) => !g.retired);
-  const retiredGames = round.games.filter((g) => g.retired);
+  if (activeTab === 'regal') renderRegalTab(round, activeGames);
+  else if (activeTab === 'chronik') renderChronikTab(round);
+  else renderStartTab(round, activeGames);
+  renderHubDock(rid, activeTab);
+}
 
-  // Stats per active game, computed once (for recommendation, pill, sorting).
+// Floating dock: the hub's tab bar.
+function renderHubDock(rid, activeTab) {
+  const tabs = [
+    { id: 'start', icon: 'ti-home', label: t('hub.tab.start') },
+    { id: 'regal', icon: 'ti-cards', label: t('hub.tab.regal') },
+    { id: 'chronik', icon: 'ti-history', label: t('hub.tab.chronik') },
+  ];
+  const dock = h('<nav class="dock"></nav>');
+  tabs.forEach(({ id: tabId, icon, label }) => {
+    const item = h(`<button class="dock__item${tabId === activeTab ? ' is-active' : ''}">
+         <i class="ti ${icon}" aria-hidden="true"></i>${esc(label)}
+       </button>`);
+    if (tabId !== activeTab) item.addEventListener('click', () => showRound(rid, tabId));
+    dock.appendChild(item);
+  });
+  app.appendChild(dock);
+}
+
+// --- Start tab: the launchpad — identity, the one big CTA, the latest story.
+function renderStartTab(round, activeGames) {
+  const rid = round.id;
+
+  // Stats per active game (for the retirement recommendations below).
   const statsByGame = {};
   activeGames.forEach((g) => (statsByGame[g.id] = gameStats(round, g.id)));
 
-  // --- Hero band: the round's identity plus the primary "start session" action.
-  // This is the launchpad; the start button is the single accent CTA, add-game
-  // and design are quieter secondary buttons beside it.
   const playedCount = round.sessions.filter((s) => s.finished).length;
   const hero = h(`<div class="hero">
-       <div class="hero__top">
-         <div class="hero__id">
-           <h1>${esc(round.name)}</h1>
-           <div class="hero__members">${round.members
-             .map((m) => `<span class="avatar" style="background:${memberColor(round, m.id)}" title="${esc(m.name)}">${esc(initials(m.name))}</span>`)
-             .join('')}</div>
-           <div class="hero__stats muted">${esc(t('round.statLine', { g: activeGames.length, s: playedCount }))}</div>
-         </div>
-         <div class="hero__actions"></div>
+       <h1>${esc(round.name)}</h1>
+       <div class="hero__members">${round.members
+         .map((m) => `<span class="avatar" style="background:${memberColor(round, m.id)}" title="${esc(m.name)}">${esc(initials(m.name))}</span>`)
+         .join('')}</div>
+       <div class="hero__chips">
+         <span class="stat-chip"><i class="ti ti-cards" aria-hidden="true"></i>${esc(tn(activeGames.length, 'home.chip.gamesOne', 'home.chip.games'))}</span>
+         <span class="stat-chip"><i class="ti ti-confetti" aria-hidden="true"></i>${esc(tn(playedCount, 'home.chip.nightsOne', 'home.chip.nights'))}</span>
        </div>
      </div>`);
-  const heroActions = hero.querySelector('.hero__actions');
+  app.appendChild(hero);
 
-  const addGameBtn = h(`<button class="btn">${esc(t('round.addGame'))}</button>`);
-  addGameBtn.addEventListener('click', () => showAddGame(round));
-  const bgBtn = h(`<button class="btn">${esc(t('round.design'))}</button>`);
-  bgBtn.addEventListener('click', () => showBackground(rid));
-  const startBtn = h(`<button class="btn btn--primary btn--lg">${esc(t('round.startSession'))}</button>`);
+  const startBtn = h(
+    `<button class="btn btn--primary hub-cta"><i class="ti ti-dice-5" aria-hidden="true"></i>${esc(t('round.startSession'))}</button>`
+  );
   startBtn.addEventListener('click', () => showStartSession(round));
   if (activeGames.length === 0) {
     startBtn.disabled = true;
     startBtn.title = t('round.startSessionDisabled');
   }
-  heroActions.appendChild(addGameBtn);
-  heroActions.appendChild(bgBtn);
-  heroActions.appendChild(startBtn);
+  app.appendChild(startBtn);
 
-  // "Last played" highlight: the newest finished session whose chosen game still
+  // "Last played" ticket: the newest finished session whose chosen game still
   // exists. Delivers the emotional payoff above the fold; tap opens that result.
   const lastPlayed = round.sessions
     .filter((s) => s.finished && s.chosenGameId && round.games.some((g) => g.id === s.chosenGameId))
@@ -67,14 +87,31 @@ async function showRound(rid) {
     const winnerNames = (lastPlayed.winnerIds || [])
       .map((wid) => (round.members.find((m) => m.id === wid) || {}).name)
       .filter(Boolean);
-    const label = winnerNames.length
-      ? t('round.lastPlayedWon', { game: game.title, names: joinNames(winnerNames) })
-      : t('round.lastPlayed', { game: game.title });
-    const lastEl = h(`<button class="hero__last">${esc(label)}</button>`);
-    lastEl.addEventListener('click', () => showResults(round, lastPlayed));
-    hero.appendChild(lastEl);
+    const sst = gameStatsForSession(round, lastPlayed, game.id);
+    const when = fmtDateTime(lastPlayed.finishedAt || lastPlayed.chosenAt || lastPlayed.createdAt);
+    const imgStyle = game.image ? ` style="background-image:url('${game.image}')"` : '';
+    const fallback = game.image ? '' : game.type === 'digital' ? '💻' : '🎲';
+    const pill =
+      sst.avg !== null
+        ? `<span class="score-pill" style="background:${avgColor(sst.avg)}">Ø ${sst.avg.toFixed(1)}</span>`
+        : '';
+    const ticket = h(`<button class="ticket">
+         <span class="ticket__main">
+           <span class="ticket__img"${imgStyle}>${fallback}</span>
+           <span class="ticket__info">
+             <span class="ticket__label">${esc(t('round.lastPlayedLabel'))}</span>
+             <span class="ticket__title">${esc(game.title)}</span>
+             <span class="ticket__meta">${esc(when)}${pill}</span>
+           </span>
+         </span>
+         <span class="ticket__stub">
+           <i class="ti ti-trophy" aria-hidden="true"></i>
+           <span class="ticket__names">${winnerNames.length ? esc(joinNames(winnerNames)) : esc(t('sessions.played'))}</span>
+         </span>
+       </button>`);
+    ticket.addEventListener('click', () => showResults(round, lastPlayed));
+    app.appendChild(ticket);
   }
-  app.appendChild(hero);
 
   // Retirement suggestions: a slim, dismissible banner. Enough data = at least
   // three times as many votes as members. Collapsed by default; expand to see
@@ -132,7 +169,29 @@ async function showRound(rid) {
     app.appendChild(banner);
   }
 
-  // Games
+  // Quick actions: quieter secondary tasks below the fold.
+  const actions = h('<div class="hub-actions"></div>');
+  const addGameBtn = h(
+    `<button class="btn"><i class="ti ti-plus" aria-hidden="true"></i> ${esc(t('round.addGame'))}</button>`
+  );
+  addGameBtn.addEventListener('click', () => showAddGame(round));
+  const bgBtn = h(
+    `<button class="btn"><i class="ti ti-palette" aria-hidden="true"></i> ${esc(t('round.design'))}</button>`
+  );
+  bgBtn.addEventListener('click', () => showBackground(rid));
+  actions.appendChild(addGameBtn);
+  actions.appendChild(bgBtn);
+  app.appendChild(actions);
+}
+
+// --- Regal tab: the games library.
+function renderRegalTab(round, activeGames) {
+  const rid = round.id;
+
+  // Stats per active game (for the rating pills and sorting).
+  const statsByGame = {};
+  activeGames.forEach((g) => (statsByGame[g.id] = gameStats(round, g.id)));
+
   const gamesSec = h('<div class="section"></div>');
   const gamesHead = h(`<div class="section-head"><h3>${esc(t('games.title', { n: activeGames.length }))}</h3><div class="section-tools"></div></div>`);
   const gamesTools = gamesHead.querySelector('.section-tools');
@@ -296,8 +355,20 @@ async function showRound(rid) {
   }
   app.appendChild(gamesSec);
 
-  // History: past sessions, promoted right below the library and anchored by the
-  // chosen game's cover. This is the round's memory — newest first.
+  // Quiet footer: the way into the archive of retired games.
+  const retiredGames = round.games.filter((g) => g.retired);
+  const foot = h('<div class="round-footer"></div>');
+  const retiredBtn = h(`<button class="link-btn">${esc(t('retired.link', { n: retiredGames.length }))}</button>`);
+  retiredBtn.addEventListener('click', () => showRetired(round.id));
+  foot.appendChild(retiredBtn);
+  app.appendChild(foot);
+}
+
+// --- Chronik tab: the round's memory — past sessions and the activity log.
+function renderChronikTab(round) {
+  const rid = round.id;
+
+  // History: past sessions, anchored by the chosen game's cover — newest first.
   const done = round.sessions.filter((s) => s.done).reverse();
   if (done.length) {
     const sec = h(`<div class="section"><h3>${esc(t('sessions.title'))}</h3></div>`);
@@ -374,7 +445,7 @@ async function showRound(rid) {
           try {
             await api('DELETE', `/api/rounds/${rid}/activities/${e.id}`);
             toast(t('activity.deleted'));
-            showRound(rid);
+            showRound(rid, 'chronik');
           } catch (err) { toast(err.message); }
         });
       }
@@ -384,18 +455,14 @@ async function showRound(rid) {
   }
   app.appendChild(feedSec);
 
-  // Utility footer: quiet, grouped maintenance actions (view retired games,
-  // delete the round) set off from the content above.
+  // Utility footer: deleting the round lives with its history, out of the way.
   const footer = h('<div class="round-footer"></div>');
-  const retiredBtn = h(`<button class="link-btn">${esc(t('retired.link', { n: retiredGames.length }))}</button>`);
-  retiredBtn.addEventListener('click', () => showRetired(round.id));
   const delBtn = h(`<button class="link-btn round-footer__danger">${esc(t('round.deleteRound'))}</button>`);
   delBtn.addEventListener('click', async () => {
     if (!confirm(t('round.deleteConfirm', { name: round.name }))) return;
     await api('DELETE', '/api/rounds/' + rid);
     showHome();
   });
-  footer.appendChild(retiredBtn);
   footer.appendChild(delBtn);
   app.appendChild(footer);
 }
@@ -465,7 +532,7 @@ async function showRetired(rid) {
   }
 
   const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.backToRound'))}</button></div>`);
-  back.querySelector('button').addEventListener('click', () => showRound(rid));
+  back.querySelector('button').addEventListener('click', () => showRound(rid, 'regal'));
   app.appendChild(back);
 }
 
@@ -815,7 +882,7 @@ async function showGameDetail(rid, gameId) {
   app.appendChild(sec);
 
   const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.backToRound'))}</button></div>`);
-  back.querySelector('button').addEventListener('click', () => showRound(rid));
+  back.querySelector('button').addEventListener('click', () => showRound(rid, 'regal'));
   app.appendChild(back);
 }
 
@@ -1001,7 +1068,7 @@ function showAddGame(round) {
       toast(t('addGame.toast.saved'));
       const fresh = await api('GET', '/api/rounds/' + round.id);
       if (again) showAddGame(fresh);
-      else showRound(fresh.id);
+      else showRound(fresh.id, 'regal');
     } catch (e) { toast(e.message); }
   }
   form.querySelector('#save').addEventListener('click', () => save(false));

@@ -47,15 +47,17 @@ I18N.de = {
   'newRound.toast.created': 'Runde erstellt',
   'newRound.toast.createdImported': 'Runde erstellt – Spiele übernommen',
 
-  'round.design': '🎨 Design',
-  'round.startSession': '🎯 Session starten',
+  'round.design': 'Design',
+  'round.startSession': 'Spielabend starten',
   'round.startSessionDisabled': 'Erst Spiele hinzufügen',
-  'round.addGame': '➕ Spiel hinzufügen',
+  'round.addGame': 'Spiel hinzufügen',
   'round.deleteRound': 'Diese Runde löschen',
   'round.deleteConfirm': 'Runde „{name}“ mit allen Spielen und Sessions löschen?',
-  'round.statLine': '🎮 {g} Spiele · 🗳️ {s}× gespielt',
-  'round.lastPlayed': '🎲 Zuletzt gespielt: {game}',
-  'round.lastPlayedWon': '🎲 Zuletzt gespielt: {game} · 🏆 {names}',
+  'round.lastPlayedLabel': 'Zuletzt gespielt',
+
+  'hub.tab.start': 'Start',
+  'hub.tab.regal': 'Regal',
+  'hub.tab.chronik': 'Chronik',
 
   'rec.title': '🗑️ Aussortieren empfohlen ({n})',
   'rec.minimize': '▾ Minimieren',

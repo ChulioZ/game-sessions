@@ -110,7 +110,8 @@ h1, h2, h3 { font-family: var(--font-display); }
 .app {
   max-width: 1000px;
   margin: 0 auto;
-  padding: 24px 20px 80px;
+  /* Generous bottom padding so the floating dock never covers content. */
+  padding: 24px 20px 120px;
 }
 .page-head {
   display: flex;
@@ -124,17 +125,9 @@ h1, h2, h3 { font-family: var(--font-display); }
 .page-head h2 { font-size: 22px; margin: 0; }
 .muted { color: var(--ink-soft); }
 
-/* ---- Round hero band (launchpad: identity + start-session CTA) ---- */
-.hero { margin-bottom: 24px; }
-.hero__top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-.hero__id { min-width: 0; }
-.hero__id h1 { font-size: 28px; margin: 0; }
+/* ---- Round hub: hero (identity), big CTA, last-played ticket, dock ---- */
+.hero { margin-bottom: 20px; }
+.hero h1 { font-size: 30px; margin: 0; }
 .hero__members { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .avatar {
   width: 34px;
@@ -153,31 +146,151 @@ h1, h2, h3 { font-family: var(--font-display); }
   flex: none;
   border: 2px solid var(--surface);
 }
-.hero__stats { margin-top: 10px; font-size: 15px; }
-.hero__actions {
+.hero__chips { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+/* The one big accent action of the Start tab. */
+.hub-cta {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 21px;
+  padding: 18px;
+  border-radius: 18px;
+  margin: 4px 0 18px;
+}
+.hub-cta .ti { font-size: 24px; }
+
+/* Quieter secondary tasks under the launchpad content. */
+.hub-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; }
+
+/* "Last played" as a ticket stub: main part + perforated winner stub. */
+.ticket {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.08s ease;
+}
+.ticket:hover { box-shadow: var(--shadow); transform: translateY(-2px) rotate(-0.3deg); }
+.ticket__main {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: none;
-  flex-wrap: wrap;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  padding: 14px 16px;
 }
-.hero__last {
-  display: inline-flex;
+.ticket__img {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: var(--sunken) center/cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex: none;
+}
+.ticket__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ticket__label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.ticket__title { font-family: var(--font-display); font-size: 19px; font-weight: 700; }
+.ticket__meta {
+  display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 16px;
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--brand-dark);
-  background: var(--brand-tint-soft);
-  border: 1px solid var(--brand-edge);
-  border-radius: 999px;
-  padding: 8px 16px;
-  cursor: pointer;
-  transition: background 0.15s ease;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
 }
-.hero__last:hover { background: var(--brand-tint); }
+.ticket__meta .score-pill { position: static; }
+.ticket__stub {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 110px;
+  max-width: 170px;
+  padding: 12px 16px;
+  border-left: 2px dashed var(--line);
+  color: var(--brand-dark);
+  font-weight: 700;
+}
+.ticket__stub .ti { font-size: 20px; color: var(--warn); }
+/* Punch holes where the stub is torn off. */
+.ticket__stub::before,
+.ticket__stub::after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--page-bg);
+  border: 1px solid var(--line);
+}
+.ticket__stub::before { top: -8px; }
+.ticket__stub::after { bottom: -8px; }
+.ticket__names {
+  font-size: 14px;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Floating dock: the hub's tab bar, pinned above the page bottom. */
+.dock {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px;
+  box-shadow: var(--shadow);
+  z-index: 20;
+}
+.dock__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 7px 18px;
+  border-radius: 999px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.dock__item .ti { font-size: 19px; }
+.dock__item.is-active { background: var(--brand); color: #fff; }
+.dock__item:not(.is-active):hover { background: var(--brand-tint-soft); }
 
 .section { margin-top: 32px; }
 .section h3 {
@@ -254,6 +367,7 @@ h1, h2, h3 { font-family: var(--font-display); }
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .btn:hover { background: var(--brand-tint-soft); border-color: var(--brand-edge); }
+.btn .ti { vertical-align: -2px; }
 .btn:active { transform: translateY(2px); border-bottom-width: 1.5px; margin-bottom: 2.5px; }
 .btn--primary {
   background: var(--brand);
@@ -1208,6 +1322,6 @@ kbd {
 
 @media (max-width: 520px) {
   body { font-size: 17px; }
-  .app { padding: 16px 14px 80px; }
+  .app { padding: 16px 14px 120px; }
   .rating button { width: 56px; height: 56px; }
 }

@@ -47,15 +47,17 @@ I18N.en = {
   'newRound.toast.created': 'Round created',
   'newRound.toast.createdImported': 'Round created – games copied',
 
-  'round.design': '🎨 Design',
-  'round.startSession': '🎯 Start session',
+  'round.design': 'Design',
+  'round.startSession': 'Start game night',
   'round.startSessionDisabled': 'Add games first',
-  'round.addGame': '➕ Add game',
+  'round.addGame': 'Add a game',
   'round.deleteRound': 'Delete this round',
   'round.deleteConfirm': 'Delete round “{name}” with all its games and sessions?',
-  'round.statLine': '🎮 {g} games · 🗳️ played {s}×',
-  'round.lastPlayed': '🎲 Last played: {game}',
-  'round.lastPlayedWon': '🎲 Last played: {game} · 🏆 {names}',
+  'round.lastPlayedLabel': 'Last played',
+
+  'hub.tab.start': 'Start',
+  'hub.tab.regal': 'Shelf',
+  'hub.tab.chronik': 'History',
 
   'rec.title': '🗑️ Retirement suggested ({n})',
   'rec.minimize': '▾ Minimize',
