@@ -523,25 +523,40 @@ function renderPokaleTab(round) {
   );
   const ranked = [...round.members].sort((a, b) => wins[b.id] - wins[a.id]);
 
-  // Podium in classic order (second — first — third); only members who have
-  // actually won something get to stand on it.
-  const top = ranked.filter((m) => wins[m.id] > 0).slice(0, 3);
-  if (top.length) {
-    const podium = h('<div class="podium"></div>');
-    [top[1], top[0], top[2]].filter(Boolean).forEach((m) => {
-      const rank = top.indexOf(m) + 1;
-      podium.appendChild(
-        h(`<div class="podium__col podium__col--${rank}">
+  // Competition ranking (1224): members tied on wins share a rank, so two
+  // three-win members are both rank 1 and the next best jumps to rank 3. Only
+  // members who have actually won something can stand on the podium.
+  const winners = ranked.filter((m) => wins[m.id] > 0);
+  const rankOf = {};
+  winners.forEach((m) => {
+    rankOf[m.id] = winners.filter((o) => wins[o.id] > wins[m.id]).length + 1;
+  });
+
+  // Podium slots by rank: left = 2, center = 1, right = 3. A slot holds every
+  // member with that rank, so a tie shows several avatars sharing one step.
+  const podiumCol = (rank) => {
+    const members = winners.filter((m) => rankOf[m.id] === rank);
+    if (!members.length) return '';
+    const avatars = members
+      .map(
+        (m) =>
+          `<span class="avatar podium__avatar" style="background:${memberColor(round, m.id)}">${esc(initials(m.name))}</span>`
+      )
+      .join('');
+    const names = members.map((m) => esc(m.name)).join(', ');
+    return `<div class="podium__col podium__col--${rank}">
              ${rank === 1 ? '<i class="ti ti-crown podium__crown" aria-hidden="true"></i>' : ''}
-             <span class="avatar podium__avatar" style="background:${memberColor(round, m.id)}">${esc(initials(m.name))}</span>
-             <span class="podium__name">${esc(m.name)}</span>
-             <span class="podium__base"><span class="podium__rank">${rank}</span>${esc(tn(wins[m.id], 'pokale.winsOne', 'pokale.wins'))}</span>
-           </div>`)
-      );
-    });
-    sec.appendChild(podium);
+             <span class="podium__avatars">${avatars}</span>
+             <span class="podium__name">${names}</span>
+             <span class="podium__base"><span class="podium__rank">${rank}</span>${esc(tn(wins[members[0].id], 'pokale.winsOne', 'pokale.wins'))}</span>
+           </div>`;
+  };
+  if (winners.length) {
+    sec.appendChild(h(`<div class="podium">${podiumCol(2)}${podiumCol(1)}${podiumCol(3)}</div>`));
   }
-  const rest = ranked.filter((m) => !top.includes(m));
+  // Anyone ranked below the podium's three steps drops to the summary line.
+  const onPodium = new Set(winners.filter((m) => rankOf[m.id] <= 3).map((m) => m.id));
+  const rest = ranked.filter((m) => !onPodium.has(m.id));
   if (rest.length) {
     const line = rest
       .map((m) => `${esc(m.name)} · ${esc(tn(wins[m.id], 'pokale.winsOne', 'pokale.wins'))}`)
@@ -564,26 +579,33 @@ function renderPokaleTab(round) {
     if (s.chosenGameId && round.games.some((g) => g.id === s.chosenGameId))
       playCount[s.chosenGameId] = (playCount[s.chosenGameId] || 0) + 1;
   });
-  let mostId = null;
+  let maxPlays = 0;
   Object.keys(playCount).forEach((gid) => {
-    if (mostId === null || playCount[gid] > playCount[mostId]) mostId = gid;
+    if (playCount[gid] > maxPlays) maxPlays = playCount[gid];
   });
-  if (mostId) {
-    const g = round.games.find((x) => x.id === mostId);
+  const mostTitles = Object.keys(playCount)
+    .filter((gid) => playCount[gid] === maxPlays)
+    .map((gid) => round.games.find((x) => x.id === gid).title);
+  if (mostTitles.length) {
     cards.appendChild(
-      statCard('ti-flame', t('pokale.mostPlayed'), g.title, tn(playCount[mostId], 'home.chip.nightsOne', 'home.chip.nights'))
+      statCard('ti-flame', t('pokale.mostPlayed'), mostTitles.join(', '), tn(maxPlays, 'home.chip.nightsOne', 'home.chip.nights'))
     );
   }
 
-  // Best rated: highest overall average with a bit of data behind it.
-  let best = null;
-  round.games
+  // Best rated: highest overall average with a bit of data behind it; ties
+  // share the tile.
+  const rated = round.games
     .filter((g) => !g.retired)
-    .forEach((g) => {
+    .map((g) => {
       const st = gameStats(round, g.id);
-      if (st.avg !== null && st.count >= 3 && (!best || st.avg > best.avg)) best = { g, avg: st.avg };
-    });
-  if (best) cards.appendChild(statCard('ti-star', t('pokale.bestRated'), best.g.title, `Ø ${best.avg.toFixed(1)}`));
+      return { g, avg: st.avg, count: st.count };
+    })
+    .filter((x) => x.avg !== null && x.count >= 3);
+  if (rated.length) {
+    const bestAvg = Math.max(...rated.map((x) => x.avg));
+    const bestTitles = rated.filter((x) => x.avg === bestAvg).map((x) => x.g.title);
+    cards.appendChild(statCard('ti-star', t('pokale.bestRated'), bestTitles.join(', '), `Ø ${bestAvg.toFixed(1)}`));
+  }
 
   // Streak: how many of the latest nights in a row one member won alone.
   const chrono = [...finished].sort((a, b) =>
