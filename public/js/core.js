@@ -235,6 +235,24 @@ function avgColor(avg) {
   return `hsl(${hue}, 60%, 42%)`;
 }
 
+// Fixed, friendly palette for member avatars. A member keeps "their" color
+// everywhere in the app; assignment is by position in round.members, which is
+// append-only, so colors stay stable for the life of the round.
+const MEMBER_COLORS = [
+  '#d85a30', // coral
+  '#1d9e75', // teal
+  '#7f77dd', // violet
+  '#ba7517', // amber
+  '#d4537e', // pink
+  '#2f6f9e', // slate blue
+  '#639922', // green
+  '#993556', // berry
+];
+function memberColor(round, memberId) {
+  const idx = round.members.findIndex((m) => m.id === memberId);
+  return MEMBER_COLORS[(idx >= 0 ? idx : 0) % MEMBER_COLORS.length];
+}
+
 // --- Anchored popover (small floating menu next to a clicked element) ---
 // Used for the inline edit menus on the game detail page. Only one is open at a
 // time; it closes on Escape, an outside click, or a page scroll/resize.

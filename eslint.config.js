@@ -28,6 +28,7 @@ const frontendGlobals = {
   retireRecommendations: 'readonly', minimizedRecs: 'readonly',
   STANDARD_ACCENT: 'readonly', STANDARD_PATTERN: 'readonly', TEXTURES: 'readonly',
   textureImage: 'readonly', applyBackground: 'readonly', avgColor: 'readonly',
+  MEMBER_COLORS: 'readonly', memberColor: 'readonly',
   activePopover: 'writable', closePopover: 'readonly', openPopover: 'readonly',
   readClipboardImage: 'readonly', shuffled: 'readonly', typeTag: 'readonly',
   durationTag: 'readonly', playersTag: 'readonly', typeEmoji: 'readonly',
