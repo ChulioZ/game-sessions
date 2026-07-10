@@ -570,7 +570,8 @@ async function showResults(round, session, gamesHint, reveal) {
       banner.classList.remove('is-set');
     } else if (chosenId) {
       const g = games.find((x) => x.id === chosenId);
-      banner.innerHTML = t('result.bannerChosen', { title: '<strong>' + esc(g ? g.title : '') + '</strong>' });
+      const icon = `<i class="ti ${typeIcon(g ? g.type : '')}" aria-hidden="true"></i> `;
+      banner.innerHTML = icon + t('result.bannerChosen', { title: '<strong>' + esc(g ? g.title : '') + '</strong>' });
       banner.classList.add('is-set');
     } else {
       banner.textContent = t('result.bannerPrompt');
