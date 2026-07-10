@@ -674,11 +674,18 @@ function renderPokaleTab(round) {
     if (!lastAt[s.chosenGameId] || at > lastAt[s.chosenGameId]) lastAt[s.chosenGameId] = at;
   });
   const active = round.games.filter((g) => !g.retired);
-  let dusty = null;
+  // Find the earliest last-played timestamp ('' = never played sorts first),
+  // then pick a random game among all that tie for it, so the same game isn't
+  // always highlighted.
+  let dustyAt = null;
   active.forEach((g) => {
     const at = lastAt[g.id] || '';
-    if (!dusty || at < dusty.at) dusty = { g, at };
+    if (dustyAt === null || at < dustyAt) dustyAt = at;
   });
+  const dustyCandidates = active.filter((g) => (lastAt[g.id] || '') === dustyAt);
+  const dusty = dustyCandidates.length
+    ? { g: dustyCandidates[Math.floor(Math.random() * dustyCandidates.length)], at: dustyAt }
+    : null;
   if (dusty && active.length > 1) {
     cards.appendChild(
       statCard(
