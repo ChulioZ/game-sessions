@@ -25,8 +25,9 @@ router.post('/', (req, res) => {
 
   let bg;
   if (req.body.type === 'theme' && typeof req.body.page === 'string' && typeof req.body.accent === 'string') {
+    // Page + accent only. (Older data may still carry a "pattern" field from
+    // the retired texture system; it is simply ignored by the frontend.)
     bg = { type: 'theme', page: req.body.page, accent: req.body.accent };
-    if (typeof req.body.pattern === 'string') bg.pattern = req.body.pattern;
   } else if (req.body.type === 'color' && typeof req.body.color === 'string') {
     bg = { type: 'color', color: req.body.color };
   } else {

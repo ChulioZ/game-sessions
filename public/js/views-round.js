@@ -776,16 +776,18 @@ async function showRetired(rid) {
 // =================== Design ===================
 
 // Coordinated designs: light background + matching accent color. The first is
-// the default (warm cream + orange). Labels are translation keys.
+// the default (warm cream + orange). Labels are translation keys. Accents are
+// kept soft and slightly muted so they sit well next to the member colors,
+// the gold family and the neutral surfaces.
 const THEMES = [
-  { labelKey: 'theme.standard', page: '#f4f1ea', accent: '#c2410c', pattern: 'clouds', std: true },
-  { labelKey: 'theme.blaugrau', page: '#eef3f8', accent: '#2563eb', pattern: 'mist' },
-  { labelKey: 'theme.salbei', page: '#e9f1ea', accent: '#2e7d46', pattern: 'grain' },
-  { labelKey: 'theme.rose', page: '#f6ecf1', accent: '#bb3a78', pattern: 'marble' },
-  { labelKey: 'theme.lavendel', page: '#efedf9', accent: '#6d4ac2', pattern: 'wisps' },
-  { labelKey: 'theme.sand', page: '#f6efe2', accent: '#a76a17', pattern: 'clouds' },
-  { labelKey: 'theme.schiefer', page: '#e7edf2', accent: '#2f6f9e', pattern: 'wisps' },
-  { labelKey: 'theme.pfirsich', page: '#f7ece7', accent: '#d2542f', pattern: 'marble' },
+  { labelKey: 'theme.standard', page: '#f4f1ea', accent: '#c2410c', std: true },
+  { labelKey: 'theme.blaugrau', page: '#eef2f7', accent: '#3a67b1' },
+  { labelKey: 'theme.salbei', page: '#eaf1ea', accent: '#397a4b' },
+  { labelKey: 'theme.rose', page: '#f6ecf1', accent: '#b23a72' },
+  { labelKey: 'theme.lavendel', page: '#efedf8', accent: '#6d55c4' },
+  { labelKey: 'theme.sand', page: '#f6efe2', accent: '#a2701d' },
+  { labelKey: 'theme.schiefer', page: '#e9eef3', accent: '#33688f' },
+  { labelKey: 'theme.pfirsich', page: '#f8ede6', accent: '#c95633' },
 ];
 
 async function showBackground(rid) {
@@ -825,7 +827,7 @@ async function showBackground(rid) {
     sw.addEventListener('click', async () => {
       const payload = th.std
         ? { type: 'none' }
-        : { type: 'theme', page: th.page, accent: th.accent, pattern: th.pattern };
+        : { type: 'theme', page: th.page, accent: th.accent };
       try {
         const saved = await api('POST', `/api/rounds/${rid}/background`, payload);
         applyBackground(saved.background);

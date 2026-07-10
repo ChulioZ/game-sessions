@@ -171,63 +171,24 @@ const minimizedRecs = new Set();
 // ---- Design ----
 
 const STANDARD_ACCENT = '#c2410c';
-const STANDARD_PATTERN = 'clouds';
 
-// Organic textures from SVG fractal noise (feTurbulence), tinted with the accent
-// color and only faintly visible. Entirely in the browser, no images. Each
-// "pattern" variant has a different frequency/strength -> looks irregular.
-const TEXTURES = {
-  // soft, cloudy wisps
-  clouds: { w: 600, h: 600, type: 'fractalNoise', freq: '0.012', oct: 4, amp: 0.16, bias: 0.02 },
-  // fine, paper-like grain
-  grain: { w: 200, h: 200, type: 'fractalNoise', freq: '0.85', oct: 2, amp: 0.05, bias: 0.012 },
-  // long, flowing streaks
-  wisps: { w: 720, h: 520, type: 'fractalNoise', freq: '0.006 0.022', oct: 4, amp: 0.14, bias: 0.01 },
-  // marbled veins
-  marble: { w: 560, h: 560, type: 'turbulence', freq: '0.018', oct: 5, amp: 0.13, bias: 0.02 },
-  // very calm, misty gradient
-  mist: { w: 820, h: 820, type: 'fractalNoise', freq: '0.008', oct: 3, amp: 0.12, bias: 0.03 },
-};
-
-function textureImage(pattern, accent) {
-  const tex = TEXTURES[pattern] || TEXTURES[STANDARD_PATTERN];
-  const svg =
-    `<svg xmlns='http://www.w3.org/2000/svg' width='${tex.w}' height='${tex.h}'>` +
-    `<defs><filter id='t' x='0' y='0' width='100%' height='100%'>` +
-    `<feTurbulence type='${tex.type}' baseFrequency='${tex.freq}' numOctaves='${tex.oct}' seed='7' stitchTiles='stitch' result='n'/>` +
-    `<feColorMatrix in='n' type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ${tex.amp} ${tex.bias}' result='m'/>` +
-    `<feFlood flood-color='${accent}' result='c'/>` +
-    `<feComposite in='c' in2='m' operator='in'/>` +
-    `</filter></defs><rect width='100%' height='100%' filter='url(#t)'/></svg>`;
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-}
-
-// Apply the round's design: page background + accent color + organic texture.
-// All other tones (placeholders, borders, accent surfaces) follow via CSS
-// color-mix with the accent color.
+// Apply the round's design: page background + accent color. Everything else —
+// placeholders, borders, accent surfaces, the page glow and the finale stage —
+// derives from these two custom properties via CSS color-mix (see styles.css).
 function applyBackground(bg) {
   const root = document.documentElement.style;
-  let page, accent, pattern;
   if (bg && bg.type === 'theme' && bg.page && bg.accent) {
-    page = bg.page;
-    accent = bg.accent;
-    pattern = bg.pattern || STANDARD_PATTERN;
-    root.setProperty('--page-bg', page);
-    root.setProperty('--brand', accent);
+    root.setProperty('--page-bg', bg.page);
+    root.setProperty('--brand', bg.accent);
   } else if (bg && bg.type === 'color' && bg.color) {
-    page = bg.color; // Altbestand: nur Hintergrundfarbe
-    accent = STANDARD_ACCENT;
-    pattern = STANDARD_PATTERN;
-    root.setProperty('--page-bg', page);
+    // Legacy stored design: only a page color, standard accent.
+    root.setProperty('--page-bg', bg.color);
     root.removeProperty('--brand');
   } else {
-    // no page bg -> fall back to the :root default (#f4f1ea)
-    accent = STANDARD_ACCENT;
-    pattern = STANDARD_PATTERN;
+    // No design -> fall back to the :root defaults.
     root.removeProperty('--page-bg');
     root.removeProperty('--brand');
   }
-  document.body.style.backgroundImage = textureImage(pattern, accent);
 }
 
 // Color for an average 1–5: red (bad) → yellow → green (good).

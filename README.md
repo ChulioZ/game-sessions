@@ -34,8 +34,8 @@ code and documentation are in English.
   rated very low get a gentle, dismissible suggestion.
 - **Sorting & import** – sort the games list (random / name / rating); create a
   new round by importing the games list from an existing one.
-- **Designs** – per round, pick a colour scheme; the whole UI (accent included)
-  and a subtle, procedurally generated background texture adapt to it.
+- **Designs** – per round, pick a colour scheme; the whole UI adapts to it —
+  accent, surfaces, and a calm backdrop with a soft accent glow and paper grain.
 - **Languages** – German and English, following the system language by default,
   switchable any time via the picker in the top bar.
 
@@ -47,8 +47,8 @@ code and documentation are in English.
   `data/uploads/`; only their paths live in `data.json`.
 - **Frontend:** plain HTML/CSS/vanilla JS under `public/` — **no build step**.
 - **Runs entirely on your machine.** No data is sent to any external service.
-  Even the procedurally generated background textures are produced in the
-  browser from SVG `feTurbulence` noise — no third-party APIs are involved.
+  Even the subtle background grain is an inline SVG in the stylesheet — no
+  third-party APIs are involved.
 
 ```
 server.js            Express app: static files + mounts the route modules

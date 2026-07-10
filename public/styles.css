@@ -31,12 +31,29 @@
   --brand-tint: color-mix(in srgb, var(--brand) 13%, var(--surface));      /* light accent surfaces */
   --brand-tint-soft: color-mix(in srgb, var(--brand) 7%, var(--surface));  /* very light accent surfaces */
   --brand-edge: color-mix(in srgb, var(--brand) 32%, var(--surface));      /* borders of accent surfaces */
+  --page-glow: color-mix(in srgb, var(--brand) 7%, transparent);           /* soft halo at the page top */
+  --placeholder: color-mix(in srgb, var(--page-bg), #000 24%);             /* fallback icons on image areas */
+
+  /* The finale stage: a dark "curtain" tinted with the accent, so it matches
+     every theme. */
+  --stage-bg: color-mix(in srgb, var(--brand) 18%, #201a15);
+  --stage-raised: color-mix(in srgb, #fff 7%, var(--stage-bg));
+  --stage-line: color-mix(in srgb, #fff 16%, var(--stage-bg));
+  --stage-ink: color-mix(in srgb, var(--brand) 8%, #f7f2e9);
+  --stage-muted: color-mix(in srgb, var(--stage-ink) 62%, var(--stage-bg));
+  --stage-faint: color-mix(in srgb, var(--stage-ink) 45%, var(--stage-bg));
 
   --ink: #2b2620;
   --ink-soft: #6b6358;
   --good: #16a34a;
   --warn: #b45309;
   --danger: #dc2626;
+
+  /* Trophies, crowns, winners: one gold family across the app. */
+  --gold: #d99a06;
+  --gold-deep: #92400e;
+  --gold-soft: #fef3c7;
+  --gold-edge: #d97706;
   --radius: 18px;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
   --font: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -49,15 +66,18 @@ body {
   margin: 0;
   font-family: var(--font);
   color: var(--ink);
+  /* Calm, theme-derived backdrop: a soft accent glow falling from the top and
+     a barely-there neutral paper grain over the page color. Both react to the
+     round's design purely via --brand/--page-bg — no JS involved. */
   background-color: var(--page-bg);
+  background-image:
+    radial-gradient(120% 70% at 50% 0%, var(--page-glow), transparent 70%),
+    url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='180'%20height='180'%3E%3Cfilter%20id='g'%20x='0'%20y='0'%20width='100%25'%20height='100%25'%3E%3CfeTurbulence%20type='fractalNoise'%20baseFrequency='0.9'%20numOctaves='2'%20seed='7'%20stitchTiles='stitch'/%3E%3CfeColorMatrix%20type='matrix'%20values='0%200%200%200%200%200%200%200%200%200%200%200%200%200%200%200%200%200%200.06%200'/%3E%3C/filter%3E%3Crect%20width='100%25'%20height='100%25'%20filter='url(%23g)'/%3E%3C/svg%3E");
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   font-size: 18px;
   line-height: 1.5;
 }
-
-/* Organic background textures are generated in JS from SVG noise (feTurbulence)
-   and tinted with the accent color – see applyBackground(). */
 
 /* Headings speak in the display face. */
 h1, h2, h3 { font-family: var(--font-display); }
@@ -234,7 +254,7 @@ h1, h2, h3 { font-family: var(--font-display); }
   color: var(--brand-dark);
   font-weight: 700;
 }
-.ticket__stub .ti { font-size: 20px; color: var(--warn); }
+.ticket__stub .ti { font-size: 20px; color: var(--gold); }
 /* Punch holes where the stub is torn off. */
 .ticket__stub::before,
 .ticket__stub::after {
@@ -421,7 +441,7 @@ h1, h2, h3 { font-family: var(--font-display); }
 .btn--primary:hover { background: var(--brand-dark); border-color: var(--brand-dark); }
 .btn--ghost { background: transparent; border-bottom-width: 1.5px; }
 .btn--ghost:active { transform: translateY(1px); margin-bottom: 0; }
-.btn--danger { color: var(--danger); border-color: #f1c4c4; }
+.btn--danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 25%, var(--surface)); }
 .btn--lg { font-size: 20px; padding: 15px 28px; }
 .btn--block { width: 100%; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -505,7 +525,7 @@ h1, h2, h3 { font-family: var(--font-display); }
   align-items: center;
   gap: 6px;
 }
-.round-card__last .ti { color: var(--warn); }
+.round-card__last .ti { color: var(--gold); }
 .round-card__chev { font-size: 22px; color: var(--brand-edge); flex: none; }
 .round-card--new {
   justify-content: center;
@@ -674,7 +694,7 @@ h1, h2, h3 { font-family: var(--font-display); }
   border-radius: 8px;
 }
 .tl-act__del .ti { font-size: 13px; }
-.tl-act__del:hover { background: #f8e3e3; color: var(--danger); }
+.tl-act__del:hover { background: color-mix(in srgb, var(--danger) 10%, var(--surface)); color: var(--danger); }
 
 @media (max-width: 520px) {
   .tl-act { flex-wrap: wrap; }
@@ -706,7 +726,7 @@ h1, h2, h3 { font-family: var(--font-display); }
   align-items: center;
   justify-content: center;
   font-size: 24px;
-  color: #c8bfae;
+  color: var(--placeholder);
   flex: none;
 }
 .session-card__body { min-width: 0; flex: 1; }
@@ -738,7 +758,7 @@ h1, h2, h3 { font-family: var(--font-display); }
   align-items: center;
   justify-content: center;
   font-size: 40px;
-  color: #c8bfae;
+  color: var(--placeholder);
 }
 .game-card--clickable { cursor: pointer; transition: box-shadow 0.15s ease, transform 0.08s ease; }
 .game-card--clickable:hover { box-shadow: var(--shadow); transform: translateY(-2px) rotate(-0.3deg); }
@@ -757,8 +777,8 @@ h1, h2, h3 { font-family: var(--font-display); }
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 .score-pill--none {
-  background: #d8cfc0;
-  color: #6b6358;
+  background: color-mix(in srgb, var(--page-bg), #000 10%);
+  color: var(--ink-soft);
   box-shadow: none;
 }
 
@@ -961,9 +981,12 @@ h1, h2, h3 { font-family: var(--font-display); }
 .score-label { font-size: 13px; color: var(--ink-soft); }
 .sort-flag { color: var(--warn); font-size: 14px; font-weight: 700; margin-top: 4px; }
 .sortflag-btn { color: var(--warn); font-weight: 700; text-decoration: underline; }
-.tag--retired { background: #fde9d2; color: #92400e; }
+.tag--retired {
+  background: color-mix(in srgb, var(--warn) 14%, var(--surface));
+  color: var(--warn);
+}
 .rank-medal { font-size: 22px; margin-right: 6px; vertical-align: middle; }
-.rank-medal--gold { color: #d4af37; }
+.rank-medal--gold { color: var(--gold); }
 .rank-medal--silver { color: #9ca3af; }
 .rank-medal--bronze { color: #b3703a; }
 
@@ -984,9 +1007,9 @@ h1, h2, h3 { font-family: var(--font-display); }
   font-size: 18px;
 }
 .chosen-banner.is-cancelled {
-  background: #fdf0f0;
+  background: color-mix(in srgb, var(--danger) 6%, var(--surface));
   color: var(--danger);
-  border: 1px solid #f1c4c4;
+  border: 1px solid color-mix(in srgb, var(--danger) 25%, var(--surface));
   font-size: 18px;
 }
 .cancel-area { text-align: center; margin: -6px 0 18px; }
@@ -1001,8 +1024,8 @@ h1, h2, h3 { font-family: var(--font-display); }
 /* Retirement suggestions: a slim, dismissible banner. */
 .rec-banner {
   margin-top: 20px;
-  background: #fdf2e3;
-  border: 1px solid #f0d8a8;
+  background: color-mix(in srgb, var(--warn) 9%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, var(--surface));
   border-left: 5px solid var(--warn);
   border-radius: var(--radius);
   padding: 10px 14px;
@@ -1100,16 +1123,16 @@ h1, h2, h3 { font-family: var(--font-display); }
 }
 .winner-chip:hover { border-color: var(--brand); }
 .winner-chip.is-selected {
-  background: #fef3c7;
-  border-color: #d97706;
-  color: #92400e;
+  background: var(--gold-soft);
+  border-color: var(--gold-edge);
+  color: var(--gold-deep);
 }
 .winner-result {
   margin-top: 14px;
   padding: 12px 16px;
   border-radius: 12px;
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--gold-soft);
+  color: var(--gold-deep);
   font-weight: 700;
   font-size: 18px;
 }
@@ -1326,7 +1349,7 @@ kbd {
 /* ---- Pokale: podium + stat cards ---- */
 .podium { display: flex; align-items: flex-end; justify-content: center; gap: 14px; margin: 8px 0 18px; }
 .podium__col { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 110px; }
-.podium__crown { font-size: 24px; color: #d99a06; }
+.podium__crown { font-size: 24px; color: var(--gold); }
 .podium__avatar { width: 52px; height: 52px; font-size: 18px; }
 .podium__avatars { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
 .podium__name {
@@ -1607,12 +1630,14 @@ kbd {
 .mood:hover { border-color: var(--brand); transform: translateY(-2px); }
 .mood.is-selected { color: #fff; transform: scale(1.08); }
 
-/* ---- Finale: the dark stage before the reveal ---- */
+/* ---- Finale: the dark stage before the reveal ----
+   All tones derive from the round's accent (see --stage-* in :root), so the
+   curtain matches whatever design the round uses. */
 .stage {
   max-width: 640px;
   margin: 0 auto;
-  background: #241b12;
-  color: #f3e7cf;
+  background: var(--stage-bg);
+  color: var(--stage-ink);
   border-radius: 22px;
   text-align: center;
   padding: 40px 24px 36px;
@@ -1625,8 +1650,8 @@ kbd {
   width: 104px;
   height: 104px;
   border-radius: 24px;
-  background: #33281e;
-  border: 2px solid #57452f;
+  background: var(--stage-raised);
+  border: 2px solid var(--stage-line);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1640,12 +1665,12 @@ kbd {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #ba7517;
+  background: var(--gold);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid #241b12;
+  border: 3px solid var(--stage-bg);
 }
 .stage__lock .ti { font-size: 14px; }
 @media (prefers-reduced-motion: no-preference) {
@@ -1655,12 +1680,12 @@ kbd {
     50% { transform: scale(1.05); }
   }
 }
-.stage__title { color: #f3e7cf; font-size: 27px; margin: 0; }
-.stage__sub { font-size: 15px; font-weight: 700; color: #c4ae8b; margin: 6px auto 22px; max-width: 380px; }
+.stage__title { color: var(--stage-ink); font-size: 27px; margin: 0; }
+.stage__sub { font-size: 15px; font-weight: 700; color: var(--stage-muted); margin: 6px auto 22px; max-width: 380px; }
 .stage__voters { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin-bottom: 26px; }
 .stage__voter { display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .stage__voter-avatar { position: relative; }
-.stage__voter-avatar .avatar { width: 46px; height: 46px; font-size: 16px; border-color: #3d2f1f; }
+.stage__voter-avatar .avatar { width: 46px; height: 46px; font-size: 16px; border-color: var(--stage-raised); }
 .stage__voter-check {
   position: absolute;
   right: -5px;
@@ -1668,16 +1693,16 @@ kbd {
   width: 19px;
   height: 19px;
   border-radius: 50%;
-  background: #4c8a1f;
+  background: var(--good);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #241b12;
+  border: 2px solid var(--stage-bg);
 }
 .stage__voter-check .ti { font-size: 10px; }
-.stage__voter-name { font-size: 12px; font-weight: 800; color: #c4ae8b; }
-.stage__note { font-size: 12px; font-weight: 700; color: #8d7a5d; margin-top: 12px; }
+.stage__voter-name { font-size: 12px; font-weight: 800; color: var(--stage-muted); }
+.stage__note { font-size: 12px; font-weight: 700; color: var(--stage-faint); margin-top: 12px; }
 
 /* ---- Results: podium reveal + confetti ---- */
 .result-podium {
@@ -1689,7 +1714,7 @@ kbd {
   margin: 4px 0 22px;
 }
 .result-podium__col { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 140px; }
-.result-podium__crown { font-size: 24px; color: #d99a06; }
+.result-podium__crown { font-size: 24px; color: var(--gold); }
 .result-podium__img {
   width: 74px;
   height: 74px;
