@@ -342,6 +342,9 @@ function shuffled(arr) {
   return a;
 }
 
+// Inline "<icon> label" markup for buttons/badges/tags; the label is escaped.
+const iconText = (icon, text) => `<i class="ti ${icon}" aria-hidden="true"></i> ${esc(text)}`;
+
 // Tabler icon class for a game type: digital -> gamepad, analog -> dice.
 const typeIcon = (type) => (type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3');
 

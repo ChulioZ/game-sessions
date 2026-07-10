@@ -269,7 +269,7 @@ function startVoting(round, session, games, members) {
         </div>
         <div class="vote__nav">
           <button class="btn" id="backBtn"><i class="ti ti-chevron-left" aria-hidden="true"></i> ${esc(t('vote.back'))}</button>
-          <button class="btn btn--primary" id="nextBtn">${esc(idx === total - 1 ? t('vote.finish') : t('vote.next'))}</button>
+          <button class="btn btn--primary" id="nextBtn">${idx === total - 1 ? esc(t('vote.finish')) + ' <i class="ti ti-chevron-right" aria-hidden="true"></i>' : esc(t('vote.next'))}</button>
         </div>
       </div>`);
 
@@ -486,7 +486,7 @@ async function showResults(round, session, gamesHint, reveal) {
   const cancelWrap = h('<div class="cancel-area"></div>');
   app.appendChild(cancelWrap);
 
-  const medals = ['🥇', '🥈', '🥉'];
+  const medalRanks = ['gold', 'silver', 'bronze'];
   const maxBar = Math.max(1, ...rows.map((r) => Math.max(...r.dist)));
   const rowRefs = [];
 
@@ -503,14 +503,14 @@ async function showResults(round, session, gamesHint, reveal) {
       })
       .join('');
     // Info if the game has been retired in the meantime.
-    const retiredBadge = g.retired ? ` <span class="tag tag--retired">${t('result.retiredTag')}</span>` : '';
+    const retiredBadge = g.retired ? ` <span class="tag tag--retired">${iconText('ti-trash', t('result.retiredTag'))}</span>` : '';
     // "Suggested for retirement" line; with a direct action if not retired yet.
     const sortFlag = r.sortCount
       ? `<div class="sort-flag"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('result.sortFlag', { n: r.sortCount }))}${
           g.retired ? '' : ` <button class="link-btn sortflag-btn">${esc(t('result.retireNow'))}</button>`
         }</div>`
       : '';
-    const medal = i < 3 ? `<span class="rank-medal">${medals[i]}</span>` : '';
+    const medal = i < 3 ? `<span class="rank-medal rank-medal--${medalRanks[i]}"><i class="ti ti-medal" aria-hidden="true"></i></span>` : '';
     const row = h(`<div class="result-row">
          <div class="result-row__img" ${imgStyle}>${fallback}</div>
          <div>
@@ -521,7 +521,7 @@ async function showResults(round, session, gamesHint, reveal) {
          <div class="result-row__score">
            <div class="score-big">${r.count ? r.avg.toFixed(1) : '–'}</div>
            <div class="score-label">${esc(t('result.avgOf', { n: r.count }))}</div>
-           <button class="btn play-btn">${esc(t('result.play'))}</button>
+           <button class="btn play-btn">${iconText('ti-player-play', t('result.play'))}</button>
          </div>
          <div class="row-finish" hidden></div>
        </div>`);
@@ -558,7 +558,9 @@ async function showResults(round, session, gamesHint, reveal) {
       const isChosen = gameId === chosenId;
       row.classList.toggle('is-chosen', isChosen);
       btn.classList.toggle('btn--primary', isChosen);
-      btn.textContent = isChosen ? t('result.willPlay') : t('result.play');
+      btn.innerHTML = isChosen
+        ? iconText('ti-check', t('result.willPlay'))
+        : iconText('ti-player-play', t('result.play'));
       // Once the result is recorded or the session cancelled, the choice can
       // no longer be changed.
       btn.disabled = finished || cancelled;
@@ -566,7 +568,7 @@ async function showResults(round, session, gamesHint, reveal) {
     });
     banner.classList.toggle('is-cancelled', cancelled);
     if (cancelled) {
-      banner.textContent = t('result.bannerCancelled');
+      banner.innerHTML = iconText('ti-x', t('result.bannerCancelled'));
       banner.classList.remove('is-set');
     } else if (chosenId) {
       const g = games.find((x) => x.id === chosenId);
@@ -605,7 +607,7 @@ async function showResults(round, session, gamesHint, reveal) {
       });
       cancelWrap.appendChild(undo);
     } else {
-      const btn = h(`<button class="btn btn--ghost">${esc(t('result.cancel'))}</button>`);
+      const btn = h(`<button class="btn btn--ghost">${iconText('ti-x', t('result.cancel'))}</button>`);
       btn.addEventListener('click', async () => {
         if (!confirm(t('result.cancelConfirm'))) return;
         try {
@@ -630,7 +632,7 @@ async function showResults(round, session, gamesHint, reveal) {
     finishWrap.hidden = false;
     const chosenGame = games.find((g) => g.id === chosenId);
     finishWrap.appendChild(
-      h(`<h3>${esc(finished ? t('result.finishTitleDone') : t('result.finishTitle'))}</h3>`)
+      h(`<h3>${finished ? iconText('ti-trophy', t('result.finishTitleDone')) : esc(t('result.finishTitle'))}</h3>`)
     );
     finishWrap.appendChild(
       h(`<div class="muted" style="margin-bottom:10px">${esc(t('result.whoWon', { game: chosenGame ? chosenGame.title : '' }))}</div>`)
@@ -639,7 +641,7 @@ async function showResults(round, session, gamesHint, reveal) {
     const chips = h('<div class="winner-chips"></div>');
     members.forEach((m) => {
       const sel = winnerIds.includes(m.id);
-      const chip = h(`<button class="winner-chip ${sel ? 'is-selected' : ''}">${sel ? '🏆 ' : ''}${esc(m.name)}</button>`);
+      const chip = h(`<button class="winner-chip ${sel ? 'is-selected' : ''}">${sel ? '<i class="ti ti-trophy" aria-hidden="true"></i> ' : ''}${esc(m.name)}</button>`);
       chip.addEventListener('click', () => {
         winnerIds = winnerIds.includes(m.id)
           ? winnerIds.filter((x) => x !== m.id)
@@ -651,7 +653,7 @@ async function showResults(round, session, gamesHint, reveal) {
     finishWrap.appendChild(chips);
 
     const actions = h('<div class="toolbar" style="margin-top:14px"></div>');
-    const saveBtn = h(`<button class="btn btn--primary">${esc(finished ? t('result.update') : t('result.markPlayed'))}</button>`);
+    const saveBtn = h(`<button class="btn btn--primary">${finished ? iconText('ti-check', t('result.update')) : iconText('ti-trophy', t('result.markPlayed'))}</button>`);
     saveBtn.addEventListener('click', async () => {
       try {
         const saved = await api('POST', `/api/rounds/${round.id}/sessions/${session.id}/finish`, {
@@ -692,10 +694,10 @@ async function showResults(round, session, gamesHint, reveal) {
       const names = winnerIds
         .map((wid) => (members.find((m) => m.id === wid) || {}).name)
         .filter(Boolean);
-      const txt = names.length
-        ? t('result.winners', { names: names.join(', ') })
-        : t('result.playedNoWinner');
-      finishWrap.appendChild(h(`<div class="winner-result">${esc(txt)}</div>`));
+      const inner = names.length
+        ? iconText('ti-trophy', t('result.winners', { names: names.join(', ') }))
+        : iconText('ti-check', t('result.playedNoWinner'));
+      finishWrap.appendChild(h(`<div class="winner-result">${inner}</div>`));
     }
   }
 
