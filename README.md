@@ -14,30 +14,52 @@ code and documentation are in English.
 
 ## Features
 
-- **Rounds** – create a group with a name and any number of members.
-- **Games** – add games with a title, type (🎲 analog / 💻 digital) and an
-  optional cover image (paste from clipboard or pick a file). Games are never
-  deleted, only **retired** ("aussortiert") — kept with a timestamp and viewable
-  on a separate page, and restorable.
-- **Sessions (Hot-Seat)** – draw a random number of games (filter by
-  all / analog / digital). The device is passed around: a handover screen names
-  whose turn it is, then each member rates every drawn game **1–5** or proposes
-  to retire it. Member order is randomized.
-- **Results** – per-game average (colored by score), rating distribution,
-  medals for the favourites, and how often retirement was proposed. Pick
-  which game you actually played, mark it finished, and record the winner(s).
-- **Per-game stats & detail page** – each game shows its average rating (computed
-  on demand from all sessions) and a history of the sessions it appeared in.
-- **Activity feed** – per round: games added / retired / restored, and session
-  outcomes ("… won X").
-- **Retire recommendations** – games that are often proposed for retirement or
-  rated very low get a gentle, dismissible suggestion.
-- **Sorting & import** – sort the games list (random / name / rating); create a
-  new round by importing the games list from an existing one.
-- **Designs** – per round, pick a colour scheme; the whole UI adapts to it —
-  accent, surfaces, and a calm backdrop with a soft accent glow and paper grain.
-- **Languages** – German and English, following the system language by default,
-  switchable any time via the picker in the top bar.
+- **Rounds** – a group with a name and any number of members. The home screen
+  is a lobby of round cards (members, game/session counts, last result); a new
+  round is set up on a playful "seats around the table" screen, optionally
+  importing the games list from an existing round.
+- **Games** – each game has a title, type (analog / digital), an expected
+  duration (short / medium / long), a required player range (min–max), and an
+  optional cover image (paste from clipboard or pick a file). Details can be
+  edited inline on the game's detail page. Games are never lost by accident:
+  instead of deleting, they are **retired** — kept with a timestamp in a
+  browsable archive and restorable any time. Only already-retired games can be
+  permanently deleted.
+- **Round hub** – each round is a small app of its own, with a floating dock
+  switching between four tabs:
+  - **Start** – the launchpad: hero with the members, a big "start session"
+    button, resumable in-progress sessions, the last played result, and gentle
+    retire recommendations for games that are rated low or often proposed for
+    retirement.
+  - **Regal** (shelf) – the game collection as a card grid with filter chips
+    (all / analog / digital), a search pill, sorting (random / name / rating),
+    and the add-game sheet. Each card opens the game's detail page
+    ("Spielepass") with its score ring, editable details, and the history of
+    sessions it appeared in.
+  - **Chronik** – one month-grouped timeline of everything that happened:
+    games added / retired / restored and session outcomes.
+  - **Pokale** (trophies) – a winners' podium (ties share a step) plus stat
+    tiles: most played, best rated, current winning streak, and the
+    "Staubfänger" — the game gathering dust the longest.
+- **Sessions (hot-seat voting)** – pick who is playing tonight, filter the
+  collection by type and duration, and draw a random set of candidate games —
+  only games whose player range fits the number of joining members are
+  eligible. The device is then passed around: a handover screen names whose
+  turn it is, and each member rates every drawn game **1–5** or proposes to
+  retire it (member order is randomized).
+- **Finale & results** – votes stay sealed until everyone is done, then a
+  little show reveals the results: per-game average (colored by score), rating
+  distribution, medals for the favourites, and retirement proposals. Pick the
+  game you actually played, mark it finished and record the winner(s) — or
+  cancel the session if nothing appealed. Sessions can be deleted later, and a
+  single game can be removed from a session's results.
+- **Ratings on demand** – a game's average is always computed live from all
+  session votes, so deleting a session automatically corrects every average.
+- **Designs** – per round, pick a colour scheme (page tone + accent); the
+  whole UI derives from it — surfaces, shadows, even the dark "stage" of the
+  finale.
+- **Languages** – German and English, following the system language by
+  default, switchable any time via the picker in the top bar.
 
 ## Tech & architecture
 
@@ -47,32 +69,38 @@ code and documentation are in English.
   `data/uploads/`; only their paths live in `data.json`.
 - **Frontend:** plain HTML/CSS/vanilla JS under `public/` — **no build step**.
 - **Runs entirely on your machine.** No data is sent to any external service.
-  Even the subtle background grain is an inline SVG in the stylesheet — no
-  third-party APIs are involved.
+  Fonts and the icon set are self-hosted under `public/fonts/`, and the subtle
+  background grain is an inline SVG in the stylesheet — no CDNs or third-party
+  APIs are involved at runtime.
 
 ```
-server.js            Express app: static files + mounts the route modules
+server.js            starts the HTTP server (the only place that listens)
 lib/
+  app.js             builds the Express app: static files + route modules
   store.js           in-memory data + atomic load/save (data/ folder), helpers
   upload.js          multer image-upload config
 routes/
   rounds.js          /api/rounds            (list, detail, create, delete)
-  games.js           …/games                (add, retire/restore)
-  sessions.js        …/sessions             (start, results, choice, finish, delete)
+  games.js           …/games                (add, edit, retire/restore, delete)
+  sessions.js        …/sessions             (start, results, choice, finish,
+                                             cancel, delete, remove one game)
   activities.js      …/activities           (delete an entry)
-  background.js      …/background            (set the design)
+  background.js      …/background           (set the design)
 public/
   index.html
   styles.css
+  fonts/             self-hosted fonts + Tabler icon set
   js/
     i18n.js          translation engine (t(), locale detection)
     lang/en.js       English strings
     lang/de.js       German strings
     core.js          DOM/API helpers, stats, design, language picker  (loads first)
-    views-home.js    home + new round + activity feed
-    views-round.js   round overview, retired games, design, game detail, add game
-    views-session.js start session, voting (hot-seat), results
+    views-home.js    lobby + new round
+    views-round.js   round hub (Start/Regal/Chronik/Pokale), archive,
+                     design picker, game detail, add game
+    views-session.js session setup, voting (hot-seat), finale, results
     main.js          bootstrap: showHome()                            (loads last)
+test/                automated tests (node --test + supertest)
 data/                all user data (git-ignored)
   data.json          created on first run
   uploads/           cover images
@@ -101,6 +129,17 @@ From other devices on your home network: `http://<your-computer-ip>:3000`
 
 Use a different port: `PORT=8080 npm start`
 Use a different data folder: `DATA_DIR=/path/to/data npm start`
+
+## Development
+
+```bash
+npm test              # automated tests (Node's built-in runner + supertest)
+npm run lint          # ESLint (flat config)
+npm run check:syntax  # node --check over all JS files
+```
+
+CI runs the test suite plus lint and syntax checks on every push and pull
+request; Dependabot keeps dependencies updated via weekly PRs.
 
 ## Data & backup
 

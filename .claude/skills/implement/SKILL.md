@@ -62,6 +62,11 @@ testable:
 
 Keep the change focused on the request; don't fold in unrelated edits.
 
+Before moving on, check whether the change makes `README.md` stale (new or
+renamed user-facing features, changed file tree, routes, npm scripts, env
+vars) and update it in the same branch if so — see
+`.claude/rules/keep-readme-current.md`.
+
 ## 3. Review the local changes thoroughly
 
 Convince yourself it actually works before anything leaves the machine. Read your
