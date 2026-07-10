@@ -253,6 +253,20 @@ function memberColor(round, memberId) {
   return MEMBER_COLORS[(idx >= 0 ? idx : 0) % MEMBER_COLORS.length];
 }
 
+// Initials for an avatar: first letters of the first two words, or the first
+// two letters of a single-word name.
+function initials(name) {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  const raw = parts.length >= 2 ? parts[0][0] + parts[1][0] : String(name).trim().slice(0, 2);
+  return raw.toUpperCase();
+}
+
+// Accent color of a round's stored design (fallback: the standard accent).
+// Works with both the full round object and the home-screen summary.
+function themeAccent(bg) {
+  return bg && bg.type === 'theme' && bg.accent ? bg.accent : STANDARD_ACCENT;
+}
+
 // --- Anchored popover (small floating menu next to a clicked element) ---
 // Used for the inline edit menus on the game detail page. Only one is open at a
 // time; it closes on Escape, an outside click, or a page scroll/resize.

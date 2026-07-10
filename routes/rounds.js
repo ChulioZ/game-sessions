@@ -7,16 +7,43 @@ const { data, saveData, id, findRound, pushActivity } = require('../lib/store');
 
 const router = express.Router();
 
-// Compact list for the home screen.
+// Compact list for the home screen: identity, live counts, the round's design
+// and a "last played" highlight so the lobby cards can tell each round's story.
 router.get('/', (req, res) => {
   res.json(
-    data.rounds.map((r) => ({
-      id: r.id,
-      name: r.name,
-      memberCount: r.members.length,
-      gameCount: r.games.filter((g) => !g.retired).length,
-      sessionCount: r.sessions.length,
-    }))
+    data.rounds.map((r) => {
+      // Newest finished session whose chosen game still exists (same rule as
+      // the round screen's "Zuletzt gespielt" line).
+      const lastPlayed = r.sessions
+        .filter(
+          (s) => s.finished && s.chosenGameId && r.games.some((g) => g.id === s.chosenGameId)
+        )
+        .sort((a, b) =>
+          String(b.finishedAt || b.chosenAt || b.createdAt).localeCompare(
+            String(a.finishedAt || a.chosenAt || a.createdAt)
+          )
+        )[0];
+      const lastGame = lastPlayed && r.games.find((g) => g.id === lastPlayed.chosenGameId);
+      return {
+        id: r.id,
+        name: r.name,
+        members: r.members.map((m) => ({ id: m.id, name: m.name })),
+        memberCount: r.members.length,
+        gameCount: r.games.filter((g) => !g.retired).length,
+        sessionCount: r.sessions.length,
+        playedCount: r.sessions.filter((s) => s.finished).length,
+        background: r.background || null,
+        lastPlayed: lastPlayed
+          ? {
+              gameTitle: lastGame.title,
+              winnerNames: (lastPlayed.winnerIds || [])
+                .map((wid) => (r.members.find((m) => m.id === wid) || {}).name)
+                .filter(Boolean),
+              at: lastPlayed.finishedAt || lastPlayed.chosenAt || lastPlayed.createdAt,
+            }
+          : null,
+      };
+    })
   );
 });
 

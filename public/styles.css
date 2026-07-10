@@ -290,6 +290,163 @@ h1, h2, h3 { font-family: var(--font-display); }
 .card__meta { color: var(--ink-soft); font-size: 15px; }
 .card__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
+/* ---- Lobby (home): one rich card per round ---- */
+.lobby-head { margin: 6px 0 22px; }
+.lobby-head h1 { font-size: 30px; margin: 0; }
+.lobby-head__sub { font-weight: 700; margin-top: 2px; }
+.lobby-list { display: flex; flex-direction: column; gap: 14px; }
+.round-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.08s ease;
+}
+.round-card:hover { box-shadow: var(--shadow); transform: translateY(-2px) rotate(-0.3deg); }
+.round-card__emblem {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 28px;
+  flex: none;
+}
+.round-card__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.round-card__name { font-family: var(--font-display); font-size: 20px; font-weight: 700; line-height: 1.2; }
+.round-card__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.avatar-stack { display: inline-flex; }
+.avatar-stack .avatar:not(:first-child) { margin-left: -9px; }
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: var(--sunken-soft);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+.round-card__last {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.round-card__last .ti { color: var(--warn); }
+.round-card__chev { font-size: 22px; color: var(--brand-edge); flex: none; }
+.round-card--new {
+  justify-content: center;
+  gap: 10px;
+  background: transparent;
+  border: 2px dashed var(--brand-edge);
+  color: var(--ink-soft);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  padding: 18px;
+}
+.round-card--new:hover { background: var(--brand-tint-soft); box-shadow: none; transform: none; }
+
+/* ---- New round: members take seats around the table ---- */
+.nr-table { position: relative; width: 280px; height: 240px; margin: 10px auto 16px; }
+.nr-table__ring {
+  position: absolute;
+  inset: 32px 40px;
+  border-radius: 50%;
+  background: var(--sunken);
+  border: 2px solid var(--line);
+}
+.nr-table__center {
+  position: absolute;
+  inset: 78px 86px;
+  border-radius: 50%;
+  border: 2px dashed var(--brand-edge);
+  background: var(--page-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  padding: 6px;
+}
+.nr-seat {
+  position: absolute;
+  width: 64px;
+  margin-left: -32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+.nr-seat__avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--surface);
+}
+.nr-seat:hover .nr-seat__avatar { filter: brightness(0.92); }
+.nr-seat--empty .nr-seat__avatar {
+  background: transparent;
+  border: 2px dashed var(--brand-edge);
+  color: var(--ink-soft);
+  font-size: 18px;
+}
+.nr-seat--empty:hover .nr-seat__avatar { background: var(--brand-tint-soft); filter: none; }
+.nr-seat__name {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- New round: import-games card ---- */
+.import-card {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.import-card__icon { font-size: 22px; color: var(--ink-soft); margin-top: 4px; }
+.import-card__body { flex: 1; min-width: 0; }
+.import-card__note { margin-top: 6px; font-size: 14px; }
+
 /* History: past-session cards, anchored by the chosen game's cover thumbnail. */
 .session-list {
   display: grid;
@@ -478,25 +635,6 @@ h1, h2, h3 { font-family: var(--font-display); }
 .input:focus, .select:focus { outline: 2px solid var(--brand); border-color: var(--brand); }
 .row { display: flex; gap: 10px; align-items: center; }
 .row .input { flex: 1; }
-
-.member-row { margin-bottom: 10px; }
-.chip-remove {
-  border: none;
-  background: var(--sunken-soft);
-  color: var(--ink-soft);
-  border-radius: 10px;
-  width: 46px;
-  height: 46px;
-  font-size: 20px;
-  cursor: pointer;
-}
-.member-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.member-pill {
-  background: var(--sunken-soft);
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-weight: 600;
-}
 
 .toolbar { display: flex; gap: 10px; flex-wrap: wrap; }
 

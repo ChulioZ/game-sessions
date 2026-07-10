@@ -1,7 +1,7 @@
 /* Familien-Spielesammlung – views: home, new round, activity feed.
    Part of the frontend; all files share one global script scope. */
 
-// =================== Home: rounds ===================
+// =================== Home: lobby ===================
 
 async function showHome() {
   currentView = () => showHome();
@@ -11,31 +11,65 @@ async function showHome() {
   const rounds = await api('GET', '/api/rounds');
 
   app.innerHTML = '';
-  app.appendChild(h(`<div class="page-head"><h1>${esc(t('home.title'))}</h1></div>`));
-
-  const newBtn = h(`<button class="btn btn--primary btn--lg">${esc(t('home.newRound'))}</button>`);
-  newBtn.addEventListener('click', showNewRound);
-  app.appendChild(newBtn);
-  app.appendChild(h('<div class="spacer"></div>'));
+  app.appendChild(
+    h(`<div class="lobby-head">
+         <h1>${esc(t('home.greeting'))}</h1>
+         <div class="muted lobby-head__sub">${esc(t('home.sub'))}</div>
+       </div>`)
+  );
 
   if (rounds.length === 0) {
     app.appendChild(
       h(`<div class="empty"><p>${esc(t('home.empty.title'))}</p>
            <p class="muted">${esc(t('home.empty.sub'))}</p></div>`)
     );
-    return;
   }
 
-  const grid = h('<div class="cards section"></div>');
+  const list = h('<div class="lobby-list"></div>');
   rounds.forEach((r) => {
-    const card = h(`<div class="card">
-         <h3>${esc(r.name)}</h3>
-         <div class="card__meta">${esc(t('home.card.meta', { m: r.memberCount, g: r.gameCount, s: r.sessionCount }))}</div>
-       </div>`);
+    // Members ride along in the summary so the avatars get their colors.
+    const stack = r.members
+      .map(
+        (m) =>
+          `<span class="avatar" style="background:${memberColor(r, m.id)}" title="${esc(m.name)}">${esc(initials(m.name))}</span>`
+      )
+      .join('');
+
+    let lastLine = '';
+    if (r.lastPlayed) {
+      const lp = r.lastPlayed;
+      const text = lp.winnerNames.length
+        ? t(lp.winnerNames.length === 1 ? 'home.lastPlayedWonOne' : 'home.lastPlayedWonMany', {
+            game: lp.gameTitle,
+            names: joinNames(lp.winnerNames),
+          })
+        : t('home.lastPlayed', { game: lp.gameTitle });
+      lastLine = `<span class="round-card__last"><i class="ti ti-trophy" aria-hidden="true"></i>${esc(text)}</span>`;
+    }
+
+    const card = h(`<button class="round-card">
+         <span class="round-card__emblem" style="background:${themeAccent(r.background)}"><i class="ti ti-dice-5" aria-hidden="true"></i></span>
+         <span class="round-card__body">
+           <span class="round-card__name">${esc(r.name)}</span>
+           <span class="round-card__meta">
+             <span class="avatar-stack">${stack}</span>
+             <span class="stat-chip"><i class="ti ti-cards" aria-hidden="true"></i>${esc(tn(r.gameCount, 'home.chip.gamesOne', 'home.chip.games'))}</span>
+             <span class="stat-chip"><i class="ti ti-confetti" aria-hidden="true"></i>${esc(tn(r.playedCount, 'home.chip.nightsOne', 'home.chip.nights'))}</span>
+           </span>
+           ${lastLine}
+         </span>
+         <i class="ti ti-chevron-right round-card__chev" aria-hidden="true"></i>
+       </button>`);
     card.addEventListener('click', () => showRound(r.id));
-    grid.appendChild(card);
+    list.appendChild(card);
   });
-  app.appendChild(grid);
+
+  const newCard = h(
+    `<button class="round-card round-card--new"><i class="ti ti-plus" aria-hidden="true"></i>${esc(t('home.newRound'))}</button>`
+  );
+  newCard.addEventListener('click', showNewRound);
+  list.appendChild(newCard);
+  app.appendChild(list);
 }
 
 // =================== New round ===================
@@ -50,13 +84,16 @@ async function showNewRound() {
   const allRounds = await api('GET', '/api/rounds');
   const importable = allRounds.filter((r) => r.gameCount > 0);
   const importField = importable.length
-    ? `<div class="field">
-        <label for="importSel">${esc(t('newRound.importLabel'))}</label>
-        <select id="importSel" class="select">
-          <option value="">${esc(t('newRound.importNone'))}</option>
-          ${importable.map((r) => `<option value="${r.id}">${esc(t('newRound.importOption', { name: r.name, n: r.gameCount }))}</option>`).join('')}
-        </select>
-        <div class="muted" style="margin-top:6px;font-size:14px">${esc(t('newRound.importNote'))}</div>
+    ? `<div class="field import-card">
+        <i class="ti ti-copy import-card__icon" aria-hidden="true"></i>
+        <div class="import-card__body">
+          <label for="importSel">${esc(t('newRound.importLabel'))}</label>
+          <select id="importSel" class="select">
+            <option value="">${esc(t('newRound.importNone'))}</option>
+            ${importable.map((r) => `<option value="${r.id}">${esc(t('newRound.importOption', { name: r.name, n: r.gameCount }))}</option>`).join('')}
+          </select>
+          <div class="muted import-card__note">${esc(t('newRound.importNote'))}</div>
+        </div>
       </div>`
     : '';
 
@@ -70,15 +107,18 @@ async function showNewRound() {
       </div>
       <div class="field">
         <label>${esc(t('newRound.membersLabel'))}</label>
+        <div class="nr-table">
+          <div class="nr-table__ring"></div>
+          <div class="nr-table__center"></div>
+        </div>
         <div class="row">
           <input id="memberInput" class="input" placeholder="${esc(t('newRound.memberPlaceholder'))}" />
           <button id="addMember" class="btn">${esc(t('newRound.add'))}</button>
         </div>
-        <div id="memberList" class="member-list"></div>
       </div>
       ${importField}
       <div class="toolbar">
-        <button id="createRound" class="btn btn--primary btn--lg">${esc(t('newRound.create'))}</button>
+        <button id="createRound" class="btn btn--primary btn--lg"><i class="ti ti-sparkles" aria-hidden="true"></i> ${esc(t('newRound.create'))}</button>
       </div>
     </div>`);
   app.appendChild(form);
@@ -86,19 +126,46 @@ async function showNewRound() {
   const members = [];
   const nameInput = form.querySelector('#roundName');
   const memberInput = form.querySelector('#memberInput');
-  const memberList = form.querySelector('#memberList');
+  const table = form.querySelector('.nr-table');
+  const tableCenter = form.querySelector('.nr-table__center');
 
+  // Seats sit evenly on an ellipse around the table: all members plus one
+  // dashed empty seat that focuses the name input.
   function renderMembers() {
-    memberList.innerHTML = '';
-    members.forEach((m, i) => {
-      const pill = h(`<span class="member-pill">${esc(m)} <button class="link-btn">✕</button></span>`);
-      pill.querySelector('button').addEventListener('click', () => {
-        members.splice(i, 1);
-        renderMembers();
-      });
-      memberList.appendChild(pill);
-    });
+    table.querySelectorAll('.nr-seat').forEach((el) => el.remove());
+    tableCenter.textContent = members.length
+      ? t('newRound.tableCount', { n: members.length })
+      : t('newRound.tableEmpty');
+    const cx = 140, cy = 118, rx = 112, ry = 92;
+    const seats = members.length + 1; // + empty seat
+    for (let i = 0; i < seats; i++) {
+      const angle = ((-90 + (i * 360) / seats) * Math.PI) / 180;
+      const x = cx + rx * Math.cos(angle);
+      const y = cy + ry * Math.sin(angle);
+      const isEmpty = i === members.length;
+      const seat = isEmpty
+        ? h(`<button type="button" class="nr-seat nr-seat--empty" title="${esc(t('newRound.add'))}">
+               <span class="nr-seat__avatar"><i class="ti ti-plus" aria-hidden="true"></i></span>
+             </button>`)
+        : h(`<button type="button" class="nr-seat" title="${esc(t('newRound.removeHint'))}">
+               <span class="nr-seat__avatar" style="background:${MEMBER_COLORS[i % MEMBER_COLORS.length]}">${esc(initials(members[i]))}</span>
+               <span class="nr-seat__name">${esc(members[i])}</span>
+             </button>`);
+      seat.style.left = x + 'px';
+      seat.style.top = y - 23 + 'px';
+      if (isEmpty) {
+        seat.addEventListener('click', () => memberInput.focus());
+      } else {
+        const idx = i;
+        seat.addEventListener('click', () => {
+          members.splice(idx, 1);
+          renderMembers();
+        });
+      }
+      table.appendChild(seat);
+    }
   }
+  renderMembers();
   function addMember() {
     const v = memberInput.value.trim();
     if (!v) return;

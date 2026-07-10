@@ -25,11 +25,6 @@ async function showRound(rid) {
   // This is the launchpad; the start button is the single accent CTA, add-game
   // and design are quieter secondary buttons beside it.
   const playedCount = round.sessions.filter((s) => s.finished).length;
-  const initials = (name) => {
-    const parts = String(name).trim().split(/\s+/).filter(Boolean);
-    const raw = parts.length >= 2 ? parts[0][0] + parts[1][0] : String(name).trim().slice(0, 2);
-    return raw.toUpperCase();
-  };
   const hero = h(`<div class="hero">
        <div class="hero__top">
          <div class="hero__id">
