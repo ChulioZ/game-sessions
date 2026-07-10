@@ -257,6 +257,9 @@ I18N.en = {
   'result.toast.saved': 'Result saved',
   'result.toast.reset': 'Reset done',
   'result.deleteSession': 'Delete session',
+  'result.removeGame': 'Remove from session',
+  'result.removeGameConfirm': 'Remove “{title}” from this session? All votes for it are deleted.',
+  'result.toast.gameRemoved': '“{title}” removed from the session',
 
   'design.crumb': 'Design',
   'design.title': 'Design',

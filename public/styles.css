@@ -981,6 +981,8 @@ h1, h2, h3 { font-family: var(--font-display); }
 .score-label { font-size: 13px; color: var(--ink-soft); }
 .sort-flag { color: var(--warn); font-size: 14px; font-weight: 700; margin-top: 4px; }
 .sortflag-btn { color: var(--warn); font-weight: 700; text-decoration: underline; }
+.result-row__remove { margin-top: 6px; color: var(--ink-soft); font-size: 13px; }
+.result-row__remove:hover { color: var(--danger); }
 .tag--retired {
   background: color-mix(in srgb, var(--warn) 14%, var(--surface));
   color: var(--warn);

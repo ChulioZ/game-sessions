@@ -105,6 +105,51 @@ test('finish records only winners who are round members', async () => {
   assert.deepEqual(res.body.winnerIds, [memberId]);
 });
 
+test('deleting a game from a session drops it and its votes', async () => {
+  const round = await createRound(request);
+  const keep = await addGame(round.id, { title: 'Keep' });
+  const drop = await addGame(round.id, { title: 'Drop' });
+  const session = (await request(app).post(`/api/rounds/${round.id}/sessions`).send({ count: 5 })).body.session;
+  const [m0, m1] = round.members.map((m) => m.id);
+  const votes = {
+    [m0]: { [keep.id]: { rating: 4, retire: false }, [drop.id]: { rating: 2, retire: true } },
+    [m1]: { [drop.id]: { rating: 5, retire: false } },
+  };
+  await request(app).post(`/api/rounds/${round.id}/sessions/${session.id}/results`).send({ votes });
+
+  const res = await request(app).delete(`/api/rounds/${round.id}/sessions/${session.id}/games/${drop.id}`);
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body.gameIds, [keep.id]);
+  assert.equal(res.body.votes[m0][drop.id], undefined);
+  assert.equal(res.body.votes[m1][drop.id], undefined);
+  assert.deepEqual(res.body.votes[m0][keep.id], { rating: 4, retire: false });
+});
+
+test('deleting the chosen game resets the choice and result', async () => {
+  const round = await createRound(request);
+  const game = await addGame(round.id);
+  const session = (await request(app).post(`/api/rounds/${round.id}/sessions`).send({})).body.session;
+  await request(app).post(`/api/rounds/${round.id}/sessions/${session.id}/choice`).send({ gameId: game.id });
+  await request(app)
+    .post(`/api/rounds/${round.id}/sessions/${session.id}/finish`)
+    .send({ winnerIds: [round.members[0].id] });
+
+  const res = await request(app).delete(`/api/rounds/${round.id}/sessions/${session.id}/games/${game.id}`);
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body.gameIds, []);
+  assert.equal(res.body.chosenGameId, null);
+  assert.equal(res.body.finished, false);
+  assert.deepEqual(res.body.winnerIds, []);
+});
+
+test('deleting a game not in the session returns 404', async () => {
+  const round = await createRound(request);
+  await addGame(round.id);
+  const session = (await request(app).post(`/api/rounds/${round.id}/sessions`).send({})).body.session;
+  const res = await request(app).delete(`/api/rounds/${round.id}/sessions/${session.id}/games/nope`);
+  assert.equal(res.status, 404);
+});
+
 test('results persist votes and mark the session done', async () => {
   const round = await createRound(request);
   const game = await addGame(round.id);

@@ -164,6 +164,35 @@ router.post('/:sid/cancel', (req, res) => {
   res.json(session);
 });
 
+// Remove a single game from a session: drop it from the game list and delete
+// every member's vote for it. If it was the chosen/played game, that choice
+// (and any recorded result) is reset too.
+router.delete('/:sid/games/:gid', (req, res) => {
+  const round = findRound(req.params.rid);
+  if (!round) return res.status(404).json({ error: 'Round not found' });
+  const session = findSession(round, req.params.sid);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  const gid = req.params.gid;
+  if (!session.gameIds.includes(gid))
+    return res.status(404).json({ error: 'Game does not belong to this session' });
+
+  session.gameIds = session.gameIds.filter((x) => x !== gid);
+  // Drop the game's votes from every member who cast one.
+  Object.keys(session.votes || {}).forEach((mid) => {
+    if (session.votes[mid]) delete session.votes[mid][gid];
+  });
+  // Removing the game that was going to be / was played invalidates that state.
+  if (session.chosenGameId === gid) {
+    session.chosenGameId = null;
+    session.chosenAt = null;
+    session.finished = false;
+    session.finishedAt = null;
+    session.winnerIds = [];
+  }
+  saveData();
+  res.json(session);
+});
+
 router.delete('/:sid', (req, res) => {
   const round = findRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });

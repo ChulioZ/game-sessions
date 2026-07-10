@@ -517,6 +517,7 @@ async function showResults(round, session, gamesHint, reveal) {
            <div class="result-row__title">${medal}${esc(g.title)} ${typeTag(g.type)} ${durationTag(g.duration)}${retiredBadge}</div>
            <div class="result-row__bars">${bars}</div>
            ${sortFlag}
+           <button class="link-btn result-row__remove">${iconText('ti-trash', t('result.removeGame'))}</button>
          </div>
          <div class="result-row__score">
            <div class="score-big">${r.count ? r.avg.toFixed(1) : '–'}</div>
@@ -538,6 +539,17 @@ async function showResults(round, session, gamesHint, reveal) {
         } catch (e) { toast(e.message); }
       });
     }
+    const removeBtn = row.querySelector('.result-row__remove');
+    removeBtn.addEventListener('click', async () => {
+      if (!confirm(t('result.removeGameConfirm', { title: g.title }))) return;
+      try {
+        await api('DELETE', `/api/rounds/${round.id}/sessions/${session.id}/games/${g.id}`);
+        toast(t('result.toast.gameRemoved', { title: g.title }));
+        const fresh = await api('GET', '/api/rounds/' + round.id);
+        const sess = fresh.sessions.find((s) => s.id === session.id) || session;
+        showResults(fresh, sess, games);
+      } catch (e) { toast(e.message); }
+    });
     const btn = row.querySelector('.play-btn');
     btn.addEventListener('click', async () => {
       const newId = chosenId === g.id ? null : g.id; // tapping again clears it

@@ -257,6 +257,9 @@ I18N.de = {
   'result.toast.saved': 'Ergebnis gespeichert',
   'result.toast.reset': 'Zurückgesetzt',
   'result.deleteSession': 'Session löschen',
+  'result.removeGame': 'Aus Session entfernen',
+  'result.removeGameConfirm': '„{title}“ aus dieser Session entfernen? Alle Bewertungen dafür werden gelöscht.',
+  'result.toast.gameRemoved': '„{title}“ aus der Session entfernt',
 
   'design.crumb': 'Design',
   'design.title': 'Design',
