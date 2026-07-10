@@ -1,8 +1,8 @@
-/* Familien-Spielesammlung – views: game-night setup, voting (hot-seat),
+/* Familien-Spielesammlung – views: session setup, voting (hot-seat),
    finale reveal, results podium. Part of the frontend; all files share one
    global script scope. */
 
-// =================== Game night: setup ===================
+// =================== Session: setup ===================
 
 function showStartSession(round) {
   currentView = () => showStartSession(round);
