@@ -166,7 +166,7 @@ function renderStartTab(round, activeGames) {
            <span class="rec-banner__text"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('rec.title', { n: recs.length }))}</span>
            <div class="rec-banner__actions">
              <button class="link-btn rec-banner__toggle">${esc(t('rec.show'))}</button>
-             <button class="rec-banner__dismiss" title="${esc(t('rec.dismiss'))}" aria-label="${esc(t('rec.dismiss'))}">✕</button>
+             <button class="rec-banner__dismiss" title="${esc(t('rec.dismiss'))}" aria-label="${esc(t('rec.dismiss'))}"><i class="ti ti-x" aria-hidden="true"></i></button>
            </div>
          </div>
          <div class="rec-banner__body" hidden>
@@ -455,8 +455,8 @@ function renderChronikTab(round) {
 
     const parts = [];
     if (chosen) parts.push(esc(when));
-    if (s.finished) parts.push(winnerNames.length ? '<i class="ti ti-trophy" aria-hidden="true"></i> ' + winnerNames.map(esc).join(', ') : esc(t('sessions.played')));
-    else if (s.cancelled) parts.push(`<span style="color:var(--danger)">${esc(t('sessions.cancelled'))}</span>`);
+    if (s.finished) parts.push(winnerNames.length ? '<i class="ti ti-trophy" aria-hidden="true"></i> ' + winnerNames.map(esc).join(', ') : iconText('ti-check', t('sessions.played')));
+    else if (s.cancelled) parts.push(`<span style="color:var(--danger)">${iconText('ti-x', t('sessions.cancelled'))}</span>`);
     parts.push(esc(t('sessions.rated', { n: s.gameIds.length })));
 
     const card = h(`<button class="session-card">
@@ -1052,7 +1052,7 @@ async function showGameDetail(rid, gameId) {
   makeEditableTag(plEl, () => openPlayersPopover(plEl));
 
   h1.append(typeEl, space(), durEl, space(), plEl);
-  if (game.retired) h1.append(space(), h(`<span class="tag tag--retired">${esc(t('result.retiredTag'))}</span>`));
+  if (game.retired) h1.append(space(), h(`<span class="tag tag--retired">${iconText('ti-trash', t('result.retiredTag'))}</span>`));
 
   app.appendChild(head);
 
@@ -1113,7 +1113,9 @@ async function showGameDetail(rid, gameId) {
         sst.avg !== null
           ? `<span class="score-pill" style="background:${avgColor(sst.avg)}">Ø ${sst.avg.toFixed(1)}</span>`
           : '<span class="score-pill score-pill--none">–</span>';
-      const sortCell = sst.sortCount ? `<span class="sort-flag">🗑️ ${sst.sortCount}×</span>` : '';
+      const sortCell = sst.sortCount
+        ? `<span class="sort-flag"><i class="ti ti-trash" aria-hidden="true"></i> ${sst.sortCount}×</span>`
+        : '';
       const row = h(`<div class="ds-row${picked ? ' ds-row--picked' : ''}">
            <div class="ds-row__main">
              <div class="ds-row__date">${when}</div>

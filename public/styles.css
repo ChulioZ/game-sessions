@@ -962,7 +962,10 @@ h1, h2, h3 { font-family: var(--font-display); }
 .sort-flag { color: var(--warn); font-size: 14px; font-weight: 700; margin-top: 4px; }
 .sortflag-btn { color: var(--warn); font-weight: 700; text-decoration: underline; }
 .tag--retired { background: #fde9d2; color: #92400e; }
-.rank-medal { font-size: 22px; margin-right: 6px; }
+.rank-medal { font-size: 22px; margin-right: 6px; vertical-align: middle; }
+.rank-medal--gold { color: #d4af37; }
+.rank-medal--silver { color: #9ca3af; }
+.rank-medal--bronze { color: #b3703a; }
 
 /* Game choice on the results page */
 .chosen-banner {
