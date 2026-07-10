@@ -88,7 +88,7 @@ function renderStartTab(round, activeGames) {
       const fallback = game
         ? game.image
           ? ''
-          : `<i class="ti ${game.type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3'}" aria-hidden="true"></i>`
+          : `<i class="ti ${typeIcon(game.type)}" aria-hidden="true"></i>`
         : '<i class="ti ti-dice-5" aria-hidden="true"></i>';
       let pill = '';
       if (game) {
@@ -133,7 +133,7 @@ function renderStartTab(round, activeGames) {
     const imgStyle = game.image ? ` style="background-image:url('${game.image}')"` : '';
     const fallback = game.image
       ? ''
-      : `<i class="ti ${game.type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3'}" aria-hidden="true"></i>`;
+      : `<i class="ti ${typeIcon(game.type)}" aria-hidden="true"></i>`;
     const pill =
       sst.avg !== null
         ? `<span class="score-pill" style="background:${avgColor(sst.avg)}">Ø ${sst.avg.toFixed(1)}</span>`
@@ -314,7 +314,7 @@ function renderRegalTab(round, activeGames) {
       const imgStyle = g.image ? `style="background-image:url('${g.image}')"` : '';
       const fallback = g.image
         ? ''
-        : `<i class="ti ${g.type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3'}" aria-hidden="true"></i>`;
+        : `<i class="ti ${typeIcon(g.type)}" aria-hidden="true"></i>`;
       const avg = avgMap[g.id];
       const scorePill =
         avg !== null
@@ -441,7 +441,7 @@ function renderChronikTab(round) {
     // Thumbnail: the chosen game's cover, or an icon for the session's state.
     const thumbStyle = chosen && chosen.image ? `style="background-image:url('${chosen.image}')"` : '';
     const thumbIcon = chosen
-      ? chosen.image ? '' : `<i class="ti ${chosen.type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3'}" aria-hidden="true"></i>`
+      ? chosen.image ? '' : `<i class="ti ${typeIcon(chosen.type)}" aria-hidden="true"></i>`
       : `<i class="ti ${s.cancelled ? 'ti-x' : 'ti-cards'}" aria-hidden="true"></i>`;
 
     // Headline is the chosen game (with a rating pill); the date leads only
@@ -728,7 +728,7 @@ async function showRetired(rid) {
       const imgStyle = g.image ? ` style="background-image:url('${g.image}')"` : '';
       const fallback = g.image
         ? ''
-        : `<i class="ti ${g.type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3'}" aria-hidden="true"></i>`;
+        : `<i class="ti ${typeIcon(g.type)}" aria-hidden="true"></i>`;
       const when = g.retiredAt ? fmtDateTime(g.retiredAt) : '?';
       const row = h(`<div class="archive-row">
            <div class="archive-row__img"${imgStyle}>${fallback}</div>
@@ -856,7 +856,7 @@ async function showGameDetail(rid, gameId) {
   const imgStyle = game.image ? `style="background-image:url('${game.image}')"` : '';
   const fallback = game.image
     ? ''
-    : `<i class="ti ${game.type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3'}" aria-hidden="true"></i>`;
+    : `<i class="ti ${typeIcon(game.type)}" aria-hidden="true"></i>`;
   app.innerHTML = '';
 
   // Send a partial update, then re-render the page from fresh data.

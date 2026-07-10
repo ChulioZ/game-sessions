@@ -120,7 +120,7 @@ function showStartSession(round) {
         const style = g.image ? ` style="background-image:url('${g.image}')"` : '';
         const fb = g.image
           ? ''
-          : `<i class="ti ${g.type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3'}" aria-hidden="true"></i>`;
+          : `<i class="ti ${typeIcon(g.type)}" aria-hidden="true"></i>`;
         return `<span class="pool-thumb"${style} title="${esc(g.title)}">${fb}</span>`;
       })
       .join('');
@@ -252,7 +252,7 @@ function startVoting(round, session, games, members) {
     const imgStyle = game.image ? `style="background-image:url('${game.image}')"` : '';
     const fallback = game.image
       ? ''
-      : `<i class="ti ${game.type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3'}" aria-hidden="true"></i>`;
+      : `<i class="ti ${typeIcon(game.type)}" aria-hidden="true"></i>`;
 
     app.innerHTML = '';
     const card = h(`<div class="vote vote--split">
@@ -430,7 +430,7 @@ async function showResults(round, session, gamesHint, reveal) {
       const imgStyle = g.image ? ` style="background-image:url('${g.image}')"` : '';
       const fb = g.image
         ? ''
-        : `<i class="ti ${g.type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3'}" aria-hidden="true"></i>`;
+        : `<i class="ti ${typeIcon(g.type)}" aria-hidden="true"></i>`;
       podium.appendChild(
         h(`<div class="result-podium__col result-podium__col--${rank}">
              ${rank === 1 ? '<i class="ti ti-crown result-podium__crown" aria-hidden="true"></i>' : ''}
@@ -495,7 +495,7 @@ async function showResults(round, session, gamesHint, reveal) {
     const imgStyle = g.image ? `style="background-image:url('${g.image}')"` : '';
     const fallback = g.image
       ? ''
-      : `<i class="ti ${g.type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3'}" aria-hidden="true"></i>`;
+      : `<i class="ti ${typeIcon(g.type)}" aria-hidden="true"></i>`;
     const bars = r.dist
       .map((c, n) => {
         const hpx = 4 + Math.round((c / maxBar) * 24);
