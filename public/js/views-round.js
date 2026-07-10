@@ -163,7 +163,7 @@ function renderStartTab(round, activeGames) {
   if (recs.length && !minimizedRecs.has(round.id)) {
     const banner = h(`<div class="rec-banner">
          <div class="rec-banner__bar">
-           <span class="rec-banner__text"><i class="ti ti-armchair" aria-hidden="true"></i> ${esc(t('rec.title', { n: recs.length }))}</span>
+           <span class="rec-banner__text"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('rec.title', { n: recs.length }))}</span>
            <div class="rec-banner__actions">
              <button class="link-btn rec-banner__toggle">${esc(t('rec.show'))}</button>
              <button class="rec-banner__dismiss" title="${esc(t('rec.dismiss'))}" aria-label="${esc(t('rec.dismiss'))}">✕</button>
@@ -381,7 +381,7 @@ function renderRegalTab(round, activeGames) {
   // Quiet footer: the way into the archive of retired games.
   const retiredGames = round.games.filter((g) => g.retired);
   const foot = h('<div class="round-footer"></div>');
-  const retiredBtn = h(`<button class="link-btn"><i class="ti ti-armchair" aria-hidden="true"></i> ${esc(t('retired.link', { n: retiredGames.length }))}</button>`);
+  const retiredBtn = h(`<button class="link-btn"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('retired.link', { n: retiredGames.length }))}</button>`);
   retiredBtn.addEventListener('click', () => showRetired(round.id));
   foot.appendChild(retiredBtn);
   app.appendChild(foot);
@@ -399,7 +399,7 @@ function renderChronikTab(round) {
   (round.activities || []).forEach((a) => {
     const meta = {
       game_added: { icon: 'ti-plus', text: t('activity.gameAdded', { title: a.title }) },
-      game_retired: { icon: 'ti-armchair', text: t('activity.gameRetired', { title: a.title }) },
+      game_retired: { icon: 'ti-trash', text: t('activity.gameRetired', { title: a.title }) },
       game_restored: { icon: 'ti-arrow-back-up', text: t('activity.gameRestored', { title: a.title }) },
       game_deleted: { icon: 'ti-trash', text: t('activity.gameDeleted', { title: a.title }) },
     }[a.type];
@@ -734,7 +734,7 @@ async function showRetired(rid) {
            <div class="archive-row__img"${imgStyle}>${fallback}</div>
            <div class="archive-row__body">
              <div class="archive-row__title">${esc(g.title)} ${typeTag(g.type)} ${durationTag(g.duration)}</div>
-             <div class="muted archive-row__meta"><i class="ti ti-armchair" aria-hidden="true"></i> ${esc(t('retired.at', { when }))}</div>
+             <div class="muted archive-row__meta"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('retired.at', { when }))}</div>
            </div>
            <div class="archive-row__actions">
              <button class="btn" data-act="restore"><i class="ti ti-arrow-back-up" aria-hidden="true"></i> ${esc(t('retired.restore'))}</button>
@@ -1006,7 +1006,7 @@ async function showGameDetail(rid, gameId) {
       : `<div class="gd-ring gd-ring--none"><span class="gd-ring__num">–</span></div>
          <div class="score-label">${esc(t('detail.noRating'))}</div>`;
   const sortLine = st.sortCount
-    ? `<div class="sort-flag" style="margin-top:8px"><i class="ti ti-armchair" aria-hidden="true"></i> ${esc(t('detail.totalSort', { n: st.sortCount }))}</div>`
+    ? `<div class="sort-flag" style="margin-top:8px"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('detail.totalSort', { n: st.sortCount }))}</div>`
     : '';
 
   const head = h(`<div class="gd-head">
@@ -1069,7 +1069,7 @@ async function showGameDetail(rid, gameId) {
     });
     actionWrap.appendChild(restore);
   } else {
-    const retire = h(`<button class="btn" style="color:var(--warn)"><i class="ti ti-armchair" aria-hidden="true"></i> ${esc(t('detail.retire'))}</button>`);
+    const retire = h(`<button class="btn" style="color:var(--warn)"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('detail.retire'))}</button>`);
     retire.addEventListener('click', async () => {
       if (!confirm(t('detail.retireConfirm', { title: game.title }))) return;
       try {
