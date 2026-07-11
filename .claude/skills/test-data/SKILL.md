@@ -11,7 +11,7 @@ description: >-
 # Create & tear down test data
 
 The production `data/` folder is **strictly off-limits** to read or write — it is
-private household data (see `.claude/rules/no-reading-production-data.md`). So
+private user data (see `.claude/rules/no-reading-production-data.md`). So
 never copy, edit, or point tests at the real file. Instead, spin up an **isolated
 dataset in a temp folder** via `DATA_DIR`, fill it with data you generate, and
 throw the whole folder away afterward.

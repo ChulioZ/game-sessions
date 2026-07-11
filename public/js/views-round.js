@@ -1,4 +1,4 @@
-/* Familien-Spielesammlung – views: round overview, retired games, design,
+/* Spieleabend – views: round overview, retired games, design,
    game detail, add game. Part of the frontend; all files share one global
    script scope. */
 

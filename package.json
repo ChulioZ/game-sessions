@@ -1,7 +1,7 @@
 {
   "name": "game-sessions",
   "version": "1.0.0",
-  "description": "Familien-Spielesammlung: a small, local-only web app to manage games, run voting sessions and track ratings.",
+  "description": "Spieleabend: a small, local-only web app to manage games, run voting sessions and track ratings.",
   "type": "commonjs",
   "main": "server.js",
   "license": "MIT",
