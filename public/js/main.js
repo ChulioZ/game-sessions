@@ -5,4 +5,5 @@
 initLocale();
 applyStaticTexts();
 setupLangPicker();
-showHome();
+// Render the view for the current URL (deep link / reload), not always Home.
+routeTo(location.pathname);

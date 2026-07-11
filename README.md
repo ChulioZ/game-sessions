@@ -68,6 +68,10 @@ code and documentation are in English.
   finale.
 - **Languages** – German and English, following the system language by
   default, switchable any time via the picker in the top bar.
+- **Shareable links & reload-safe navigation** – the URL reflects the current
+  screen (home, a round tab, a game, a member, a session result, …), so a
+  reload keeps you where you were and any stable view can be bookmarked or
+  linked to. Browser Back/Forward move between visited views.
 
 ## Tech & architecture
 
@@ -84,7 +88,9 @@ code and documentation are in English.
 ```
 server.js            starts the HTTP server (the only place that listens)
 lib/
-  app.js             builds the Express app: static files + route modules
+  app.js             builds the Express app: static files + route modules,
+                     plus the SPA fallback (serves index.html for frontend
+                     routes so deep links / reloads work)
   store.js           in-memory data + atomic load/save (data/ folder), helpers
   upload.js          multer image-upload config
 routes/
@@ -110,7 +116,8 @@ public/
                      design picker, game detail, add game
     views-member.js  member detail page (stats, name/color editing)
     views-session.js session setup, voting (hot-seat), finale, results
-    main.js          bootstrap: showHome()                            (loads last)
+    router.js        URL ↔ view routing (History API): deep links, reloads
+    main.js          bootstrap: route from the current URL              (loads last)
 test/                automated tests (node --test + supertest)
 data/                all user data (git-ignored)
   data.json          created on first run

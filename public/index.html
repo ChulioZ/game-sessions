@@ -4,8 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Spieleabend</title>
-  <link rel="stylesheet" href="fonts/tabler-icons.css" />
-  <link rel="stylesheet" href="styles.css" />
+  <!-- Root-absolute paths so assets resolve on nested routes (e.g.
+       /round/:rid/regal), which the server serves index.html for. -->
+  <link rel="stylesheet" href="/fonts/tabler-icons.css" />
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
   <header class="topbar">
@@ -22,15 +24,16 @@
   <div id="toast" class="toast" hidden></div>
 
   <!-- Order matters: i18n + languages first, core next, main (bootstrap) last. -->
-  <script src="js/i18n.js"></script>
-  <script src="js/lang/en.js"></script>
-  <script src="js/lang/de.js"></script>
-  <script src="js/core.js"></script>
-  <script src="js/ranking.js"></script>
-  <script src="js/views-home.js"></script>
-  <script src="js/views-round.js"></script>
-  <script src="js/views-member.js"></script>
-  <script src="js/views-session.js"></script>
-  <script src="js/main.js"></script>
+  <script src="/js/i18n.js"></script>
+  <script src="/js/lang/en.js"></script>
+  <script src="/js/lang/de.js"></script>
+  <script src="/js/core.js"></script>
+  <script src="/js/ranking.js"></script>
+  <script src="/js/views-home.js"></script>
+  <script src="/js/views-round.js"></script>
+  <script src="/js/views-member.js"></script>
+  <script src="/js/views-session.js"></script>
+  <script src="/js/router.js"></script>
+  <script src="/js/main.js"></script>
 </body>
 </html>

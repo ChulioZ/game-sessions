@@ -11,8 +11,13 @@ const HUB_TABS = ['start', 'regal', 'chronik', 'pokale'];
 async function showRound(rid, tab) {
   const activeTab = HUB_TABS.includes(tab) ? tab : 'start';
   currentView = () => showRound(rid, activeTab);
+  syncUrl(roundPath(rid, activeTab));
   app.innerHTML = '<p class="muted">…</p>';
-  const round = await api('GET', '/api/rounds/' + rid);
+  // The round may not exist (e.g. a deep link / reload to a deleted round) —
+  // fall back to Home instead of hanging on the loading state.
+  let round;
+  try { round = await api('GET', '/api/rounds/' + rid); }
+  catch { return showHome(); }
   applyBackground(round.background);
   setCrumbs([{ label: t('nav.home'), onClick: showHome }, { label: round.name }]);
 
@@ -761,8 +766,11 @@ function renderPokaleTab(round) {
 
 async function showRetired(rid) {
   currentView = () => showRetired(rid);
+  syncUrl(`/round/${rid}/retired`);
   app.innerHTML = '<p class="muted">…</p>';
-  const round = await api('GET', '/api/rounds/' + rid);
+  let round;
+  try { round = await api('GET', '/api/rounds/' + rid); }
+  catch { return showHome(); }
   applyBackground(round.background);
   setCrumbs([
     { label: t('nav.home'), onClick: showHome },
@@ -848,8 +856,11 @@ const THEMES = [
 
 async function showBackground(rid) {
   currentView = () => showBackground(rid);
+  syncUrl(`/round/${rid}/design`);
   app.innerHTML = '<p class="muted">…</p>';
-  const round = await api('GET', '/api/rounds/' + rid);
+  let round;
+  try { round = await api('GET', '/api/rounds/' + rid); }
+  catch { return showHome(); }
   applyBackground(round.background);
   setCrumbs([
     { label: t('nav.home'), onClick: showHome },
@@ -906,8 +917,11 @@ async function showBackground(rid) {
 
 async function showGameDetail(rid, gameId) {
   currentView = () => showGameDetail(rid, gameId);
+  syncUrl(`/round/${rid}/game/${gameId}`);
   app.innerHTML = '<p class="muted">…</p>';
-  const round = await api('GET', '/api/rounds/' + rid);
+  let round;
+  try { round = await api('GET', '/api/rounds/' + rid); }
+  catch { return showHome(); }
   applyBackground(round.background);
   const game = round.games.find((g) => g.id === gameId);
   if (!game) return showRound(rid);

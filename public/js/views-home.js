@@ -5,6 +5,7 @@
 
 async function showHome() {
   currentView = () => showHome();
+  syncUrl('/');
   setCrumbs([{ label: t('nav.home') }]);
   applyBackground(null); // home: default background
   app.innerHTML = '<p class="muted">…</p>';
@@ -76,6 +77,7 @@ async function showHome() {
 
 async function showNewRound() {
   currentView = () => showNewRound();
+  syncUrl('/round/new');
   setCrumbs([{ label: t('nav.home'), onClick: showHome }, { label: t('newRound.crumb') }]);
   applyBackground(null);
   app.innerHTML = '<p class="muted">…</p>';

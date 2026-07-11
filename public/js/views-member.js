@@ -51,8 +51,11 @@ function memberStats(round, mid) {
 
 async function showMember(rid, mid) {
   currentView = () => showMember(rid, mid);
+  syncUrl(`/round/${rid}/member/${mid}`);
   app.innerHTML = '<p class="muted">…</p>';
-  const round = await api('GET', '/api/rounds/' + rid);
+  let round;
+  try { round = await api('GET', '/api/rounds/' + rid); }
+  catch { return showHome(); }
   applyBackground(round.background);
   const member = round.members.find((m) => m.id === mid);
   if (!member) return showRound(rid);

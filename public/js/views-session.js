@@ -341,6 +341,7 @@ function showFinale(round, session, games) {
 
 async function showResults(round, session, gamesHint, reveal) {
   currentView = () => showResults(round, session, gamesHint);
+  syncUrl(`/round/${round.id}/session/${session.id}`);
   setCrumbs([
     { label: t('nav.home'), onClick: showHome },
     { label: round.name, onClick: () => showRound(round.id) },

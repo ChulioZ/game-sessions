@@ -52,6 +52,9 @@ const frontendGlobals = {
   // views-session.js
   showStartSession: 'readonly', startVoting: 'readonly', showResults: 'readonly',
   showFinale: 'readonly',
+  // router.js
+  routing: 'writable', roundPath: 'readonly', syncUrl: 'readonly',
+  resolveRoute: 'readonly', routeTo: 'readonly', showResultsById: 'readonly',
 };
 
 module.exports = [
