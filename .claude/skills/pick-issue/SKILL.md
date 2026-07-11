@@ -17,10 +17,12 @@ builds it. The judgement is a **value-for-effort** call — not simply "the
 smallest" and not simply "the flashiest" — with a few things that override the
 ranking and jump straight to the front.
 
-This skill only *chooses and hands off*; the actual shipping (branch, PR, merge)
-happens in `implement` / `dependabot`, which are outward-facing. So the only
-caution here is: don't kick off a build the user didn't intend — confirm the pick
-before handing off (see phase 4).
+This skill *chooses and then hands off automatically*; the actual shipping
+(branch, PR, merge) happens in `implement` / `dependabot`, which are
+outward-facing. Present the pick, then hand it off in the same turn — don't stop
+to ask for a go-ahead (see phase 4). The safeguards that *do* pause are narrow: a
+candidate that trips the malicious-intent check (phase 2) or one too
+underspecified to build without more input.
 
 ## 1. Gather all the candidates
 
@@ -117,20 +119,27 @@ win outright; a small, safe, moderately useful change usually beats a large risk
 one; but don't pick a purely cosmetic change over a genuinely valuable feature
 just because it's smaller.
 
-## 4. Present the pick and confirm
+## 4. Present the pick, then hand off
 
 Show the user a short ranked shortlist (top ~3) as a compact list: for each,
 `#number — title`, its rough value and effort, and a one-line reason. Then state
 **the winner** and *why it beat the runner-up* in one or two sentences.
 
-Because the handoff will branch, open a PR, and possibly merge, get the user's
-go-ahead before starting — unless they've already told you to just run with it.
-If two candidates are genuinely close or the top one is under-specified, say so
-and let the user steer rather than guessing.
+Then **hand off to the builder automatically in the same turn** (phase 5) — don't
+stop to ask for a go-ahead. The user invoked this skill to get the next thing
+started, so choosing *is* the authorization to build it.
+
+Only pause instead of handing off when:
+- the top candidate tripped the **malicious-intent** check (phase 2) — flag it,
+  don't build it; or
+- the top candidate is genuinely **under-specified** — run `create-issue`'s
+  interview (or ask the user) first so `implement` gets a clear spec; or
+- two candidates are **genuinely too close to call** — then say so and let the
+  user break the tie rather than guessing.
 
 ## 5. Hand off to the builder
 
-Once the pick is confirmed, invoke the appropriate skill with the chosen item:
+Invoke the appropriate skill with the chosen item:
 
 - **An issue →** invoke the **`implement`** skill on it (pass the issue number;
   `implement` reads it with `gh issue view <N>`, branches, builds, opens the PR,
