@@ -1225,15 +1225,24 @@ function showAddGame(round) {
   const form = backdrop.querySelector('.sheet');
   document.body.appendChild(backdrop);
 
+  // Games added via "Speichern & weiteres" keep the sheet open, so the Regal
+  // behind it is only re-rendered when the sheet is finally dismissed. Track
+  // whether any game was added while open and refresh on every close path.
+  let addedWhileOpen = false;
+  const dismiss = () => {
+    closeSheet();
+    if (addedWhileOpen) showRound(round.id, 'regal');
+  };
+
   const onKey = (e) => {
-    if (e.key === 'Escape') closeSheet();
+    if (e.key === 'Escape') dismiss();
   };
   document.addEventListener('keydown', onKey, true);
   activeSheet = { el: backdrop, onKey };
   backdrop.addEventListener('mousedown', (e) => {
-    if (e.target === backdrop) closeSheet();
+    if (e.target === backdrop) dismiss();
   });
-  form.querySelector('.sheet__close').addEventListener('click', closeSheet);
+  form.querySelector('.sheet__close').addEventListener('click', dismiss);
 
   let type = 'analog';
   const seg = form.querySelector('#typeSeg');
@@ -1344,6 +1353,8 @@ function showAddGame(round) {
       toast(t('addGame.toast.saved'));
       if (again) {
         // Keep the sheet open for the next game; type/duration/players stay.
+        // Mark dirty so dismissing the sheet re-renders the Regal (issue #34).
+        addedWhileOpen = true;
         form.querySelector('#title').value = '';
         setImage(null);
         form.querySelector('#title').focus();
