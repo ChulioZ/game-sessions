@@ -77,8 +77,6 @@ I18N.de = {
   'pokale.dustyNever': 'noch nie gespielt',
 
   'rec.title': 'Aussortieren empfohlen ({n})',
-  'rec.minimize': 'Minimieren',
-  'rec.show': 'Anzeigen',
   'rec.sub': 'Wenig beliebt oder oft zum Aussortieren vorgeschlagen.',
   'rec.reasonSort': '{n}× „Aussortieren“ ({pct} %)',
   'rec.reasonAvg': 'Ø {avg}',

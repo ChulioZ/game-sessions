@@ -1054,10 +1054,17 @@ h1, h2, h3 { font-family: var(--font-display); }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  cursor: pointer;
 }
 .rec-banner__text { font-weight: 700; font-size: 15px; color: var(--warn); }
 .rec-banner__actions { display: flex; align-items: center; gap: 8px; flex: none; }
-.rec-banner__toggle { color: var(--ink-soft); font-size: 14px; }
+.rec-banner__caret {
+  color: var(--ink-soft);
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+.rec-banner.is-open .rec-banner__caret { transform: rotate(180deg); }
 .rec-banner__dismiss {
   border: none;
   background: transparent;
