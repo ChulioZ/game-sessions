@@ -394,13 +394,17 @@ async function showResults(round, session, gamesHint, reveal) {
          <span class="result-people__label">${esc(t('result.participants'))}</span>
          <span class="result-people__list">${members
            .map(
-             (m) => `<span class="result-people__person">
+             (m) => `<span class="result-people__person" data-mid="${esc(m.id)}">
                 <span class="avatar" style="background:${memberColor(round, m.id)}">${esc(initials(m.name))}</span>
                 <span class="result-people__name">${esc(m.name)}</span>
               </span>`
            )
            .join('')}</span>
        </div>`);
+    // Each participant opens that member's detail page.
+    people.querySelectorAll('.result-people__person[data-mid]').forEach((el) => {
+      makeMemberLink(el, round.id, el.dataset.mid);
+    });
     app.appendChild(people);
   }
 

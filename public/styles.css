@@ -780,6 +780,19 @@ h1, h2, h3 { font-family: var(--font-display); }
   box-shadow: 0 0 0 3px var(--brand-edge);
 }
 
+/* Member links: avatars get a brand ring, name text underlines on hover. */
+.member-link { cursor: pointer; }
+.member-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 50%; }
+.avatar.member-link { transition: box-shadow 0.15s ease; }
+.avatar.member-link:hover { box-shadow: 0 0 0 3px var(--brand-edge); }
+.result-people__person.member-link:focus-visible,
+.podium__rest-name.member-link:focus-visible { border-radius: 8px; }
+.result-people__person.member-link:hover .result-people__name,
+.podium__rest-name.member-link:hover {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--brand) 60%, transparent);
+}
+
 /* Rating pill (average), colored by quality */
 .score-pill {
   position: absolute;
@@ -1225,6 +1238,36 @@ h1, h2, h3 { font-family: var(--font-display); }
 }
 .gd-img--edit:hover .gd-img__edit,
 .gd-img--edit:focus-visible .gd-img__edit { opacity: 1; }
+
+/* Member detail page: big avatar + editable name, color picker, stats. */
+.member-head { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.member-avatar {
+  width: 84px;
+  height: 84px;
+  font-size: 30px;
+  border-width: 3px;
+}
+.member-head__info { flex: 1; min-width: 220px; }
+.member-head__info h1 { margin: 0; font-size: 26px; }
+.member-swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.member-swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  transition: box-shadow 0.15s ease, transform 0.1s ease;
+}
+.member-swatch .ti { font-size: 20px; opacity: 0; }
+.member-swatch:hover { transform: translateY(-1px); }
+.member-swatch.is-active { box-shadow: 0 0 0 3px var(--brand-edge); cursor: default; }
+.member-swatch.is-active .ti { opacity: 1; }
+.member-nosessions { margin-bottom: 12px; }
 
 /* Anchored popover used by the edit menus. */
 .popover {

@@ -25,6 +25,10 @@ code and documentation are in English.
   instead of deleting, they are **retired** — kept with a timestamp in a
   browsable archive and restorable any time. Only already-retired games can be
   permanently deleted.
+- **Members** – each member has a detail page (opened from the Start hero row,
+  the Pokale podium, or a session's participant list) with their stats — wins,
+  sessions joined, win rate, average rating given, and favorite game — and lets
+  you rename them and pick their avatar color from the curated palette.
 - **Round hub** – each round is a small app of its own, with a floating dock
   switching between four tabs:
   - **Start** – the launchpad: hero with the members, a big "start session"
@@ -86,6 +90,7 @@ lib/
 routes/
   rounds.js          /api/rounds            (list, detail, create, delete)
   games.js           …/games                (add, edit, retire/restore, delete)
+  members.js         …/members              (edit name / avatar color)
   sessions.js        …/sessions             (start, results, choice, finish,
                                              cancel, delete, remove one game)
   activities.js      …/activities           (delete an entry)
@@ -103,6 +108,7 @@ public/
     views-home.js    lobby + new round
     views-round.js   round hub (Start/Regal/Chronik/Pokale), archive,
                      design picker, game detail, add game
+    views-member.js  member detail page (stats, name/color editing)
     views-session.js session setup, voting (hot-seat), finale, results
     main.js          bootstrap: showHome()                            (loads last)
 test/                automated tests (node --test + supertest)

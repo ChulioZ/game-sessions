@@ -64,6 +64,11 @@ function renderStartTab(round, activeGames) {
        </div>
      </div>`);
   app.appendChild(hero);
+  // Each hero avatar opens that member's detail page.
+  hero.querySelectorAll('.hero__members .avatar').forEach((el, i) => {
+    const m = round.members[i];
+    if (m) makeMemberLink(el, rid, m.id);
+  });
 
   const startBtn = h(
     `<button class="btn btn--primary hub-cta"><i class="ti ti-dice-5" aria-hidden="true"></i>${esc(t('round.startSession'))}</button>`
@@ -588,7 +593,7 @@ function renderPokaleTab(round) {
     const avatars = members
       .map(
         (m) =>
-          `<span class="avatar podium__avatar" style="background:${memberColor(round, m.id)}">${esc(initials(m.name))}</span>`
+          `<span class="avatar podium__avatar" data-mid="${esc(m.id)}" style="background:${memberColor(round, m.id)}">${esc(initials(m.name))}</span>`
       )
       .join('');
     const names = members.map((m) => esc(m.name)).join(', ');
@@ -600,16 +605,28 @@ function renderPokaleTab(round) {
            </div>`;
   };
   if (winners.length) {
-    sec.appendChild(h(`<div class="podium">${podiumCol(2)}${podiumCol(1)}${podiumCol(3)}</div>`));
+    const podium = h(`<div class="podium">${podiumCol(2)}${podiumCol(1)}${podiumCol(3)}</div>`);
+    // Each podium avatar opens that member's detail page.
+    podium.querySelectorAll('.podium__avatar[data-mid]').forEach((el) => {
+      makeMemberLink(el, round.id, el.dataset.mid);
+    });
+    sec.appendChild(podium);
   }
   // Anyone ranked below the podium's three steps drops to the summary line.
   const onPodium = new Set(winners.filter((m) => rankOf[m.id] <= 3).map((m) => m.id));
   const rest = ranked.filter((m) => !onPodium.has(m.id));
   if (rest.length) {
     const line = rest
-      .map((m) => `${esc(m.name)} · ${esc(tn(wins[m.id], 'pokale.winsOne', 'pokale.wins'))}`)
+      .map(
+        (m) =>
+          `<span class="podium__rest-name" data-mid="${esc(m.id)}">${esc(m.name)}</span> · ${esc(tn(wins[m.id], 'pokale.winsOne', 'pokale.wins'))}`
+      )
       .join('&ensp;—&ensp;');
-    sec.appendChild(h(`<div class="muted podium__rest">${line}</div>`));
+    const restEl = h(`<div class="muted podium__rest">${line}</div>`);
+    restEl.querySelectorAll('.podium__rest-name[data-mid]').forEach((el) => {
+      makeMemberLink(el, round.id, el.dataset.mid);
+    });
+    sec.appendChild(restEl);
   }
 
   const statCard = (icon, label, value, sub) =>

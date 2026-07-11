@@ -33,7 +33,7 @@ const frontendGlobals = {
   themeAccent: 'readonly',
   activePopover: 'writable', closePopover: 'readonly', openPopover: 'readonly',
   readClipboardImage: 'readonly', shuffled: 'readonly', iconText: 'readonly',
-  makeGameLink: 'readonly',
+  makeGameLink: 'readonly', makeMemberLink: 'readonly',
   typeIcon: 'readonly', typeTag: 'readonly',
   durationTag: 'readonly', playersTag: 'readonly', typeBadge: 'readonly',
   durationBadge: 'readonly',
@@ -47,6 +47,8 @@ const frontendGlobals = {
   HUB_TABS: 'readonly', renderHubDock: 'readonly', renderStartTab: 'readonly',
   renderRegalTab: 'readonly', renderChronikTab: 'readonly', renderPokaleTab: 'readonly',
   activeSheet: 'writable', closeSheet: 'readonly', startDirectSession: 'readonly',
+  // views-member.js
+  showMember: 'readonly', memberStats: 'readonly',
   // views-session.js
   showStartSession: 'readonly', startVoting: 'readonly', showResults: 'readonly',
   showFinale: 'readonly',

@@ -27,7 +27,7 @@ router.get('/', (req, res) => {
       return {
         id: r.id,
         name: r.name,
-        members: r.members.map((m) => ({ id: m.id, name: m.name })),
+        members: r.members.map((m) => ({ id: m.id, name: m.name, color: m.color })),
         memberCount: r.members.length,
         gameCount: r.games.filter((g) => !g.retired).length,
         sessionCount: r.sessions.length,

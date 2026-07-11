@@ -212,6 +212,10 @@ const MEMBER_COLORS = [
 ];
 function memberColor(round, memberId) {
   const idx = round.members.findIndex((m) => m.id === memberId);
+  // A stored color (set on the member's detail page) wins; otherwise the color
+  // is derived from the member's position, which is append-only and stable.
+  const m = idx >= 0 ? round.members[idx] : null;
+  if (m && MEMBER_COLORS.includes(m.color)) return m.color;
   return MEMBER_COLORS[(idx >= 0 ? idx : 0) % MEMBER_COLORS.length];
 }
 
@@ -363,6 +367,24 @@ function makeGameLink(el, rid, gid) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       showGameDetail(rid, gid);
+    }
+  });
+}
+
+// Turn an element into a link to a member's detail page: click or keyboard
+// (Enter/Space) opens `showMember(rid, mid)`, with a focusable button
+// affordance (the `.member-link` class carries cursor/hover/focus styling).
+// Used from the Start hero row, the Pokale podium and the session results;
+// `showMember` is resolved at call time (it lives in a later-loaded script).
+function makeMemberLink(el, rid, mid) {
+  el.classList.add('member-link');
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  el.addEventListener('click', () => showMember(rid, mid));
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      showMember(rid, mid);
     }
   });
 }
