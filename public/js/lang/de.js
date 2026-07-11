@@ -31,7 +31,7 @@ I18N.de = {
   'newRound.crumb': 'Neue Runde',
   'newRound.title': 'Neue Spielrunde',
   'newRound.nameLabel': 'Name der Runde',
-  'newRound.namePlaceholder': 'z. B. Familie Müller',
+  'newRound.namePlaceholder': 'z. B. Donnerstagsrunde',
   'newRound.membersLabel': 'Wer sitzt am Tisch?',
   'newRound.memberPlaceholder': 'Name eingeben …',
   'newRound.add': 'Dazu setzen',

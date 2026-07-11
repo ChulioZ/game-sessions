@@ -1,4 +1,4 @@
-/* Familien-Spielesammlung – views: home (lobby), new round.
+/* Spieleabend – views: home (lobby), new round.
    Part of the frontend; all files share one global script scope. */
 
 // =================== Home: lobby ===================

@@ -1,7 +1,7 @@
 # Never read the production data directory
 
 The `data/` folder (default location, or wherever `DATA_DIR` points for a live
-instance) holds the family's **real, private** data: `data/data.json` (rounds,
+instance) holds the group's **real, private** data: `data/data.json` (rounds,
 sessions, members, ratings) and `data/uploads/` (cover images). It is gitignored
 precisely because it must never leave this machine.
 
@@ -19,7 +19,7 @@ into responses, commits, logs, or anywhere else.
   (e.g. checking whether a server is running, confirming the folder exists). If a
   task seems to *require* reading the real data, stop and ask the user instead.
 
-**Why:** it is private household data with no authentication guarding it; the
+**Why:** it is private user data with no authentication guarding it; the
 whole point of keeping it out of git is that it stays local and unseen. An agent
 reading it (and possibly echoing it into a transcript, screenshot, or commit)
 would leak it. The app never needs an agent to look inside the file to work on

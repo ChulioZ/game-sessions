@@ -1,4 +1,4 @@
-/* Familien-Spielesammlung – bootstrap (loads last). */
+/* Spieleabend – bootstrap (loads last). */
 
 'use strict';
 

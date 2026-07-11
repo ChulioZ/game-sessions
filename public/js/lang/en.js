@@ -31,7 +31,7 @@ I18N.en = {
   'newRound.crumb': 'New round',
   'newRound.title': 'New game round',
   'newRound.nameLabel': 'Round name',
-  'newRound.namePlaceholder': 'e.g. The Smiths',
+  'newRound.namePlaceholder': 'e.g. Thursday Crew',
   'newRound.membersLabel': 'Who is at the table?',
   'newRound.memberPlaceholder': 'Enter a name …',
   'newRound.add': 'Add a seat',

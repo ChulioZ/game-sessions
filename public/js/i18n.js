@@ -1,4 +1,4 @@
-/* Familien-Spielesammlung – internationalization (i18n).
+/* Spieleabend – internationalization (i18n).
    Loads before all other scripts. Translations live in js/lang/<locale>.js,
    each registering into the global I18N object (one "properties file" per
    language). The active locale follows the system language by default and can

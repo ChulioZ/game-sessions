@@ -1,9 +1,9 @@
-# 🎲 Familien-Spielesammlung (Family Game Collection)
+# 🎲 Spieleabend (Game Night)
 
 [![CI](https://github.com/ChulioZ/game-sessions/actions/workflows/ci.yml/badge.svg)](https://github.com/ChulioZ/game-sessions/actions/workflows/ci.yml)
 [![Lint](https://github.com/ChulioZ/game-sessions/actions/workflows/lint.yml/badge.svg)](https://github.com/ChulioZ/game-sessions/actions/workflows/lint.yml)
 
-A small, self-hosted web app for a family (or any group) to manage their board
+A small, self-hosted web app for any group or gaming round to manage their board
 and digital games, decide what to play in a session, and track how much everyone
 liked each game. The user interface is available in **German and English**; the
 code and documentation are in English.
@@ -144,7 +144,7 @@ request; Dependabot keeps dependencies updated via weekly PRs.
 ## Data & backup
 
 Everything lives in the `data/` folder (`data.json` + `uploads/`) — copy it to
-back up, delete it to reset. The whole folder is git-ignored so your family's
+back up, delete it to reset. The whole folder is git-ignored so your group's
 data is never committed.
 
 ## About this project

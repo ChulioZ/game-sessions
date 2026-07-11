@@ -4,8 +4,8 @@ Guidance for Claude Code (and other AI assistants) working in this repository.
 
 ## What this is
 
-A small, **local-only**, self-hosted web app for a family to manage their games,
-run "what should we play?" voting sessions, and track ratings. UI language is
+A small, **local-only**, self-hosted web app for any group or gaming round to
+manage their games, run "what should we play?" voting sessions, and track ratings. UI language is
 **German**; code, comments here, and docs are **English**. There is intentionally
 **no authentication** — it is for a trusted home network only. Don't add auth,
 accounts, or cloud services unless explicitly asked.
@@ -65,10 +65,10 @@ accounts, or cloud services unless explicitly asked.
   `data.json` is fully up to date. For a future schema change, migrate the data
   once (with the server stopped, see `.claude/rules/`) rather than keeping
   migration code around permanently.
-- Data is small (one family). Prefer simple, readable code over optimization.
+- Data is small (one group). Prefer simple, readable code over optimization.
 - Keep the `data/` folder out of git (already in `.gitignore`).
 - **Never read the production `data/` directory** (`data/data.json`,
-  `data/uploads/`) — it is private household data. Reference the schema from code
+  `data/uploads/`) — it is private user data. Reference the schema from code
   and tests, and generate your own data in an isolated `DATA_DIR` when you need
   something to run against. See `.claude/rules/no-reading-production-data.md` and
   the `test-data` skill.
