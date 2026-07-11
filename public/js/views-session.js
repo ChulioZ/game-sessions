@@ -413,15 +413,15 @@ async function showResults(round, session, gamesHint, reveal) {
       const fb = g.image
         ? ''
         : `<i class="ti ${typeIcon(g.type)}" aria-hidden="true"></i>`;
-      podium.appendChild(
-        h(`<div class="result-podium__col result-podium__col--${rank}">
+      const col = h(`<div class="result-podium__col result-podium__col--${rank}">
              ${rank === 1 ? '<i class="ti ti-crown result-podium__crown" aria-hidden="true"></i>' : ''}
              <span class="result-podium__img"${imgStyle}>${fb}</span>
              <span class="result-podium__title">${esc(g.title)}</span>
              ${r.count ? `<span class="score-pill result-podium__pill" style="background:${avgColor(r.avg)}">Ø ${r.avg.toFixed(1)}</span>` : ''}
              <span class="result-podium__base">${rank}</span>
-           </div>`)
-      );
+           </div>`);
+      makeGameLink(col, round.id, g.id);
+      podium.appendChild(col);
     });
     if (reveal) {
       const conf = h('<div class="confetti" aria-hidden="true"></div>');
@@ -508,6 +508,10 @@ async function showResults(round, session, gamesHint, reveal) {
          </div>
          <div class="row-finish" hidden></div>
        </div>`);
+    // Title and cover open the game's detail page (the action buttons below
+    // live in sibling elements, so they keep working independently).
+    makeGameLink(row.querySelector('.result-row__title'), round.id, g.id);
+    makeGameLink(row.querySelector('.result-row__img'), round.id, g.id);
     const sortBtn = row.querySelector('.sortflag-btn');
     if (sortBtn) {
       sortBtn.addEventListener('click', async () => {

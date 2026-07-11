@@ -763,6 +763,23 @@ h1, h2, h3 { font-family: var(--font-display); }
 .game-card--clickable { cursor: pointer; transition: box-shadow 0.15s ease, transform 0.08s ease; }
 .game-card--clickable:hover { box-shadow: var(--shadow); transform: translateY(-2px) rotate(-0.3deg); }
 
+/* Game titles/covers that link to the detail page (results + Pokale).
+   Shared affordance: pointer cursor and a keyboard focus ring; per-element
+   hover cues are defined next to each element. */
+.game-link { cursor: pointer; }
+.game-link:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 8px; }
+/* Text titles underline on hover; image/tile targets get a brand ring. */
+.result-row__title.game-link:hover,
+.pokale-game__title.game-link:hover {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--brand) 60%, transparent);
+}
+.result-row__img.game-link { transition: box-shadow 0.15s ease; }
+.result-row__img.game-link:hover,
+.result-podium__col.game-link:hover .result-podium__img {
+  box-shadow: 0 0 0 3px var(--brand-edge);
+}
+
 /* Rating pill (average), colored by quality */
 .score-pill {
   position: absolute;

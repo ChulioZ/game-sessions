@@ -624,6 +624,9 @@ function renderPokaleTab(round) {
       const row = h(`<span class="pokale-game">
            <span class="pokale-game__title">${esc(g.title)}</span>
          </span>`);
+      // The game name opens its detail page (retired games too — the detail
+      // view supports them; only the "Jetzt spielen" launcher is omitted).
+      makeGameLink(row.querySelector('.pokale-game__title'), round.id, g.id);
       if (!g.retired) {
         const btn = h(`<button class="pokale-game__play" title="${esc(t('directPlay.button'))}" aria-label="${esc(t('directPlay.button'))}"><i class="ti ti-player-play" aria-hidden="true"></i></button>`);
         btn.addEventListener('click', () => startDirectSession(round, g));

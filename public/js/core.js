@@ -349,6 +349,24 @@ function shuffled(arr) {
 // Inline "<icon> label" markup for buttons/badges/tags; the label is escaped.
 const iconText = (icon, text) => `<i class="ti ${icon}" aria-hidden="true"></i> ${esc(text)}`;
 
+// Turn an element into a link to a game's detail page: click or keyboard
+// (Enter/Space) opens `showGameDetail(rid, gid)`, with a focusable button
+// affordance (the `.game-link` class carries cursor/hover/focus styling).
+// Used from the session results and Pokale screens; `showGameDetail` is
+// resolved at call time (it lives in a later-loaded script).
+function makeGameLink(el, rid, gid) {
+  el.classList.add('game-link');
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  el.addEventListener('click', () => showGameDetail(rid, gid));
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      showGameDetail(rid, gid);
+    }
+  });
+}
+
 // Tabler icon class for a game type: digital -> gamepad, analog -> dice.
 const typeIcon = (type) => (type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3');
 
