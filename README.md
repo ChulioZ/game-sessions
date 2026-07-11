@@ -99,6 +99,7 @@ public/
     lang/en.js       English strings
     lang/de.js       German strings
     core.js          DOM/API helpers, stats, design, language picker  (loads first)
+    ranking.js       tie-aware podium places ("1, 2, 2, 4")
     views-home.js    lobby + new round
     views-round.js   round hub (Start/Regal/Chronik/Pokale), archive,
                      design picker, game detail, add game

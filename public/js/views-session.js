@@ -375,6 +375,9 @@ async function showResults(round, session, gamesHint, reveal) {
   });
 
   rows.sort((a, b) => b.avg - a.avg);
+  // Tie-aware places ("1, 2, 2, 4"): games with the same displayed average share
+  // a place, medal, and pedestal. Drives both the podium and the medal list.
+  computePlaces(rows).forEach((place, i) => { rows[i].place = place; });
 
   app.innerHTML = '';
   const when = fmtDateTime(session.createdAt);
@@ -401,24 +404,29 @@ async function showResults(round, session, gamesHint, reveal) {
     app.appendChild(people);
   }
 
-  // Podium: the top three as a stage. With `reveal` the pedestals rise
-  // 3rd → 1st and confetti falls — the finale's payoff moment.
-  if (rows.length >= 2 && !session.cancelled) {
-    const top = rows.slice(0, 3);
+  // Podium: the top three *places* as a stage. Tied games share a place, so a
+  // 3-way tie for 1st shows all three (all crowned, same height). Arranged as
+  // [place 2 | place 1 | place 3] so a lone winner stays centered as before.
+  // With `reveal` the pedestals rise (shortest first) and confetti falls — the
+  // finale's payoff moment.
+  const podiumRows = rows.filter((r) => r.place && r.place <= 3);
+  if (rows.length >= 2 && podiumRows.length && !session.cancelled) {
+    const atPlace = (p) => podiumRows.filter((r) => r.place === p);
+    const arranged = [...atPlace(2), ...atPlace(1), ...atPlace(3)];
     const podium = h(`<div class="result-podium${reveal ? ' is-reveal' : ''}"></div>`);
-    [top[1], top[0], top[2]].filter(Boolean).forEach((r) => {
-      const rank = top.indexOf(r) + 1;
+    arranged.forEach((r) => {
+      const place = r.place;
       const g = r.game;
       const imgStyle = g.image ? ` style="background-image:url('${g.image}')"` : '';
       const fb = g.image
         ? ''
         : `<i class="ti ${typeIcon(g.type)}" aria-hidden="true"></i>`;
-      const col = h(`<div class="result-podium__col result-podium__col--${rank}">
-             ${rank === 1 ? '<i class="ti ti-crown result-podium__crown" aria-hidden="true"></i>' : ''}
+      const col = h(`<div class="result-podium__col result-podium__col--${place}">
+             ${place === 1 ? '<i class="ti ti-crown result-podium__crown" aria-hidden="true"></i>' : ''}
              <span class="result-podium__img"${imgStyle}>${fb}</span>
              <span class="result-podium__title">${esc(g.title)}</span>
-             ${r.count ? `<span class="score-pill result-podium__pill" style="background:${avgColor(r.avg)}">Ø ${r.avg.toFixed(1)}</span>` : ''}
-             <span class="result-podium__base">${rank}</span>
+             <span class="score-pill result-podium__pill" style="background:${avgColor(r.avg)}">Ø ${r.avg.toFixed(1)}</span>
+             <span class="result-podium__base">${place}</span>
            </div>`);
       makeGameLink(col, round.id, g.id);
       podium.appendChild(col);
@@ -472,7 +480,7 @@ async function showResults(round, session, gamesHint, reveal) {
   const maxBar = Math.max(1, ...rows.map((r) => Math.max(...r.dist)));
   const rowRefs = [];
 
-  rows.forEach((r, i) => {
+  rows.forEach((r) => {
     const g = r.game;
     const imgStyle = g.image ? `style="background-image:url('${g.image}')"` : '';
     const fallback = g.image
@@ -492,7 +500,7 @@ async function showResults(round, session, gamesHint, reveal) {
           g.retired ? '' : ` <button class="link-btn sortflag-btn">${esc(t('result.retireNow'))}</button>`
         }</div>`
       : '';
-    const medal = i < 3 ? `<span class="rank-medal rank-medal--${medalRanks[i]}"><i class="ti ti-medal" aria-hidden="true"></i></span>` : '';
+    const medal = r.place && r.place <= 3 ? `<span class="rank-medal rank-medal--${medalRanks[r.place - 1]}"><i class="ti ti-medal" aria-hidden="true"></i></span>` : '';
     const row = h(`<div class="result-row">
          <div class="result-row__img" ${imgStyle}>${fallback}</div>
          <div>

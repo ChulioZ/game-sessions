@@ -37,6 +37,8 @@ const frontendGlobals = {
   typeIcon: 'readonly', typeTag: 'readonly',
   durationTag: 'readonly', playersTag: 'readonly', typeBadge: 'readonly',
   durationBadge: 'readonly',
+  // ranking.js (also a CommonJS module for tests — hence `module`)
+  computePlaces: 'readonly', module: 'readonly',
   // views-home.js
   showHome: 'readonly', showNewRound: 'readonly',
   // views-round.js
