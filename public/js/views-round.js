@@ -162,10 +162,10 @@ function renderStartTab(round, activeGames) {
   const recs = retireRecommendations(activeGames, statsByGame, round.members.length * 3);
   if (recs.length && !minimizedRecs.has(round.id)) {
     const banner = h(`<div class="rec-banner">
-         <div class="rec-banner__bar">
+         <div class="rec-banner__bar" role="button" tabindex="0" aria-expanded="false">
            <span class="rec-banner__text"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('rec.title', { n: recs.length }))}</span>
            <div class="rec-banner__actions">
-             <button class="link-btn rec-banner__toggle">${esc(t('rec.show'))}</button>
+             <i class="ti ti-chevron-down rec-banner__caret" aria-hidden="true"></i>
              <button class="rec-banner__dismiss" title="${esc(t('rec.dismiss'))}" aria-label="${esc(t('rec.dismiss'))}"><i class="ti ti-x" aria-hidden="true"></i></button>
            </div>
          </div>
@@ -175,14 +175,23 @@ function renderStartTab(round, activeGames) {
          </div>
        </div>`);
     const body = banner.querySelector('.rec-banner__body');
-    const toggle = banner.querySelector('.rec-banner__toggle');
+    const bar = banner.querySelector('.rec-banner__bar');
     let expanded = false;
-    toggle.addEventListener('click', () => {
+    const toggle = () => {
       expanded = !expanded;
       body.hidden = !expanded;
-      toggle.textContent = expanded ? t('rec.minimize') : t('rec.show');
+      banner.classList.toggle('is-open', expanded);
+      bar.setAttribute('aria-expanded', String(expanded));
+    };
+    bar.addEventListener('click', toggle);
+    bar.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle();
+      }
     });
-    banner.querySelector('.rec-banner__dismiss').addEventListener('click', () => {
+    banner.querySelector('.rec-banner__dismiss').addEventListener('click', (e) => {
+      e.stopPropagation();
       minimizedRecs.add(round.id);
       banner.remove();
     });

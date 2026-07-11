@@ -77,8 +77,6 @@ I18N.en = {
   'pokale.dustyNever': 'never played yet',
 
   'rec.title': 'Retirement suggested ({n})',
-  'rec.minimize': 'Minimize',
-  'rec.show': 'Show',
   'rec.sub': 'Unpopular or often suggested for retirement.',
   'rec.reasonSort': '{n}× “retire” ({pct} %)',
   'rec.reasonAvg': 'Ø {avg}',
