@@ -832,8 +832,8 @@ async function showRetired(rid) {
     app.appendChild(list);
   }
 
-  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.backToRound'))}</button></div>`);
-  back.querySelector('button').addEventListener('click', () => showRound(rid, 'regal'));
+  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
+  back.querySelector('button').addEventListener('click', () => navBack(() => showRound(rid, 'regal')));
   app.appendChild(back);
 }
 
@@ -908,8 +908,8 @@ async function showBackground(rid) {
   sec.appendChild(swatches);
   app.appendChild(sec);
 
-  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.backToRound'))}</button></div>`);
-  back.querySelector('button').addEventListener('click', () => showRound(rid));
+  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
+  back.querySelector('button').addEventListener('click', () => navBack(() => showRound(rid)));
   app.appendChild(back);
 }
 
@@ -1213,8 +1213,8 @@ async function showGameDetail(rid, gameId) {
   }
   app.appendChild(sec);
 
-  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.backToRound'))}</button></div>`);
-  back.querySelector('button').addEventListener('click', () => showRound(rid, 'regal'));
+  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
+  back.querySelector('button').addEventListener('click', () => navBack(() => showRound(rid, 'regal')));
   app.appendChild(back);
 }
 

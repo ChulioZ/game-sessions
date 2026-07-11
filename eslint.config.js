@@ -53,8 +53,9 @@ const frontendGlobals = {
   showStartSession: 'readonly', startVoting: 'readonly', showResults: 'readonly',
   showFinale: 'readonly',
   // router.js
-  routing: 'writable', roundPath: 'readonly', syncUrl: 'readonly',
-  resolveRoute: 'readonly', routeTo: 'readonly', showResultsById: 'readonly',
+  routing: 'writable', navIndex: 'writable', roundPath: 'readonly',
+  syncUrl: 'readonly', navBack: 'readonly', resolveRoute: 'readonly',
+  routeTo: 'readonly', showResultsById: 'readonly',
 };
 
 module.exports = [
