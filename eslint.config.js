@@ -29,6 +29,7 @@ const frontendGlobals = {
   STANDARD_ACCENT: 'readonly',
   applyBackground: 'readonly', avgColor: 'readonly',
   MEMBER_COLORS: 'readonly', memberColor: 'readonly', initials: 'readonly',
+  renderSeatPicker: 'readonly',
   themeAccent: 'readonly',
   activePopover: 'writable', closePopover: 'readonly', openPopover: 'readonly',
   readClipboardImage: 'readonly', shuffled: 'readonly', iconText: 'readonly',
@@ -42,7 +43,7 @@ const frontendGlobals = {
   showBackground: 'readonly', showGameDetail: 'readonly', showAddGame: 'readonly',
   HUB_TABS: 'readonly', renderHubDock: 'readonly', renderStartTab: 'readonly',
   renderRegalTab: 'readonly', renderChronikTab: 'readonly', renderPokaleTab: 'readonly',
-  activeSheet: 'writable', closeSheet: 'readonly',
+  activeSheet: 'writable', closeSheet: 'readonly', startDirectSession: 'readonly',
   // views-session.js
   showStartSession: 'readonly', startVoting: 'readonly', showResults: 'readonly',
   showFinale: 'readonly',

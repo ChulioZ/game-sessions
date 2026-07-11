@@ -19,10 +19,53 @@ function shuffle(arr) {
 
 const findSession = (round, sid) => round.sessions.find((s) => s.id === sid);
 
-// Start a new session: random pick of games by filter.
+// Start a new session. Two modes:
+//  - random draw (default): pick games by type/duration/player-count filters;
+//  - direct pick (`gameId` given): play one chosen game, skipping the vote.
 router.post('/', (req, res) => {
   const round = findRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
+
+  // Members joining this session. Missing/empty means everyone (back-compat).
+  // The joining count filters games by their player range below.
+  const memberById = new Set(round.members.map((m) => m.id));
+  let memberIds = Array.isArray(req.body.memberIds)
+    ? req.body.memberIds.map(String).filter((mid) => memberById.has(mid))
+    : [];
+  if (memberIds.length === 0) memberIds = round.members.map((m) => m.id);
+  if (memberIds.length === 0)
+    return res.status(400).json({ error: 'At least one member must join' });
+  const members = round.members.filter((m) => memberIds.includes(m.id));
+
+  // Direct-pick mode: the user explicitly chose one game, so there is no draw
+  // and no voting. Ignore filter/durations/count and the player-range pool.
+  if (req.body.gameId != null) {
+    const game = round.games.find((g) => g.id === String(req.body.gameId));
+    if (!game) return res.status(400).json({ error: 'Game does not belong to this round' });
+    if (game.retired) return res.status(400).json({ error: 'Game is retired' });
+    const now = new Date().toISOString();
+    const session = {
+      id: id(),
+      createdAt: now,
+      filter: 'all',
+      durations: null,
+      requestedCount: 1,
+      memberIds,
+      gameIds: [game.id],
+      votes: {}, // no voting phase in direct-pick mode
+      chosenGameId: game.id, // the game is chosen up front
+      chosenAt: now,
+      finished: false,
+      finishedAt: null,
+      winnerIds: [],
+      cancelled: false,
+      cancelledAt: null,
+      done: true,
+    };
+    round.sessions.push(session);
+    saveData();
+    return res.status(201).json({ session, games: [game], members });
+  }
 
   const filter = ['all', 'digital', 'analog'].includes(req.body.filter) ? req.body.filter : 'all';
   // Duration filter: array of 'short'/'medium'/'long'. Missing, empty or the
@@ -35,17 +78,7 @@ router.post('/', (req, res) => {
   let count = parseInt(req.body.count, 10);
   if (!Number.isFinite(count) || count < 1) count = 1;
 
-  // Members joining this session. Missing/empty means everyone (back-compat).
-  // The joining count filters games by their player range below.
-  const memberById = new Set(round.members.map((m) => m.id));
-  let memberIds = Array.isArray(req.body.memberIds)
-    ? req.body.memberIds.map(String).filter((mid) => memberById.has(mid))
-    : [];
-  if (memberIds.length === 0) memberIds = round.members.map((m) => m.id);
-  if (memberIds.length === 0)
-    return res.status(400).json({ error: 'At least one member must join' });
   const playerCount = memberIds.length;
-  const members = round.members.filter((m) => memberIds.includes(m.id));
 
   const pool = round.games.filter(
     (g) =>

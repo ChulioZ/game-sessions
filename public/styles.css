@@ -1410,6 +1410,33 @@ kbd {
 .pokale-card__value { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
 .pokale-card__sub { font-size: 14px; font-weight: 600; color: var(--ink-soft); }
 
+/* Game rows with a per-game "Jetzt spielen" launcher (Meistgespielt etc.). */
+.pokale-card__games { display: flex; flex-direction: column; gap: 4px; }
+.pokale-game {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pokale-game__title { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+.pokale-game__play {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--brand-edge);
+  border-radius: 999px;
+  background: var(--brand-tint);
+  color: var(--brand-dark);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.05s;
+}
+.pokale-game__play .ti { font-size: 16px; }
+.pokale-game__play:hover { background: var(--brand-tint-soft); }
+.pokale-game__play:active { transform: scale(0.94); }
+
 /* ---- Game detail: score ring ---- */
 .gd-ring { position: relative; width: 88px; height: 88px; }
 .gd-ring svg { width: 100%; height: 100%; display: block; }

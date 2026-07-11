@@ -34,8 +34,8 @@ code and documentation are in English.
   - **Regal** (shelf) – the game collection as a card grid with filter chips
     (all / analog / digital), a search pill, sorting (random / name / rating),
     and the add-game sheet. Each card opens the game's detail page
-    ("Spielepass") with its score ring, editable details, and the history of
-    sessions it appeared in.
+    ("Spielepass") with its score ring, editable details, a **Jetzt spielen**
+    launcher, and the history of sessions it appeared in.
   - **Chronik** – one month-grouped timeline of everything that happened:
     games added / retired / restored and session outcomes.
   - **Pokale** (trophies) – a winners' podium (ties share a step) plus stat
@@ -47,6 +47,10 @@ code and documentation are in English.
   eligible. The device is then passed around: a handover screen names whose
   turn it is, and each member rates every drawn game **1–5** or proposes to
   retire it (member order is randomized).
+- **Jetzt spielen** (play now) – when the group already knows what they want,
+  launch a session for **one specific game** straight from its detail page or a
+  Pokale tile: pick who joins and skip the vote entirely, landing directly on
+  the results screen with that game chosen.
 - **Finale & results** – votes stay sealed until everyone is done, then a
   little show reveals the results: per-game average (colored by score), rating
   distribution, medals for the favourites, and retirement proposals. Pick the

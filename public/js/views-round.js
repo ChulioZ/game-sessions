@@ -610,6 +610,29 @@ function renderPokaleTab(round) {
          <span class="pokale-card__value">${esc(value)}</span>
          <span class="pokale-card__sub">${esc(sub)}</span>
        </div>`);
+  // Like statCard but the value is one or more games, each listed on its own row
+  // with a "Jetzt spielen" launcher (icon-only; omitted for a retired game).
+  const gameStatCard = (icon, label, games, sub) => {
+    const card = h(`<div class="pokale-card">
+         <span class="pokale-card__icon"><i class="ti ${icon}" aria-hidden="true"></i></span>
+         <span class="pokale-card__label">${esc(label)}</span>
+         <span class="pokale-card__games"></span>
+         <span class="pokale-card__sub">${esc(sub)}</span>
+       </div>`);
+    const list = card.querySelector('.pokale-card__games');
+    games.forEach((g) => {
+      const row = h(`<span class="pokale-game">
+           <span class="pokale-game__title">${esc(g.title)}</span>
+         </span>`);
+      if (!g.retired) {
+        const btn = h(`<button class="pokale-game__play" title="${esc(t('directPlay.button'))}" aria-label="${esc(t('directPlay.button'))}"><i class="ti ti-player-play" aria-hidden="true"></i></button>`);
+        btn.addEventListener('click', () => startDirectSession(round, g));
+        row.appendChild(btn);
+      }
+      list.appendChild(row);
+    });
+    return card;
+  };
   const cards = h('<div class="pokale-cards"></div>');
 
   // Most played: chosen most often across finished nights (game must exist).
@@ -622,12 +645,12 @@ function renderPokaleTab(round) {
   Object.keys(playCount).forEach((gid) => {
     if (playCount[gid] > maxPlays) maxPlays = playCount[gid];
   });
-  const mostTitles = Object.keys(playCount)
+  const mostGames = Object.keys(playCount)
     .filter((gid) => playCount[gid] === maxPlays)
-    .map((gid) => round.games.find((x) => x.id === gid).title);
-  if (mostTitles.length) {
+    .map((gid) => round.games.find((x) => x.id === gid));
+  if (mostGames.length) {
     cards.appendChild(
-      statCard('ti-flame', t('pokale.mostPlayed'), mostTitles.join(', '), tn(maxPlays, 'home.chip.sessionsOne', 'home.chip.sessions'))
+      gameStatCard('ti-flame', t('pokale.mostPlayed'), mostGames, tn(maxPlays, 'home.chip.sessionsOne', 'home.chip.sessions'))
     );
   }
 
@@ -642,8 +665,8 @@ function renderPokaleTab(round) {
     .filter((x) => x.avg !== null && x.count >= 3);
   if (rated.length) {
     const bestAvg = Math.max(...rated.map((x) => x.avg));
-    const bestTitles = rated.filter((x) => x.avg === bestAvg).map((x) => x.g.title);
-    cards.appendChild(statCard('ti-star', t('pokale.bestRated'), bestTitles.join(', '), `Ø ${bestAvg.toFixed(1)}`));
+    const bestGames = rated.filter((x) => x.avg === bestAvg).map((x) => x.g);
+    cards.appendChild(gameStatCard('ti-star', t('pokale.bestRated'), bestGames, `Ø ${bestAvg.toFixed(1)}`));
   }
 
   // Streak: how many of the latest nights in a row one member won alone.
@@ -688,10 +711,10 @@ function renderPokaleTab(round) {
     : null;
   if (dusty && active.length > 1) {
     cards.appendChild(
-      statCard(
+      gameStatCard(
         'ti-sparkles',
         t('pokale.dusty'),
-        dusty.g.title,
+        [dusty.g],
         dusty.at ? t('pokale.dustyAt', { when: fmtMonth(dusty.at) }) : t('pokale.dustyNever')
       )
     );
@@ -1078,6 +1101,10 @@ async function showGameDetail(rid, gameId) {
     });
     actionWrap.appendChild(restore);
   } else {
+    // Direct launch: skip the vote and play this game right away.
+    const play = h(`<button class="btn btn--primary"><i class="ti ti-player-play" aria-hidden="true"></i> ${esc(t('directPlay.button'))}</button>`);
+    play.addEventListener('click', () => startDirectSession(round, game));
+    actionWrap.appendChild(play);
     const retire = h(`<button class="btn" style="color:var(--warn)"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('detail.retire'))}</button>`);
     retire.addEventListener('click', async () => {
       if (!confirm(t('detail.retireConfirm', { title: game.title }))) return;
@@ -1367,4 +1394,55 @@ function showAddGame(round) {
   form.querySelector('#save').addEventListener('click', () => save(false));
   form.querySelector('#saveMore').addEventListener('click', () => save(true));
   form.querySelector('#title').focus();
+}
+
+// =================== Jetzt spielen (direct-pick session sheet) ===================
+
+// Bottom sheet: pick who joins, then start a session for one specific game with
+// no vote and no draw, landing straight on the results screen with that game
+// already chosen. Opened from the game detail page and the Pokale cards.
+function startDirectSession(round, game) {
+  closeSheet();
+  const label = t('directPlay.title', { title: game.title });
+  const backdrop = h(`<div class="sheet-backdrop">
+      <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(label)}">
+        <div class="sheet__head">
+          <h2>${esc(label)}</h2>
+          <button class="sheet__close" aria-label="${esc(t('common.close'))}"><i class="ti ti-x" aria-hidden="true"></i></button>
+        </div>
+        <div class="field">
+          <label>${esc(t('startSession.membersLabel'))}</label>
+          <div id="seatMount"></div>
+        </div>
+        <div class="toolbar sheet__actions">
+          <button id="startDirect" class="btn btn--primary btn--lg"><i class="ti ti-player-play" aria-hidden="true"></i> ${esc(t('directPlay.start'))}</button>
+        </div>
+      </div>
+    </div>`);
+  const sheet = backdrop.querySelector('.sheet');
+  document.body.appendChild(backdrop);
+
+  const joining = new Set(round.members.map((m) => m.id));
+  sheet.querySelector('#seatMount').replaceWith(renderSeatPicker(round, joining));
+
+  const dismiss = () => closeSheet();
+  const onKey = (e) => { if (e.key === 'Escape') dismiss(); };
+  document.addEventListener('keydown', onKey, true);
+  activeSheet = { el: backdrop, onKey };
+  backdrop.addEventListener('mousedown', (e) => {
+    if (e.target === backdrop) dismiss();
+  });
+  sheet.querySelector('.sheet__close').addEventListener('click', dismiss);
+
+  sheet.querySelector('#startDirect').addEventListener('click', async () => {
+    if (joining.size === 0) return toast(t('startSession.toast.noMembers'));
+    try {
+      const data = await api('POST', `/api/rounds/${round.id}/sessions`, {
+        gameId: game.id,
+        memberIds: [...joining],
+      });
+      closeSheet();
+      showResults(round, data.session, data.games);
+    } catch (e) { toast(e.message); }
+  });
 }

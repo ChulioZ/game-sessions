@@ -198,6 +198,10 @@ I18N.en = {
   'startSession.toast.noGames': 'No matching games available',
   'startSession.toast.noMembers': 'At least one player must join',
 
+  'directPlay.button': 'Play now',
+  'directPlay.title': 'Play “{title}”',
+  'directPlay.start': 'Start',
+
   'vote.crumb': 'Voting',
   'vote.turn': '{name}, your turn!',
   'vote.handoverSub': 'Everyone else, look away for a moment.',

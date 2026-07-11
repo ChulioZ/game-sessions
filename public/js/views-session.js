@@ -25,10 +25,7 @@ function showStartSession(round) {
   const form = h(`<div>
       <div class="field">
         <label>${esc(t('startSession.membersLabel'))}</label>
-        <div class="nr-table">
-          <div class="nr-table__ring"></div>
-          <div class="nr-table__center"></div>
-        </div>
+        <div id="seatMount"></div>
         <div class="muted field__hint center">${esc(t('startSession.membersNote'))}</div>
       </div>
       <div class="field">
@@ -66,38 +63,6 @@ function showStartSession(round) {
   // games by their player count.
   const joining = new Set(round.members.map((m) => m.id));
 
-  // Seats around the table: tap a member to toggle whether they join tonight.
-  const table = form.querySelector('.nr-table');
-  const tableCenter = form.querySelector('.nr-table__center');
-  function renderSeats() {
-    table.querySelectorAll('.nr-seat').forEach((el) => el.remove());
-    tableCenter.textContent = t('startSession.tableCount', { n: joining.size });
-    const cx = 140, cy = 118, rx = 112, ry = 92;
-    round.members.forEach((m, i) => {
-      const angle = ((-90 + (i * 360) / round.members.length) * Math.PI) / 180;
-      const joined = joining.has(m.id);
-      const seat = h(`<button type="button" class="nr-seat${joined ? '' : ' nr-seat--out'}" title="${esc(m.name)}">
-           <span class="nr-seat__avatar"${joined ? ` style="background:${memberColor(round, m.id)}"` : ''}>${
-             joined ? esc(initials(m.name)) : '<i class="ti ti-plus" aria-hidden="true"></i>'
-           }</span>
-           <span class="nr-seat__name">${esc(m.name)}</span>
-         </button>`);
-      seat.style.left = cx + rx * Math.cos(angle) + 'px';
-      seat.style.top = cy + ry * Math.sin(angle) - 23 + 'px';
-      seat.addEventListener('click', () => {
-        if (joining.has(m.id)) {
-          if (joining.size === 1) return toast(t('startSession.toast.noMembers'));
-          joining.delete(m.id);
-        } else {
-          joining.add(m.id);
-        }
-        renderSeats();
-        updateHint();
-      });
-      table.appendChild(seat);
-    });
-  }
-
   // Games matching all filters; with all durations selected, games without a
   // duration (from before the feature) are included too. The joining member
   // count must fall within a game's player range.
@@ -129,7 +94,8 @@ function showStartSession(round) {
       tn(games.length, 'startSession.availableOne', 'startSession.available')
     )}</span><span class="pool-thumbs">${thumbs}${more}</span>`;
   };
-  renderSeats();
+  // Seats around the table: tap a member to toggle whether they join tonight.
+  form.querySelector('#seatMount').replaceWith(renderSeatPicker(round, joining, updateHint));
   updateHint();
 
   // Type chips are radio-like; duration chips toggle independently.

@@ -198,6 +198,10 @@ I18N.de = {
   'startSession.toast.noGames': 'Keine passenden Spiele vorhanden',
   'startSession.toast.noMembers': 'Mindestens ein Spieler muss mitspielen',
 
+  'directPlay.button': 'Jetzt spielen',
+  'directPlay.title': '„{title}“ spielen',
+  'directPlay.start': 'Los geht’s',
+
   'vote.crumb': 'Abstimmung',
   'vote.turn': '{name}, du bist dran!',
   'vote.handoverSub': 'Die anderen schauen kurz weg.',

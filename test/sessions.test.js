@@ -161,3 +161,79 @@ test('results persist votes and mark the session done', async () => {
   assert.equal(res.body.done, true);
   assert.deepEqual(res.body.votes, votes);
 });
+
+// --- Direct-pick mode ("Jetzt spielen": one game, no vote) ---
+
+test('direct pick starts a done session with the game already chosen', async () => {
+  const round = await createRound(request);
+  const game = await addGame(round.id, { title: 'Chosen' });
+  const other = await addGame(round.id, { title: 'Other' });
+
+  const res = await request(app)
+    .post(`/api/rounds/${round.id}/sessions`)
+    .send({ gameId: game.id });
+  assert.equal(res.status, 201);
+  const s = res.body.session;
+  assert.deepEqual(s.gameIds, [game.id]);
+  assert.equal(s.chosenGameId, game.id);
+  assert.ok(s.chosenAt);
+  assert.equal(s.done, true);
+  assert.deepEqual(s.votes, {});
+  assert.equal(s.requestedCount, 1);
+  // Only the picked game is returned, not the rest of the round.
+  assert.equal(res.body.games.length, 1);
+  assert.equal(res.body.games[0].id, game.id);
+  assert.ok(!s.gameIds.includes(other.id));
+});
+
+test('direct pick ignores draw filters and never draws extra games', async () => {
+  const round = await createRound(request);
+  const game = await addGame(round.id, { title: 'Solo', minPlayers: '1', maxPlayers: '1' });
+  await addGame(round.id, { title: 'Filler' });
+  // A player-range that a draw would reject, plus count/filter noise: all ignored.
+  const res = await request(app)
+    .post(`/api/rounds/${round.id}/sessions`)
+    .send({ gameId: game.id, count: 5, filter: 'digital', memberIds: round.members.map((m) => m.id) });
+  assert.equal(res.status, 201);
+  assert.deepEqual(res.body.session.gameIds, [game.id]);
+  assert.equal(res.body.session.memberIds.length, round.members.length);
+});
+
+test('direct pick only counts the joining members', async () => {
+  const round = await createRound(request);
+  const game = await addGame(round.id);
+  const res = await request(app)
+    .post(`/api/rounds/${round.id}/sessions`)
+    .send({ gameId: game.id, memberIds: [round.members[0].id] });
+  assert.equal(res.status, 201);
+  assert.deepEqual(res.body.session.memberIds, [round.members[0].id]);
+});
+
+test('direct pick rejects an unknown game', async () => {
+  const round = await createRound(request);
+  await addGame(round.id);
+  const res = await request(app)
+    .post(`/api/rounds/${round.id}/sessions`)
+    .send({ gameId: 'nope' });
+  assert.equal(res.status, 400);
+});
+
+test('direct pick rejects a retired game', async () => {
+  const round = await createRound(request);
+  const game = await addGame(round.id);
+  await request(app).post(`/api/rounds/${round.id}/games/${game.id}/retire`).send({ retired: true });
+  const res = await request(app)
+    .post(`/api/rounds/${round.id}/sessions`)
+    .send({ gameId: game.id });
+  assert.equal(res.status, 400);
+});
+
+test('direct pick with only unknown member ids falls back to everyone', async () => {
+  const round = await createRound(request);
+  const game = await addGame(round.id);
+  const res = await request(app)
+    .post(`/api/rounds/${round.id}/sessions`)
+    .send({ gameId: game.id, memberIds: ['ghost'] });
+  assert.equal(res.status, 201);
+  assert.equal(res.body.session.memberIds.length, round.members.length);
+});

@@ -223,6 +223,49 @@ function initials(name) {
   return raw.toUpperCase();
 }
 
+// Seat-picker around a table: tap a member to toggle whether they join tonight.
+// `joining` is a Set of member ids, mutated in place; at least one member must
+// stay in. `onChange` (optional) runs after a toggle. Returns the table element
+// to append where needed. Shared by the start-session screen and the "Jetzt
+// spielen" sheet.
+function renderSeatPicker(round, joining, onChange) {
+  const table = h(`<div class="nr-table">
+      <div class="nr-table__ring"></div>
+      <div class="nr-table__center"></div>
+    </div>`);
+  const tableCenter = table.querySelector('.nr-table__center');
+  function render() {
+    table.querySelectorAll('.nr-seat').forEach((el) => el.remove());
+    tableCenter.textContent = t('startSession.tableCount', { n: joining.size });
+    const cx = 140, cy = 118, rx = 112, ry = 92;
+    round.members.forEach((m, i) => {
+      const angle = ((-90 + (i * 360) / round.members.length) * Math.PI) / 180;
+      const joined = joining.has(m.id);
+      const seat = h(`<button type="button" class="nr-seat${joined ? '' : ' nr-seat--out'}" title="${esc(m.name)}">
+           <span class="nr-seat__avatar"${joined ? ` style="background:${memberColor(round, m.id)}"` : ''}>${
+             joined ? esc(initials(m.name)) : '<i class="ti ti-plus" aria-hidden="true"></i>'
+           }</span>
+           <span class="nr-seat__name">${esc(m.name)}</span>
+         </button>`);
+      seat.style.left = cx + rx * Math.cos(angle) + 'px';
+      seat.style.top = cy + ry * Math.sin(angle) - 23 + 'px';
+      seat.addEventListener('click', () => {
+        if (joining.has(m.id)) {
+          if (joining.size === 1) return toast(t('startSession.toast.noMembers'));
+          joining.delete(m.id);
+        } else {
+          joining.add(m.id);
+        }
+        render();
+        if (onChange) onChange();
+      });
+      table.appendChild(seat);
+    });
+  }
+  render();
+  return table;
+}
+
 // Accent color of a round's stored design (fallback: the standard accent).
 // Works with both the full round object and the home-screen summary.
 function themeAccent(bg) {
