@@ -194,7 +194,7 @@ async function showMember(rid, mid) {
   cards.appendChild(favCard);
   app.appendChild(statsSec);
 
-  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.backToRound'))}</button></div>`);
-  back.querySelector('button').addEventListener('click', () => showRound(rid));
+  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
+  back.querySelector('button').addEventListener('click', () => navBack(() => showRound(rid)));
   app.appendChild(back);
 }

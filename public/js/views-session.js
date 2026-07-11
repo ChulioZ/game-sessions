@@ -714,8 +714,8 @@ async function showResults(round, session, gamesHint, reveal) {
 
   updateChosen();
 
-  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.backToRound'))}</button></div>`);
-  back.querySelector('button').addEventListener('click', () => showRound(round.id));
+  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
+  back.querySelector('button').addEventListener('click', () => navBack(() => showRound(round.id)));
   app.appendChild(back);
 
   // Delete session (subtle, at the bottom – like deleting a round)

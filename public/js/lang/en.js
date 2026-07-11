@@ -3,7 +3,7 @@
 I18N.en = {
   'app.title': 'Spieleabend',
   'nav.home': 'Home',
-  'common.backToRound': 'Back to the round',
+  'common.back': 'Back',
   'common.delete': 'Delete',
   'common.ok': 'OK',
   'common.close': 'Close',

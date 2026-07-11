@@ -3,7 +3,7 @@
 I18N.de = {
   'app.title': 'Spieleabend',
   'nav.home': 'Start',
-  'common.backToRound': 'Zurück zur Runde',
+  'common.back': 'Zurück',
   'common.delete': 'Löschen',
   'common.ok': 'OK',
   'common.close': 'Schließen',

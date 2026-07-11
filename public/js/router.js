@@ -18,6 +18,15 @@
 // /round/:rid/start -> /round/:rid).
 let routing = false;
 
+// Monotonic index of the current history entry within *this app's* navigation.
+// It starts at 0 for the entry we load into, and increments only when we push a
+// new entry (a genuine forward navigation). Stored in each entry's state so a
+// Back/Forward restores the right index. navBack() uses it to tell "there is an
+// earlier in-app view to go back to" (idx > 0) from "this is the entry we
+// cold-loaded into" (idx === 0), so a deep link's Back falls back to a parent
+// instead of leaving the app.
+let navIndex = 0;
+
 // Canonical path for the round hub: the Start tab has the bare round URL.
 function roundPath(rid, tab) {
   return tab && tab !== 'start' ? `/round/${rid}/${tab}` : `/round/${rid}`;
@@ -28,9 +37,24 @@ function roundPath(rid, tab) {
 // path already matches, it replaces; otherwise it pushes a new history entry.
 function syncUrl(path) {
   if (routing || path === location.pathname) {
-    history.replaceState({ path }, '', path);
+    history.replaceState({ path, idx: navIndex }, '', path);
   } else {
-    history.pushState({ path }, '', path);
+    navIndex += 1;
+    history.pushState({ path, idx: navIndex }, '', path);
+  }
+}
+
+// Generic "Zurück": return to the previous in-app view. If there is one
+// (navIndex > 0, i.e. we pushed at least one entry to get here) go back through
+// history — which restores the exact previous view, tab and scroll position,
+// and stays consistent with the browser's Back button. Otherwise (a cold-loaded
+// deep link with no in-app history behind it) run the caller's fallback so we
+// land on a sensible parent instead of leaving the app.
+function navBack(fallback) {
+  if (navIndex > 0) {
+    history.back();
+  } else if (typeof fallback === 'function') {
+    fallback();
   }
 }
 
@@ -84,5 +108,9 @@ async function showResultsById(rid, sid) {
   showResults(round, session);
 }
 
-// Back/Forward: the browser has already updated location, so just re-render it.
-window.addEventListener('popstate', () => routeTo(location.pathname));
+// Back/Forward: the browser has already updated location, so restore our index
+// from the entry we landed on, then just re-render it.
+window.addEventListener('popstate', (e) => {
+  navIndex = (e.state && typeof e.state.idx === 'number') ? e.state.idx : 0;
+  routeTo(location.pathname);
+});
