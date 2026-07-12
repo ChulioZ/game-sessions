@@ -1263,6 +1263,28 @@ const PROVIDER_LABELS = { psstore: 'PlayStation Store', bgg: 'BoardGameGeek', st
 function providerLabel(provider) {
   return PROVIDER_LABELS[provider] || provider;
 }
+// Full-color brand marks identifying the source of a lookup hit (nominative
+// use). These are a DELIBERATE exception to the theme-derived color system (like
+// the fixed category tags and medal colors) — they encode brand identity, not
+// theme, so their hardcoded hexes must not be "fixed" to accent tones. See
+// .claude/rules/theme-derived-colors.md. Each is a self-contained inline SVG
+// (no external/CDN request; the app is local-only). `aria-hidden` because the
+// button around it carries the accessible name (lookup.fillFrom).
+const PROVIDER_LOGOS = {
+  // PlayStation face-button symbols (△ ○ ✕ □) in their classic colors.
+  psstore: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3.6 10.4 9.3H3.6Z" stroke="#43b98a"/><circle cx="17" cy="6.5" r="3.3" stroke="#e4576b"/><path d="m4.4 14.4 5.2 5.2M9.6 14.4l-5.2 5.2" stroke="#4b8fe2"/><rect x="13.8" y="13.8" width="6.4" height="6.4" rx=".6" stroke="#c85fae"/></svg>',
+  // Steam: navy disc with a white cog + valve rod.
+  steam: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#1b2838"/><path d="M12.6 11.6 6.6 17" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="6.3" cy="17.2" r="2" fill="#fff"/><g fill="#fff"><circle cx="13" cy="11" r="4.4"/><circle cx="18.4" cy="11" r="1.1"/><circle cx="16.8" cy="14.8" r="1.1"/><circle cx="13" cy="16.4" r="1.1"/><circle cx="9.2" cy="14.8" r="1.1"/><circle cx="7.6" cy="11" r="1.1"/><circle cx="9.2" cy="7.2" r="1.1"/><circle cx="13" cy="5.6" r="1.1"/><circle cx="16.8" cy="7.2" r="1.1"/></g><circle cx="13" cy="11" r="1.7" fill="#1b2838"/></svg>',
+  // Nintendo eShop: the orange shopping bag.
+  nintendo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8V7a4 4 0 0 1 8 0v1" fill="none" stroke="#f76d15" stroke-width="2" stroke-linecap="round"/><rect x="4.5" y="8" width="15" height="12" rx="2.4" fill="#f76d15"/></svg>',
+  // Xbox: green sphere with the curved white X.
+  xbox: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#107c10"/><g fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round"><path d="M7 5.8Q11 9.5 12 12 13 14.5 17.4 18.4"/><path d="M17 5.8Q13 9.5 12 12 11 14.5 6.6 18.4"/></g></svg>',
+  // BoardGameGeek: a white meeple on the BGG warm-orange badge.
+  bgg: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="4" fill="#ff5100"/><circle cx="12" cy="6.4" r="2.8" fill="#fff"/><path d="M10.2 8.4C9 10 6.5 11.2 4.6 12.2 4 12.5 4 13.4 4.7 13.6 6.4 14.1 8 14 9.3 13.7L7.7 19C7.5 19.7 8 20.2 8.7 20.2H10.6C11.2 20.2 11.6 19.8 11.7 19.2L12 16.5 12.3 19.2C12.4 19.8 12.8 20.2 13.4 20.2H15.3C16 20.2 16.5 19.7 16.3 19L14.7 13.7C16 14 17.6 14.1 19.3 13.6 20 13.4 20 12.5 19.4 12.2 17.5 11.2 15 10 13.8 8.4 13.4 7.9 12.8 7.6 12 7.6 11.2 7.6 10.6 7.9 10.2 8.4Z" fill="#fff"/></svg>',
+};
+function providerLogo(provider) {
+  return PROVIDER_LOGOS[provider] || null;
+}
 // A provider's game type: BoardGameGeek is analog, every store is digital.
 function lookupProviderType(provider) {
   return provider === 'bgg' ? 'analog' : 'digital';
@@ -1316,14 +1338,20 @@ function attachLookup(input, menu, onPick, onInput) {
   function positionMenu() {
     const r = input.getBoundingClientRect();
     const vh = window.innerHeight || document.documentElement.clientHeight;
+    const vw = window.innerWidth || document.documentElement.clientWidth;
     const gap = 4;
     const edge = 8; // keep a little clearance from the viewport edge
     const spaceBelow = vh - r.bottom - gap - edge;
     const spaceAbove = r.top - gap - edge;
     const openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
     const avail = Math.max(openUp ? spaceAbove : spaceBelow, 120);
-    menu.style.left = r.left + 'px';
-    menu.style.width = r.width + 'px';
+    // Grow a bit wider than the input so long titles have room, but stay within
+    // the viewport; keep the menu left-anchored to the input, shifting left only
+    // if it would overflow the right edge.
+    const width = Math.min(Math.max(r.width, 440), vw - 2 * edge);
+    const left = Math.max(edge, Math.min(r.left, vw - edge - width));
+    menu.style.left = left + 'px';
+    menu.style.width = width + 'px';
     menu.style.maxHeight = Math.min(340, avail) + 'px';
     if (openUp) {
       menu.style.top = 'auto';
@@ -1388,7 +1416,13 @@ function attachLookup(input, menu, onPick, onInput) {
         // …and each badge picks that specific provider's hit.
         const badges = row.querySelector('.lookup__badges');
         g.members.forEach((m) => {
-          const badge = h(`<button type="button" class="lookup__badge" title="${esc(t('lookup.fillFrom', { provider: providerLabel(m.provider) }))}">${esc(providerLabel(m.provider))}</button>`);
+          const name = t('lookup.fillFrom', { provider: providerLabel(m.provider) });
+          const logo = providerLogo(m.provider);
+          // Logo badges for known providers; a text pill still labels any
+          // provider without a bundled mark. Either way the button is labelled.
+          const badge = logo
+            ? h(`<button type="button" class="lookup__badge lookup__badge--logo" title="${esc(name)}" aria-label="${esc(name)}">${logo}</button>`)
+            : h(`<button type="button" class="lookup__badge" title="${esc(name)}" aria-label="${esc(name)}">${esc(providerLabel(m.provider))}</button>`);
           badge.addEventListener('mousedown', (e) => { e.preventDefault(); onPick(m); });
           badges.appendChild(badge);
         });
