@@ -225,7 +225,7 @@ I18N.en = {
   'addGame.toast.noImage': 'No image in the clipboard',
   'addGame.toast.pasteFail': 'Couldn’t paste – please use ⌘V',
   'addGame.toast.useShortcut': 'Please use ⌘V to paste',
-  'addGame.searchHint': 'Start typing to get suggestions from the PlayStation Store, Steam and BoardGameGeek.',
+  'addGame.searchHint': 'Start typing to get suggestions.',
   'addGame.toast.filled': 'Details filled in from {provider}',
   'lookup.searching': 'Searching…',
   'lookup.loadingMore': 'Loading more results…',
@@ -238,7 +238,7 @@ I18N.en = {
 
   'linkProvider.title': 'Link to provider',
   'linkProvider.searchLabel': 'Find the game at a provider',
-  'linkProvider.searchHint': 'Search the PlayStation Store, Steam and BoardGameGeek. Picking a match saves the link.',
+  'linkProvider.searchHint': 'Start typing to get suggestions. Picking a match saves the link.',
   'linkProvider.overridePrompt': 'Which details should be taken from the provider?',
   'linkProvider.noDiff': 'Only the source link will be saved — the provider’s data matches this game.',
   'linkProvider.field.image': 'Cover image',

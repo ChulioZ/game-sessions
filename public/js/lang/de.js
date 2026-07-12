@@ -225,7 +225,7 @@ I18N.de = {
   'addGame.toast.noImage': 'Kein Bild in der Zwischenablage',
   'addGame.toast.pasteFail': 'Einfügen nicht möglich – bitte ⌘V benutzen',
   'addGame.toast.useShortcut': 'Bitte ⌘V zum Einfügen benutzen',
-  'addGame.searchHint': 'Tippen für Vorschläge aus dem PlayStation Store, von Steam und von BoardGameGeek.',
+  'addGame.searchHint': 'Tippen für Vorschläge.',
   'addGame.toast.filled': 'Details von {provider} übernommen',
   'lookup.searching': 'Suche läuft …',
   'lookup.loadingMore': 'Weitere Ergebnisse werden geladen …',
@@ -238,7 +238,7 @@ I18N.de = {
 
   'linkProvider.title': 'Mit Anbieter verknüpfen',
   'linkProvider.searchLabel': 'Spiel bei einem Anbieter finden',
-  'linkProvider.searchHint': 'Durchsucht PlayStation Store, Steam und BoardGameGeek. Ein Treffer speichert die Verknüpfung.',
+  'linkProvider.searchHint': 'Tippen für Vorschläge. Ein Treffer speichert die Verknüpfung.',
   'linkProvider.overridePrompt': 'Welche Angaben vom Anbieter übernehmen?',
   'linkProvider.noDiff': 'Es wird nur der Anbieter-Link gespeichert — die Daten stimmen bereits überein.',
   'linkProvider.field.image': 'Titelbild',
