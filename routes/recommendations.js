@@ -29,6 +29,43 @@ const MAX_TOKENS = 1024;
 const MAX_ITEMS = 8;
 const TIMEOUT_MS = 20000;
 
+// The four concrete digital stores (mirror routes/games.js). `analog`, `other`,
+// and legacy games without the field fall back to their analog/digital type.
+const DIGITAL_PLATFORMS = ['ps', 'xbox', 'switch', 'steam'];
+// locale (de/en) -> the language name the model should write reasons in.
+const LANGUAGES = { de: 'German', en: 'English' };
+
+// The recommendable platform for a game: its stored platform when it's one of
+// the four concrete stores or analog, else inferred from the type. A digital
+// game with no concrete store (`other`/digital, or a legacy field) can't be
+// targeted at a store, so it returns null and is ignored for platform-awareness.
+function gamePlatform(game) {
+  if (game.platform === 'analog' || DIGITAL_PLATFORMS.includes(game.platform)) return game.platform;
+  return game.type === 'analog' ? 'analog' : null;
+}
+
+// A deterministic store-*search* URL for a title on a platform — always
+// resolvable (no scraping, no hallucinated product page). Locale follows the
+// same env vars the lookup providers use (lib/providers/*). Returns null for a
+// platform with no dedicated store (`other`).
+function platformSearchUrl(platform, title) {
+  const q = encodeURIComponent(title);
+  switch (platform) {
+    case 'analog':
+      return `https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=${q}`;
+    case 'ps':
+      return `https://store.playstation.com/${process.env.PSSTORE_LOCALE || 'de-de'}/search/${q}`;
+    case 'steam':
+      return `https://store.steampowered.com/search/?term=${q}`;
+    case 'xbox':
+      return `https://www.microsoft.com/${process.env.XBOX_LOCALE || 'de-de'}/search/shop/games?q=${q}`;
+    case 'switch':
+      return `https://www.nintendo.com/search/?q=${q}`;
+    default:
+      return null;
+  }
+}
+
 // Per-game rating/play stats from a round's sessions — the server-side twin of
 // gameStats() in public/js/core.js. Votes are the single source of truth, so
 // this is derived on demand and nothing is denormalized.
@@ -74,6 +111,15 @@ function buildProfile(round) {
   const playerRanges = active
     .filter((g) => Number.isInteger(g.minPlayers) && Number.isInteger(g.maxPlayers))
     .map((g) => `${g.minPlayers}-${g.maxPlayers}`);
+  // The concrete platforms the group actually plays on, so suggestions respect
+  // the real mix. If no game carries a concrete digital platform (all analog, or
+  // the field is absent), recommend board games only (analog).
+  const present = [];
+  active.forEach((g) => {
+    const p = gamePlatform(g);
+    if (p && !present.includes(p)) present.push(p);
+  });
+  const platforms = present.some((p) => DIGITAL_PLATFORMS.includes(p)) ? present : ['analog'];
   return {
     owned: active.map((g) => g.title),
     topRated,
@@ -81,10 +127,14 @@ function buildProfile(round) {
     favoriteType: mostCommon(active.map((g) => g.type)),
     favoriteDuration: mostCommon(active.map((g) => g.duration)),
     typicalPlayers: mostCommon(playerRanges),
+    platforms,
   };
 }
 
-function buildPrompt(profile) {
+function buildPrompt(profile, locale) {
+  const language = LANGUAGES[locale] || LANGUAGES.en;
+  const platforms = profile.platforms || ['analog'];
+  const analogOnly = platforms.length === 1 && platforms[0] === 'analog';
   return [
     "You recommend board games and digital games a gaming group should buy or play next.",
     "Here is an anonymized profile of the group's collection and taste:",
@@ -93,14 +143,22 @@ function buildPrompt(profile) {
     `Suggest up to ${MAX_ITEMS} real, well-known games this group is likely to enjoy and does`,
     'NOT already own — exclude every title listed in "owned". Prefer titles matching their',
     'favorite type, duration and player counts. Favour widely-known real titles over obscure ones.',
+    '',
+    `Only recommend games available on these platforms: ${platforms.join(', ')}.`,
+    'Tag every suggestion with exactly one of those platform ids in a "platform" field, and',
+    'never recommend the same title on more than one platform.',
+    analogOnly ? 'Every platform here is board games (analog), so suggest board games.' : '',
+    '',
+    `Write each "reason" in ${language}. Keep every game title in its real, original form`,
+    '(do NOT translate the titles).',
     'Return ONLY a JSON array (no prose, no markdown fence) of objects with exactly this shape:',
-    '[{ "title": "Game name", "reason": "one short sentence why they might like it" }].',
-  ].join('\n');
+    '[{ "title": "Game name", "platform": "one of the platform ids above", "reason": "one short sentence why they might like it" }].',
+  ].filter(Boolean).join('\n');
 }
 
 // Pull the JSON array out of the model's text reply and sanitize it. Degrades
 // to [] on any shape mismatch — never throws. Exported for unit testing.
-function parseItems(data, owned) {
+function parseItems(data, owned, platforms) {
   const text = (data && Array.isArray(data.content) ? data.content : [])
     .filter((b) => b && b.type === 'text' && typeof b.text === 'string')
     .map((b) => b.text)
@@ -116,6 +174,10 @@ function parseItems(data, owned) {
   }
   if (!Array.isArray(arr)) return [];
   const ownedLower = new Set((owned || []).map((t) => String(t).toLowerCase()));
+  const allowed = new Set(platforms && platforms.length ? platforms : ['analog']);
+  // With a single target platform, a missing/odd platform on an item is safe to
+  // bucket to it; with several, an item we can't place is dropped instead.
+  const fallback = allowed.size === 1 ? [...allowed][0] : null;
   const seen = new Set();
   const items = [];
   for (const it of arr) {
@@ -123,8 +185,16 @@ function parseItems(data, owned) {
     const title = it.title.trim();
     const key = title.toLowerCase();
     if (!title || ownedLower.has(key) || seen.has(key)) continue;
-    seen.add(key);
-    items.push({ title, reason: typeof it.reason === 'string' ? it.reason.trim() : '' });
+    let platform = typeof it.platform === 'string' ? it.platform.trim().toLowerCase() : '';
+    if (!allowed.has(platform)) platform = fallback;
+    if (!platform) continue; // several targets and the model gave one we can't place
+    seen.add(key); // dedupe by title -> the same title never appears on two platforms
+    items.push({
+      title,
+      platform,
+      reason: typeof it.reason === 'string' ? it.reason.trim() : '',
+      url: platformSearchUrl(platform, title),
+    });
     if (items.length >= MAX_ITEMS) break;
   }
   return items;
@@ -132,7 +202,7 @@ function parseItems(data, owned) {
 
 // Call the Claude Messages API for a buy-next list. Returns { items, model } on
 // success or { error } ('not_configured' | 'provider_unreachable'); never throws.
-async function generate(profile) {
+async function generate(profile, locale) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return { error: 'not_configured' };
   const ctrl = new AbortController();
@@ -149,12 +219,12 @@ async function generate(profile) {
       body: JSON.stringify({
         model: MODEL,
         max_tokens: MAX_TOKENS,
-        messages: [{ role: 'user', content: buildPrompt(profile) }],
+        messages: [{ role: 'user', content: buildPrompt(profile, locale) }],
       }),
     });
     if (!res.ok) return { error: 'provider_unreachable' };
     const data = await res.json();
-    const items = parseItems(data, profile.owned);
+    const items = parseItems(data, profile.owned, profile.platforms);
     if (!items.length) return { error: 'provider_unreachable' };
     return { items, model: (data && typeof data.model === 'string' && data.model) || MODEL };
   } catch {
@@ -173,7 +243,9 @@ router.get('/', (req, res) => {
 router.post('/', async (req, res) => {
   const round = findRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
-  const result = await generate(buildProfile(round));
+  // Active UI locale, sent by the client; anything but 'de' falls back to 'en'.
+  const locale = req.body && req.body.locale === 'de' ? 'de' : 'en';
+  const result = await generate(buildProfile(round), locale);
   if (result.error === 'not_configured') return res.status(503).json({ error: 'not_configured' });
   if (result.error) return res.status(502).json({ error: 'provider_unreachable' });
   // Optional cache field, written only when present and read defensively — added
@@ -181,6 +253,7 @@ router.post('/', async (req, res) => {
   round.recommendations = {
     generatedAt: new Date().toISOString(),
     model: result.model,
+    locale,
     items: result.items,
   };
   saveData();
@@ -190,5 +263,7 @@ router.post('/', async (req, res) => {
 // The router is the module's default export (so lib/app.js can mount it); the
 // pure helpers hang off it for the unit tests.
 router.buildProfile = buildProfile;
+router.buildPrompt = buildPrompt;
 router.parseItems = parseItems;
+router.platformSearchUrl = platformSearchUrl;
 module.exports = router;

@@ -102,6 +102,7 @@ I18N.de = {
   'buynext.regenerate': 'Neu generieren',
   'buynext.generating': 'Wird generiert…',
   'buynext.meta': 'Generiert {when} · {model}',
+  'buynext.view': 'Ansehen',
   'buynext.unavailable': 'Vorschläge-Generierung ist auf diesem Server nicht eingerichtet.',
   'buynext.failed': 'Vorschläge konnten gerade nicht generiert werden.',
 
