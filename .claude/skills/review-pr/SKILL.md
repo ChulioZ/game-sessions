@@ -58,7 +58,10 @@ Cross-check the diff against `CLAUDE.md` and `.claude/rules/`. For this project
 specifically, a PR is suspect if it:
 
 - adds a build step, framework, database, authentication, accounts, or a cloud
-  service (this app is intentionally none of those);
+  service **that the PR wasn't explicitly asked to add** — the MVP is
+  intentionally none of those. (Auth / accounts / hosting are roadmap work toward
+  going live, so they're legitimate when a PR is explicitly for that; still
+  suspect when they show up unrequested as a side effect of unrelated work.)
 - adds a key to only one of `public/js/lang/en.js` / `de.js` (breaks i18n parity);
 - adds a top-level name in `public/js/**` without updating the `globals` list in
   `eslint.config.js`, or introduces a load-order reference (see the rules);

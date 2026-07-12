@@ -3,14 +3,17 @@
 [![CI](https://github.com/ChulioZ/game-sessions/actions/workflows/ci.yml/badge.svg)](https://github.com/ChulioZ/game-sessions/actions/workflows/ci.yml)
 [![Lint](https://github.com/ChulioZ/game-sessions/actions/workflows/lint.yml/badge.svg)](https://github.com/ChulioZ/game-sessions/actions/workflows/lint.yml)
 
-A small, self-hosted web app for any group or gaming round to manage their board
+A self-hosted web app for any group or gaming round to manage their board
 and digital games, decide what to play in a session, and track how much everyone
 liked each game. The user interface is available in **German and English**; the
 code and documentation are in English.
 
-> ⚠️ **Local use only — no authentication.** This app has intentionally **no
-> login or access control**. Run it only on a trusted home network. Do not
-> expose it to the public internet.
+> ℹ️ **Status: local-only MVP.** Today this runs **local-only, with no
+> authentication** — a deliberate starting point, not the destination. The goal
+> is to bring it live as a hosted **website and app**; accounts, auth and a
+> hosting story are the next phase. **For now, run it only on a trusted home
+> network and don't expose it to the public internet** — there is no access
+> control yet.
 
 ## Features
 
@@ -203,9 +206,10 @@ the intended path — start there rather than improvising.
 
 ### Before you start
 
-- Read `CLAUDE.md` — it states the non-negotiables (local-only, no auth, no build
-  step, no framework, no database; German UI, English code) and the architecture
-  you must work within.
+- Read `CLAUDE.md` — it states the current constraints (local-only MVP, no auth
+  yet, no build step, no framework, no database; German UI, English code), the
+  architecture you must work within, and the roadmap intent (going live as a
+  hosted website and app).
 - Skim `.claude/rules/` — one short file per hard-won gotcha (frontend script
   load order, the shared-global-scope lint setup, theme-derived colours, why you
   must never read the production `data/` folder, …). When you touch an area a

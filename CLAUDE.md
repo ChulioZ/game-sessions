@@ -4,11 +4,18 @@ Guidance for Claude Code (and other AI assistants) working in this repository.
 
 ## What this is
 
-A small, **local-only**, self-hosted web app for any group or gaming round to
+A small self-hosted web app for any group or gaming round to
 manage their games, run "what should we play?" voting sessions, and track ratings. UI language is
-**German**; code, comments here, and docs are **English**. There is intentionally
-**no authentication** — it is for a trusted home network only. Don't add auth,
-accounts, or cloud services unless explicitly asked.
+**German**; code, comments here, and docs are **English**.
+
+**Current stage — local-only MVP.** Today the app runs **local-only**, with
+intentionally **no authentication**, for a trusted home network. That is the
+*current MVP scope*, not the end goal: the intent is to bring this live as a
+hosted **website and app** (which will eventually need accounts, auth, and a
+hosting/storage story). So treat local-only / no-auth as *where we are now*, not
+a permanent principle — but don't build auth, accounts, or cloud services
+**ad-hoc or unprompted**. Those are staged roadmap work to do deliberately when
+asked, not to bolt onto an unrelated change as a side effect.
 
 ## Architecture (read before changing things)
 

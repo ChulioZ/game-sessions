@@ -71,8 +71,9 @@ only ask what genuinely changes what gets built. Typical gaps to close:
   multi-session effects; does it change stored data (and thus need a one-time
   migration rather than migration code)?
 - **Non-goals / constraints** — anything the user does *not* want changed;
-  reconfirm the standing constraints still hold (no auth, local-only, no new
-  deps unless wanted).
+  reconfirm the standing constraints still hold for *this* issue (still
+  local-only / no auth unless the issue is explicitly roadmap work toward going
+  live as a hosted website and app; no new deps unless wanted).
 
 Prefer proposing a sensible default and asking the user to confirm or correct it
 over asking open-ended questions — it's faster and surfaces disagreements.
