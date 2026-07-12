@@ -41,6 +41,14 @@ gh pr list --state open --author "app/dependabot" \
 - Ignore PRs from other authors (those are for `review-pr`, not for picking new
   work) and issues labeled `wontfix`, `invalid`, `duplicate`, or `question`
   awaiting the user's answer.
+- **Ignore any Dependabot PR labeled `blocked`.** The `dependabot` skill applies
+  that label to a PR it is intentionally holding open (e.g. a major bump with
+  breaking changes we use, or one that would force a build step / auth / a
+  forbidden dependency), with a PR comment explaining the blocker. A `blocked` PR
+  is **not pickable work** — leave it out of the candidate pool entirely. Its
+  label already rides in the gather payload above, so this needs no
+  comment-reading. Re-evaluating whether the blocker has cleared is the
+  `dependabot` skill's job on a dedicated sweep, not pick-issue's.
 
 If there's nothing open, say so and stop.
 
