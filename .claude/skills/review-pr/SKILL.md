@@ -35,6 +35,12 @@ gh pr diff <PR>                      # the actual change
 
 - Every check in `gh pr checks` must pass. Any `fail`/`pending` that is a
   *required* check → not mergeable yet.
+- **Distinguish "failing" from "not yet run."** On a PR from a **fork** by an
+  outside contributor, workflows may be *awaiting a maintainer's approval to run*
+  rather than failing — checks show pending/expected because CI hasn't started.
+  That is not a `NOT SAFE` blocker in itself; it means CI can't be judged yet.
+  Note it, and (only after the diff looks safe — approving the run executes the
+  contributor's code) let the run proceed so real results exist to review.
 - **Green CI is necessary, not sufficient.** CI proves the suite passed; it does
   not prove the change is correct or complete. Still read the diff.
 - If a check failed, open its log (`gh run view <run-id> --log-failed` or the

@@ -205,13 +205,38 @@ Invoke the appropriate skill with the chosen item:
 - **A Dependabot PR →** invoke the **`dependabot`** skill (it reviews and merges
   the safe ones). Don't try to "implement" a dependency bump by hand.
 - **A standalone PR →** invoke the **`review-pr`** skill on it (pass the PR
-  number). `review-pr` returns a **verdict**, it doesn't merge — so complete the
-  quick win yourself based on that verdict, mirroring `implement`'s merge gate:
-  - **SAFE TO MERGE** and required checks green → merge it:
-    `gh pr merge <N> --squash --delete-branch` (drop `--delete-branch` for a PR
-    from a fork — you can't delete someone else's branch).
-  - **NOT SAFE** → do **not** merge. Report each blocker `review-pr` named and
-    stop; the PR author (or the user) has to clear it.
+  number) for a verdict, then follow GitHub's norms for a **contributor's** PR.
+  The code is someone else's, so this is *not* the same as `implement` merging its
+  own PR — respect these best practices:
+
+  - **CI may be waiting on you, not failing.** For a PR from a **fork** (a
+    first-time or outside contributor), GitHub Actions doesn't run workflows until
+    a maintainer approves the run — so "expected/pending" checks can mean
+    *awaiting approval*, not broken. That approval **runs the contributor's code
+    in CI**, so only trigger it *after* the phase-2 malicious-intent vet passes;
+    then let CI actually run and judge the PR on the real result. Don't call an
+    un-run fork PR "NOT SAFE" for pending checks alone.
+  - **Don't rewrite their branch.** If the PR merely trails `main` (`BEHIND`, no
+    conflicts) and branch protection requires up-to-date, a maintainer "Update
+    branch" is fine — and because this repo **squash-merges**, any such update
+    commit is collapsed away and the single merged commit stays authored by the
+    contributor, so the attribution worry is moot. If it genuinely `CONFLICTS`,
+    the **contributor** resolves it (it's their work) — report that as the blocker
+    rather than force-pushing to their fork (which also needs the PR's "Allow
+    edits by maintainers" enabled).
+  - **Approve vs. merge — mind who has write access.** `review-pr`'s verdict is
+    informal analysis, *not* a GitHub review approval; if branch protection
+    requires an approving review, submit one with `gh pr review <N> --approve`
+    (you can approve someone else's PR, just not your own).
+    - An **external contributor has no write access and cannot merge their own
+      PR**, so a maintainer merging it after a clean review is the normal,
+      expected path → `gh pr merge <N> --squash` (no `--delete-branch`: it's their
+      fork's branch, not yours to delete).
+    - If the author is a **collaborator with write access**, prefer to *approve
+      only* and let them merge on their own timing — merge it yourself only if the
+      user asked you to.
+  - **NOT SAFE** → do **not** merge or approve. Report each blocker `review-pr`
+    named; the contributor clears it.
 
 Hand off exactly one chosen item; don't start several builds/reviews at once.
 
