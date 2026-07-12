@@ -254,6 +254,12 @@ function renderStartTab(round, activeGames) {
 // Layer A: a local, always-on "play these again" list (highly-rated but
 // rarely-played owned games), gated on enough votes. Layer B: an opt-in button
 // that asks the backend LLM route for real buy-next titles, cached per round.
+
+// Round ids whose Layer-B list should render expanded on the *next* render
+// (issue #113). Set right before the post-generate re-render and cleared on
+// read, so a generate shows its results but every fresh entry starts collapsed.
+const justGeneratedBuyNext = new Set();
+
 function renderBuyNext(round, activeGames, statsByGame) {
   const cached = round.recommendations && Array.isArray(round.recommendations.items)
     ? round.recommendations
@@ -292,9 +298,27 @@ function renderBuyNext(round, activeGames, statsByGame) {
   // --static variant drops the clickable-title affordance Layer A uses.
   const llm = h(`<div class="buynext__block buynext__block--static"></div>`);
   if (cached) {
-    llm.appendChild(h(`<div class="buynext__label">${esc(t('buynext.llmTitle'))}</div>`));
+    const items = cached.items.slice(0, 8);
+    // The list can be long and this is a "once in a while" feature, so collapse
+    // it by default (issue #113). It starts expanded only on the single
+    // re-render right after a generate (justGeneratedBuyNext, cleared on read);
+    // the header + regenerate button stay visible so the feature stays
+    // discoverable. The header bar doubles as the collapse toggle.
+    const startOpen = justGeneratedBuyNext.has(round.id);
+    justGeneratedBuyNext.delete(round.id);
+    const collapse = h(`<div class="buynext__collapse${startOpen ? ' is-open' : ''}">
+         <div class="buynext__bar" role="button" tabindex="0" aria-expanded="${startOpen}">
+           <span class="buynext__label">${esc(t('buynext.llmTitle'))}</span>
+           <span class="buynext__baraside">
+             <span class="muted buynext__count">${esc(t('buynext.llmCount', { n: items.length }))}</span>
+             <i class="ti ti-chevron-down buynext__caret" aria-hidden="true"></i>
+           </span>
+         </div>
+         <div class="buynext__body"${startOpen ? '' : ' hidden'}></div>
+       </div>`);
+    const body = collapse.querySelector('.buynext__body');
     const list = h('<div class="recommend-list"></div>');
-    cached.items.slice(0, 8).forEach(({ title, reason }) => {
+    items.forEach(({ title, reason }) => {
       list.appendChild(h(`<div class="recommend-item">
            <div class="recommend-item__info">
              <span class="recommend-item__title">${esc(title)}</span>
@@ -302,11 +326,27 @@ function renderBuyNext(round, activeGames, statsByGame) {
            </div>
          </div>`));
     });
-    llm.appendChild(list);
-    llm.appendChild(h(`<div class="muted buynext__meta">${esc(t('buynext.meta', {
+    body.appendChild(list);
+    body.appendChild(h(`<div class="muted buynext__meta">${esc(t('buynext.meta', {
       when: fmtDateTime(cached.generatedAt),
       model: cached.model || '',
     }))}</div>`));
+    const bar = collapse.querySelector('.buynext__bar');
+    let expanded = startOpen;
+    const toggle = () => {
+      expanded = !expanded;
+      body.hidden = !expanded;
+      collapse.classList.toggle('is-open', expanded);
+      bar.setAttribute('aria-expanded', String(expanded));
+    };
+    bar.addEventListener('click', toggle);
+    bar.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle();
+      }
+    });
+    llm.appendChild(collapse);
     const regen = h(`<button class="btn buynext__gen"><i class="ti ti-refresh" aria-hidden="true"></i> ${esc(t('buynext.regenerate'))}</button>`);
     regen.addEventListener('click', () => generateBuyNext(round, regen));
     llm.appendChild(regen);
@@ -332,6 +372,7 @@ async function generateBuyNext(round, btn) {
   try {
     const rec = await api('POST', `/api/rounds/${round.id}/recommendations`);
     round.recommendations = rec;
+    justGeneratedBuyNext.add(round.id); // show the fresh list expanded (#113)
     showRound(round.id); // re-render the Start tab with the cached list
   } catch (e) {
     toast(e.message === 'not_configured' ? t('buynext.unavailable') : t('buynext.failed'));

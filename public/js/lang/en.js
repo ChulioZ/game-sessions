@@ -95,6 +95,7 @@ I18N.en = {
   'buynext.playTitle': 'Play these again',
   'buynext.playSub': 'You love these but rarely get them to the table.',
   'buynext.llmTitle': 'Worth getting next',
+  'buynext.llmCount': '{n} suggestions',
   'buynext.llmIntro': 'Let an AI suggest new games to buy, based on your collection and ratings.',
   'buynext.llmNote': 'Generating sends an anonymized taste profile (no names) to an external AI service.',
   'buynext.generate': 'Generate suggestions',

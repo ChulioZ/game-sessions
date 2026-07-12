@@ -95,6 +95,7 @@ I18N.de = {
   'buynext.playTitle': 'Spielt sie doch mal wieder',
   'buynext.playSub': 'Ihr liebt diese Spiele, holt sie aber selten auf den Tisch.',
   'buynext.llmTitle': 'Könnte sich lohnen',
+  'buynext.llmCount': '{n} Vorschläge',
   'buynext.llmIntro': 'Lass eine KI neue Spiele vorschlagen – auf Basis eurer Sammlung und Bewertungen.',
   'buynext.llmNote': 'Beim Generieren wird ein anonymisiertes Geschmacksprofil (ohne Namen) an einen externen KI-Dienst gesendet.',
   'buynext.generate': 'Vorschläge generieren',

@@ -27,6 +27,7 @@ const frontendGlobals = {
   randomOrderCache: 'readonly', randomOrderedGames: 'readonly',
   gameStatsForSession: 'readonly', gameStats: 'readonly',
   retireRecommendations: 'readonly', minimizedRecs: 'readonly',
+  justGeneratedBuyNext: 'readonly',
   STANDARD_ACCENT: 'readonly',
   applyBackground: 'readonly', avgColor: 'readonly',
   MEMBER_COLORS: 'readonly', memberColor: 'readonly', initials: 'readonly',

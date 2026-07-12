@@ -1170,6 +1170,25 @@ h1, h2, h3 { font-family: var(--font-display); }
 .buynext__block--static .recommend-item__title { cursor: default; }
 .buynext__block--static .recommend-item__title:hover { text-decoration: none; }
 .buynext .recommend-item__reason { color: var(--ink-soft); font-weight: 500; }
+/* Collapsible Layer-B results (issue #113): the header bar toggles the list. */
+.buynext__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+.buynext__baraside { display: flex; align-items: center; gap: 8px; flex: none; }
+.buynext__count { font-size: 13px; }
+.buynext__caret {
+  color: var(--ink-soft);
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+.buynext__collapse.is-open .buynext__caret { transform: rotate(180deg); }
+.buynext__body { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.buynext__body[hidden] { display: none; } /* author display: flex would otherwise beat the UA [hidden] rule */
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { display: inline-block; animation: spin 0.8s linear infinite; }
