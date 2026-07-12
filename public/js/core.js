@@ -92,8 +92,9 @@ function setupLangPicker() {
   });
 }
 
-// Games list sorting – kept for the running session.
-let gamesSort = 'random';
+// Games list sorting – kept for the running session. Defaults to rating
+// (best first); the per-round reset in renderRegalTab re-applies this default.
+let gamesSort = 'avg';
 // Regal filter state – kept for the running session, scoped to one round.
 // Reset (along with gamesSort) when a different round's Regal is opened.
 let regalFilters = { type: 'all', durations: new Set(), query: '' };

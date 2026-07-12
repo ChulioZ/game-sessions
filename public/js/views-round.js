@@ -254,7 +254,7 @@ function renderRegalTab(round, activeGames) {
   // opening a different round's Regal resets them to defaults.
   if (regalFiltersRid !== round.id) {
     regalFilters = { type: 'all', durations: new Set(), query: '' };
-    gamesSort = 'random';
+    gamesSort = 'avg';
     regalFiltersRid = round.id;
   }
 
