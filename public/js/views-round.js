@@ -1182,11 +1182,15 @@ async function showGameDetail(rid, gameId) {
   app.appendChild(actionWrap);
 
   // Link back to the provider page when the game was added from an external
-  // source (PlayStation Store). The provider name is a proper noun, not translated.
+  // source. A game with no source instead offers to link one after the fact
+  // (issue #74). Provider names are proper nouns, not translated.
   if (game.source && game.source.url) {
-    const providerLabel = { psstore: 'PlayStation Store', bgg: 'BoardGameGeek', steam: 'Steam' }[game.source.provider] || game.source.provider;
-    const src = h(`<div class="section"><a class="link-out" href="${esc(game.source.url)}" target="_blank" rel="noopener noreferrer"><i class="ti ti-external-link" aria-hidden="true"></i> ${esc(t('detail.viewSource', { provider: providerLabel }))}</a></div>`);
+    const src = h(`<div class="section"><a class="link-out" href="${esc(game.source.url)}" target="_blank" rel="noopener noreferrer"><i class="ti ti-external-link" aria-hidden="true"></i> ${esc(t('detail.viewSource', { provider: providerLabel(game.source.provider) }))}</a></div>`);
     app.appendChild(src);
+  } else if (!game.source) {
+    const link = h(`<div class="section"><button class="link-out link-out--btn"><i class="ti ti-link" aria-hidden="true"></i> ${esc(t('detail.linkProvider'))}</button></div>`);
+    link.querySelector('button').addEventListener('click', () => showLinkProvider(round, game));
+    app.appendChild(link);
   }
 
   // Related sessions (those that drew this game) – newest first.
@@ -1251,6 +1255,122 @@ function closeSheet() {
   document.removeEventListener('keydown', activeSheet.onKey, true);
   activeSheet.el.remove();
   activeSheet = null;
+}
+
+// --- Shared add-game / link-provider lookup plumbing ---
+// Provider display names are proper nouns, not translated (see the source link).
+const PROVIDER_LABELS = { psstore: 'PlayStation Store', bgg: 'BoardGameGeek', steam: 'Steam' };
+function providerLabel(provider) {
+  return PROVIDER_LABELS[provider] || provider;
+}
+// A provider's game type: BoardGameGeek is analog, every store is digital.
+function lookupProviderType(provider) {
+  return provider === 'bgg' ? 'analog' : 'digital';
+}
+
+// The lookup queries every provider in parallel and merges the hits into one
+// menu, each result carrying its own provider. Providers are rendered
+// *progressively* (a fast provider's hits show before a slow one settles) and
+// the merged list is ranked by how well each title matches the query, re-sorted
+// in place as each provider arrives. One provider failing must not hide the
+// others' results — only an all-providers failure shows the error state.
+const LOOKUP_PROVIDERS = ['psstore', 'bgg', 'steam'];
+const MAX_SUGGESTIONS = 10;
+
+async function searchProvider(provider, q) {
+  const res = await api('GET', `/api/lookup/search?provider=${provider}&q=${encodeURIComponent(q)}`);
+  return ((res && res.results) || []).map((r) => Object.assign({ provider }, r));
+}
+
+// Query-match relevance tier (higher = better), case-insensitive on trimmed
+// strings. Exact-string tiers only — no fuzzy/edit-distance matching.
+function scoreHit(title, q) {
+  const s = (title || '').trim().toLowerCase();
+  const query = (q || '').trim().toLowerCase();
+  if (!s || !query) return 0;
+  if (s === query) return 5; // exact title
+  if (s.startsWith(query)) return 4; // title starts with the query
+  const words = s.split(/\s+/);
+  if (words.some((w) => w.startsWith(query))) return 3; // query at a word boundary
+  if (s.includes(query)) return 2; // query anywhere as a substring
+  const qTokens = query.split(/\s+/).filter(Boolean);
+  if (qTokens.length && qTokens.every((qt) => words.some((w) => w.startsWith(qt))))
+    return 1; // loose: every query token is a word-prefix in the title
+  return 0; // no match
+}
+
+// Wire search-as-you-type merged provider suggestions onto an input + menu.
+// onPick(result) fires when a suggestion is chosen; onInput() (optional) fires
+// on every manual edit. Returns { closeMenu } so callers can dismiss the menu
+// programmatically (e.g. after a pick). Shared by showAddGame and
+// showLinkProvider so the two lookups stay in sync.
+function attachLookup(input, menu, onPick, onInput) {
+  let searchTimer;
+  let searchSeq = 0; // guards against out-of-order responses
+
+  function closeMenu() {
+    menu.hidden = true;
+    menu.innerHTML = '';
+  }
+  function showMenuMsg(msg) {
+    menu.innerHTML = `<div class="lookup__msg muted">${esc(msg)}</div>`;
+    menu.hidden = false;
+  }
+
+  function runSearch(q) {
+    const seq = ++searchSeq;
+    showMenuMsg(t('lookup.searching'));
+    const hits = []; // accumulates across providers as each resolves
+    let pending = LOOKUP_PROVIDERS.length;
+    let anyFulfilled = false;
+
+    // Sort by relevance desc, then provider priority (LOOKUP_PROVIDERS order),
+    // then the provider's own returned order (stable). Re-run on every arrival so
+    // a late high-relevance hit moves above earlier, weaker ones.
+    function render() {
+      if (seq !== searchSeq) return; // a newer keystroke superseded this search
+      const ranked = hits.slice()
+        .sort((a, b) => b.score - a.score || a.prio - b.prio || a.order - b.order)
+        .slice(0, MAX_SUGGESTIONS);
+      if (!ranked.length) {
+        if (pending > 0) return showMenuMsg(t('lookup.searching'));
+        return showMenuMsg(anyFulfilled ? t('lookup.noResults') : t('lookup.error'));
+      }
+      menu.innerHTML = '';
+      ranked.forEach((r) => {
+        const thumb = r.thumbnail
+          ? `<img class="lookup__thumb" src="${esc(r.thumbnail)}" alt="" loading="lazy" />`
+          : `<span class="lookup__thumb lookup__thumb--none" aria-hidden="true"><i class="ti ${typeIcon(lookupProviderType(r.provider))}"></i></span>`;
+        const opt = h(`<button type="button" class="lookup__opt">${thumb}<span class="lookup__title">${esc(r.title)}</span></button>`);
+        // mousedown (not click) so it fires before the input's blur closes the menu.
+        opt.addEventListener('mousedown', (e) => { e.preventDefault(); onPick(r); });
+        menu.appendChild(opt);
+      });
+      // A muted, non-clickable hint while a slower provider is still pending.
+      if (pending > 0) menu.appendChild(h(`<div class="lookup__msg muted">${esc(t('lookup.loadingMore'))}</div>`));
+      menu.hidden = false;
+    }
+
+    LOOKUP_PROVIDERS.forEach((provider, prio) => {
+      searchProvider(provider, q).then((list) => {
+        if (seq !== searchSeq) return;
+        anyFulfilled = true;
+        list.forEach((r, order) => hits.push(Object.assign({ score: scoreHit(r.title, q), prio, order }, r)));
+      }, () => { /* provider failed — leave its hits out, others still render */ })
+        .then(() => { pending--; render(); });
+    });
+  }
+
+  input.addEventListener('input', () => {
+    if (onInput) onInput();
+    const q = input.value.trim();
+    clearTimeout(searchTimer);
+    if (q.length < 2) return closeMenu();
+    searchTimer = setTimeout(() => runSearch(q), 300);
+  });
+  input.addEventListener('blur', () => setTimeout(closeMenu, 150));
+
+  return { closeMenu };
 }
 
 // Opens as a bottom sheet over the current screen (usually the Regal).
@@ -1452,17 +1572,7 @@ function showAddGame(round) {
   // --- Search-as-you-type suggestions (PlayStation Store + BoardGameGeek + Steam) ---
   const titleInput = form.querySelector('#title');
   const menu = form.querySelector('#lookupMenu');
-  let searchTimer;
-  let searchSeq = 0; // guards against out-of-order responses
-
-  function closeMenu() {
-    menu.hidden = true;
-    menu.innerHTML = '';
-  }
-  function showMenuMsg(msg) {
-    menu.innerHTML = `<div class="lookup__msg muted">${esc(msg)}</div>`;
-    menu.hidden = false;
-  }
+  let lookup; // set below via attachLookup; pickSuggestion uses it to close the menu
 
   // Fill the type/duration/player controls from a provider detail object.
   function applyDetail(d) {
@@ -1484,14 +1594,14 @@ function showAddGame(round) {
   }
 
   async function pickSuggestion(r) {
-    closeMenu();
+    lookup.closeMenu();
     titleInput.value = r.title;
     chosenSource = { provider: r.provider, externalId: r.providerId, url: '' };
     // Set the obvious type now so it's right even if the detail call fails:
     // BoardGameGeek titles are analog, every store (PlayStation, Steam, …) is
     // digital. A store cover comes from the search thumbnail; a BGG cover
     // arrives with the detail call.
-    applyDetail({ type: r.provider === 'bgg' ? 'analog' : 'digital' });
+    applyDetail({ type: lookupProviderType(r.provider) });
     if (r.thumbnail && !pastedBlob) showProviderImage(r.thumbnail);
     let d;
     try {
@@ -1504,95 +1614,11 @@ function showAddGame(round) {
     chosenSource.url = d.url || '';
     applyDetail(d);
     if (d.imageUrl && !pastedBlob) showProviderImage(d.imageUrl);
-    // Provider names are proper nouns, not translated (see the source link too).
-    const providerLabel = { psstore: 'PlayStation Store', bgg: 'BoardGameGeek', steam: 'Steam' }[r.provider] || r.provider;
-    toast(t('addGame.toast.filled', { provider: providerLabel }));
+    toast(t('addGame.toast.filled', { provider: providerLabel(r.provider) }));
   }
 
-  // The lookup queries every provider in parallel and merges the hits into one
-  // menu; each result carries its own provider so the follow-up detail call and
-  // the saved source use the right one. Providers are rendered *progressively*
-  // (a fast provider's hits show before a slow one settles) and the merged list
-  // is ranked by how well each title matches the query, re-sorted in place as
-  // each provider arrives. One provider failing must not hide the other's
-  // results — only an all-providers failure shows the error state.
-  const LOOKUP_PROVIDERS = ['psstore', 'bgg', 'steam'];
-  const MAX_SUGGESTIONS = 10;
-
-  async function searchProvider(provider, q) {
-    const res = await api('GET', `/api/lookup/search?provider=${provider}&q=${encodeURIComponent(q)}`);
-    return ((res && res.results) || []).map((r) => Object.assign({ provider }, r));
-  }
-
-  // Query-match relevance tier (higher = better), case-insensitive on trimmed
-  // strings. Exact-string tiers only — no fuzzy/edit-distance matching.
-  function scoreHit(title, q) {
-    const s = (title || '').trim().toLowerCase();
-    const query = (q || '').trim().toLowerCase();
-    if (!s || !query) return 0;
-    if (s === query) return 5; // exact title
-    if (s.startsWith(query)) return 4; // title starts with the query
-    const words = s.split(/\s+/);
-    if (words.some((w) => w.startsWith(query))) return 3; // query at a word boundary
-    if (s.includes(query)) return 2; // query anywhere as a substring
-    const qTokens = query.split(/\s+/).filter(Boolean);
-    if (qTokens.length && qTokens.every((qt) => words.some((w) => w.startsWith(qt))))
-      return 1; // loose: every query token is a word-prefix in the title
-    return 0; // no match
-  }
-
-  function runSearch(q) {
-    const seq = ++searchSeq;
-    showMenuMsg(t('lookup.searching'));
-    const hits = []; // accumulates across providers as each resolves
-    let pending = LOOKUP_PROVIDERS.length;
-    let anyFulfilled = false;
-
-    // Sort by relevance desc, then provider priority (LOOKUP_PROVIDERS order),
-    // then the provider's own returned order (stable). Re-run on every arrival so
-    // a late high-relevance hit moves above earlier, weaker ones.
-    function render() {
-      if (seq !== searchSeq) return; // a newer keystroke superseded this search
-      const ranked = hits.slice()
-        .sort((a, b) => b.score - a.score || a.prio - b.prio || a.order - b.order)
-        .slice(0, MAX_SUGGESTIONS);
-      if (!ranked.length) {
-        if (pending > 0) return showMenuMsg(t('lookup.searching'));
-        return showMenuMsg(anyFulfilled ? t('lookup.noResults') : t('lookup.error'));
-      }
-      menu.innerHTML = '';
-      ranked.forEach((r) => {
-        const thumb = r.thumbnail
-          ? `<img class="lookup__thumb" src="${esc(r.thumbnail)}" alt="" loading="lazy" />`
-          : `<span class="lookup__thumb lookup__thumb--none" aria-hidden="true"><i class="ti ${typeIcon(r.provider === 'bgg' ? 'analog' : 'digital')}"></i></span>`;
-        const opt = h(`<button type="button" class="lookup__opt">${thumb}<span class="lookup__title">${esc(r.title)}</span></button>`);
-        // mousedown (not click) so it fires before the input's blur closes the menu.
-        opt.addEventListener('mousedown', (e) => { e.preventDefault(); pickSuggestion(r); });
-        menu.appendChild(opt);
-      });
-      // A muted, non-clickable hint while a slower provider is still pending.
-      if (pending > 0) menu.appendChild(h(`<div class="lookup__msg muted">${esc(t('lookup.loadingMore'))}</div>`));
-      menu.hidden = false;
-    }
-
-    LOOKUP_PROVIDERS.forEach((provider, prio) => {
-      searchProvider(provider, q).then((list) => {
-        if (seq !== searchSeq) return;
-        anyFulfilled = true;
-        list.forEach((r, order) => hits.push(Object.assign({ score: scoreHit(r.title, q), prio, order }, r)));
-      }, () => { /* provider failed — leave its hits out, others still render */ })
-        .then(() => { pending--; render(); });
-    });
-  }
-
-  titleInput.addEventListener('input', () => {
-    chosenSource = null; // a manual edit no longer matches the picked suggestion
-    const q = titleInput.value.trim();
-    clearTimeout(searchTimer);
-    if (q.length < 2) return closeMenu();
-    searchTimer = setTimeout(() => runSearch(q), 300);
-  });
-  titleInput.addEventListener('blur', () => setTimeout(closeMenu, 150));
+  // A manual edit no longer matches the picked suggestion.
+  lookup = attachLookup(titleInput, menu, pickSuggestion, () => { chosenSource = null; });
 
   async function save(again) {
     const title = form.querySelector('#title').value.trim();
@@ -1627,7 +1653,7 @@ function showAddGame(round) {
         // Mark dirty so dismissing the sheet re-renders the Regal (issue #34).
         addedWhileOpen = true;
         chosenSource = null;
-        closeMenu();
+        lookup.closeMenu();
         form.querySelector('#title').value = '';
         setImage(null);
         form.querySelector('#title').focus();
@@ -1640,6 +1666,130 @@ function showAddGame(round) {
   form.querySelector('#save').addEventListener('click', () => save(false));
   form.querySelector('#saveMore').addEventListener('click', () => save(true));
   form.querySelector('#title').focus();
+}
+
+// =================== Link an existing game to a provider (issue #74) ===================
+
+// Sheet for attaching a provider to a game that has no source yet: search the
+// providers (prefilled with the game's title), pick a match, then choose which
+// differing fields (cover, players, duration, type) to overwrite. The source
+// link is always saved; the field overrides default to "take everything".
+function showLinkProvider(round, game) {
+  closeSheet();
+  const backdrop = h(`<div class="sheet-backdrop">
+      <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(t('linkProvider.title'))}">
+        <div class="sheet__head">
+          <h2>${esc(t('linkProvider.title'))}</h2>
+          <button class="sheet__close" aria-label="${esc(t('common.close'))}"><i class="ti ti-x" aria-hidden="true"></i></button>
+        </div>
+        <div class="field">
+          <label for="linkTitle">${esc(t('linkProvider.searchLabel'))}</label>
+          <div class="lookup" id="lookup">
+            <input id="linkTitle" class="input" placeholder="${esc(t('addGame.titlePlaceholder'))}" autocomplete="off" />
+            <div class="lookup__menu" id="lookupMenu" hidden></div>
+          </div>
+          <div class="muted field__hint">${esc(t('linkProvider.searchHint'))}</div>
+        </div>
+        <div id="linkResult"></div>
+      </div>
+    </div>`);
+  const form = backdrop.querySelector('.sheet');
+  document.body.appendChild(backdrop);
+
+  const onKey = (e) => { if (e.key === 'Escape') closeSheet(); };
+  document.addEventListener('keydown', onKey, true);
+  activeSheet = { el: backdrop, onKey };
+  backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) closeSheet(); });
+  form.querySelector('.sheet__close').addEventListener('click', closeSheet);
+
+  const input = form.querySelector('#linkTitle');
+  const menu = form.querySelector('#lookupMenu');
+  const resultBox = form.querySelector('#linkResult');
+  input.value = game.title;
+
+  // Wire the shared lookup; a manual edit clears the pending match panel.
+  const lookup = attachLookup(input, menu, pickSuggestion, () => { resultBox.innerHTML = ''; });
+
+  async function pickSuggestion(r) {
+    lookup.closeMenu();
+    input.value = r.title;
+    resultBox.innerHTML = `<div class="section muted">${esc(t('lookup.searching'))}</div>`;
+    let d;
+    try {
+      d = await api('GET', `/api/lookup/game?provider=${encodeURIComponent(r.provider)}&id=${encodeURIComponent(r.providerId)}`);
+    } catch {
+      resultBox.innerHTML = '';
+      toast(t('lookup.error'));
+      return;
+    }
+    renderMatch(r, d);
+  }
+
+  // Show the picked provider match and offer only the fields that actually
+  // differ from the current game, each as a toggle chip (on = overwrite).
+  function renderMatch(r, d) {
+    const fields = [];
+    // Cover: offer whenever the provider returns one — a remote URL can't be
+    // compared to a local /uploads path, so always treat it as "differs".
+    if (d.imageUrl) fields.push({ key: 'image', label: t('linkProvider.field.image') });
+    if ((Number.isInteger(d.minPlayers) && d.minPlayers !== game.minPlayers) ||
+        (Number.isInteger(d.maxPlayers) && d.maxPlayers !== game.maxPlayers))
+      fields.push({ key: 'players', label: t('linkProvider.field.players') });
+    if (d.duration && d.duration !== game.duration)
+      fields.push({ key: 'duration', label: t('linkProvider.field.duration') });
+    if (lookupProviderType(r.provider) !== game.type)
+      fields.push({ key: 'type', label: t('linkProvider.field.type') });
+
+    resultBox.innerHTML = '';
+    const box = h('<div class="section"></div>');
+    box.appendChild(h(`<div class="link-match"><strong>${esc(d.title || r.title)}</strong> · ${esc(providerLabel(r.provider))}</div>`));
+
+    let chips = null;
+    if (fields.length) {
+      box.appendChild(h(`<div class="muted field__hint" style="margin:10px 0 6px">${esc(t('linkProvider.overridePrompt'))}</div>`));
+      chips = h('<div class="filter-chips"></div>');
+      fields.forEach((f) => {
+        const chip = h(`<button type="button" class="chip is-on" data-field="${f.key}"><i class="ti ti-check" aria-hidden="true"></i>${esc(f.label)}</button>`);
+        chip.addEventListener('click', () => chip.classList.toggle('is-on'));
+        chips.appendChild(chip);
+      });
+      box.appendChild(chips);
+    } else {
+      box.appendChild(h(`<div class="muted field__hint" style="margin:10px 0">${esc(t('linkProvider.noDiff'))}</div>`));
+    }
+
+    const apply = h(`<div class="toolbar sheet__actions"><button class="btn btn--primary btn--lg"><i class="ti ti-link" aria-hidden="true"></i> ${esc(t('linkProvider.apply'))}</button></div>`);
+    apply.querySelector('button').addEventListener('click', () => applyLink(r, d, chips));
+    box.appendChild(apply);
+    resultBox.appendChild(box);
+  }
+
+  function isOn(chips, key) {
+    if (!chips) return false;
+    const chip = chips.querySelector(`[data-field="${key}"]`);
+    return !!chip && chip.classList.contains('is-on');
+  }
+
+  async function applyLink(r, d, chips) {
+    const body = { sourceProvider: r.provider, sourceExternalId: r.providerId };
+    if (d.url) body.sourceUrl = d.url;
+    if (isOn(chips, 'image') && d.imageUrl) body.imageUrl = d.imageUrl;
+    if (isOn(chips, 'players')) {
+      if (Number.isInteger(d.minPlayers)) body.minPlayers = d.minPlayers;
+      if (Number.isInteger(d.maxPlayers)) body.maxPlayers = d.maxPlayers;
+    }
+    if (isOn(chips, 'duration') && d.duration) body.duration = d.duration;
+    if (isOn(chips, 'type')) body.type = lookupProviderType(r.provider);
+    try {
+      await api('PATCH', `/api/rounds/${round.id}/games/${game.id}`, body);
+      closeSheet();
+      toast(t('linkProvider.linked'));
+      showGameDetail(round.id, game.id);
+    } catch (e) { toast(e.message); }
+  }
+
+  input.focus();
+  input.select();
 }
 
 // =================== Jetzt spielen (direct-pick session sheet) ===================

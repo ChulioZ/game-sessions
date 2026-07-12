@@ -202,6 +202,19 @@ I18N.de = {
   'lookup.error': 'Spieldatenbank nicht erreichbar',
 
   'detail.viewSource': 'Auf {provider} ansehen',
+  'detail.linkProvider': 'Mit Anbieter verknüpfen',
+
+  'linkProvider.title': 'Mit Anbieter verknüpfen',
+  'linkProvider.searchLabel': 'Spiel bei einem Anbieter finden',
+  'linkProvider.searchHint': 'Durchsucht PlayStation Store, Steam und BoardGameGeek. Ein Treffer speichert die Verknüpfung.',
+  'linkProvider.overridePrompt': 'Welche Angaben vom Anbieter übernehmen?',
+  'linkProvider.noDiff': 'Es wird nur der Anbieter-Link gespeichert — die Daten stimmen bereits überein.',
+  'linkProvider.field.image': 'Titelbild',
+  'linkProvider.field.players': 'Spieleranzahl',
+  'linkProvider.field.duration': 'Spieldauer',
+  'linkProvider.field.type': 'Art',
+  'linkProvider.apply': 'Spiel verknüpfen',
+  'linkProvider.linked': 'Spiel mit Anbieter verknüpft',
 
   'startSession.crumb': 'Session',
   'startSession.title': 'Neue Session',

@@ -224,3 +224,79 @@ test('POST games does not download a cover from a non-allowlisted host', async (
     global.fetch = realFetch;
   }
 });
+
+// --- Link an existing game to a provider via PATCH (issue #74) ---
+
+test('PATCH links an unlinked game to a provider source', async () => {
+  const round = await createRound(request);
+  const game = (await addGame(round.id)).body;
+  assert.equal(game.source, undefined);
+
+  const res = await request(app)
+    .patch(`/api/rounds/${round.id}/games/${game.id}`)
+    .send({
+      sourceProvider: 'bgg',
+      sourceExternalId: '13',
+      sourceUrl: 'https://boardgamegeek.com/boardgame/13/catan',
+      type: 'analog',
+      duration: 'long',
+    });
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body.source, {
+    provider: 'bgg',
+    externalId: '13',
+    url: 'https://boardgamegeek.com/boardgame/13/catan',
+  });
+  assert.equal(res.body.duration, 'long');
+});
+
+test('PATCH ignores an invalid source and does not clobber the field', async () => {
+  const round = await createRound(request);
+  const game = (await addGame(round.id)).body;
+  const res = await request(app)
+    .patch(`/api/rounds/${round.id}/games/${game.id}`)
+    .send({ sourceProvider: 'evil', sourceExternalId: '1', title: 'Renamed' });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.source, undefined); // unknown provider → no link stored
+  assert.equal(res.body.title, 'Renamed'); // other fields still applied
+});
+
+test('PATCH downloads a cover from an allowlisted imageUrl', async () => {
+  const realFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    status: 200,
+    headers: { get: () => 'image/jpeg' },
+    arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
+  });
+  try {
+    const round = await createRound(request);
+    const game = (await addGame(round.id)).body;
+    const res = await request(app)
+      .patch(`/api/rounds/${round.id}/games/${game.id}`)
+      .send({ imageUrl: 'https://cf.geekdo-images.com/x/pic.jpg' });
+    assert.equal(res.status, 200);
+    assert.match(res.body.image, /^\/uploads\/[0-9a-f]+\.jpg$/);
+    assert.ok(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(res.body.image))));
+  } finally {
+    global.fetch = realFetch;
+  }
+});
+
+test('PATCH keeps the old cover when an imageUrl host is not allowlisted', async () => {
+  const realFetch = global.fetch;
+  let called = false;
+  global.fetch = async () => { called = true; throw new Error('should not fetch'); };
+  try {
+    const round = await createRound(request);
+    const game = (await addGame(round.id)).body;
+    const res = await request(app)
+      .patch(`/api/rounds/${round.id}/games/${game.id}`)
+      .send({ imageUrl: 'https://evil.example.com/x.png' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.image, null); // unchanged (never had one)
+    assert.equal(called, false);
+  } finally {
+    global.fetch = realFetch;
+  }
+});

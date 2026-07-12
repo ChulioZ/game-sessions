@@ -104,9 +104,12 @@ router.post('/', upload.single('image'), async (req, res) => {
 });
 
 // Edit game details. Accepts any subset of title, type, duration, min/max
-// players and the cover image. Sent as JSON, or as multipart when an image is
-// involved (new file, or removeImage=true to clear the current one).
-router.patch('/:gid', upload.single('image'), (req, res) => {
+// players, the cover image, and a provider source link. Sent as JSON, or as
+// multipart when an image file is involved (new file, or removeImage=true to
+// clear the current one). A cover can also be set from a provider imageUrl and
+// the game linked to a provider (sourceProvider/…) — this is what "link an
+// existing game to a provider" (issue #74) uses.
+router.patch('/:gid', upload.single('image'), async (req, res) => {
   const round = findRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
   const game = round.games.find((g) => g.id === req.params.gid);
@@ -138,13 +141,23 @@ router.patch('/:gid', upload.single('image'), (req, res) => {
     game.maxPlayers = maxPlayers;
   }
 
-  // Image: a new upload replaces the old file; removeImage clears it. The old
+  // Attach a provider source link (used to link a previously-unlinked game to a
+  // provider). Only set when a valid provider + id is supplied; never clobber an
+  // existing link with an empty/invalid one.
+  const source = buildSource(b);
+  if (source) game.source = source;
+
+  // Image: a new upload replaces the old file; removeImage clears it; otherwise
+  // a provider imageUrl (host-allowlisted) is downloaded server-side. The old
   // file is deleted unless another game still references it.
   const oldImage = game.image;
   if (req.file) {
     game.image = '/uploads/' + req.file.filename;
   } else if (b.removeImage === 'true' || b.removeImage === true) {
     game.image = null;
+  } else if (b.imageUrl) {
+    const downloaded = await downloadCover(b.imageUrl);
+    if (downloaded) game.image = downloaded; // a failed/blocked download keeps the old cover
   }
   if (oldImage && oldImage !== game.image) {
     const stillUsed = data.rounds.some((r) => r.games.some((g) => g.image === oldImage));

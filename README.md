@@ -29,8 +29,11 @@ code and documentation are in English.
   view). The lookup is optional — manual entry works exactly as before, and the
   app degrades gracefully when a source is unreachable (one provider failing
   still shows the others' results).
-  Details can be edited inline on the game's detail page. Games are
-  never lost by accident:
+  Details can be edited inline on the game's detail page. A game added by hand
+  (with no source link) can be **linked to a provider after the fact** from its
+  detail page: search the providers, pick the match, and choose which differing
+  fields (cover, player count, play time, type) to take from it — the source
+  link is always saved. Games are never lost by accident:
   instead of deleting, they are **retired** — kept with a timestamp in a
   browsable archive and restorable any time. Only already-retired games can be
   permanently deleted.
@@ -119,7 +122,8 @@ routes/
   lookup.js          /api/lookup            (search/game — provider proxy: PS Store, BGG, Steam)
   rounds.js          /api/rounds            (list, detail, create, delete)
   games.js           …/games                (add [+cover download/source],
-                                             edit, retire/restore, delete)
+                                             edit [+link to provider],
+                                             retire/restore, delete)
   members.js         …/members              (edit name / avatar color)
   sessions.js        …/sessions             (start, results, choice, finish,
                                              cancel, delete, remove one game)

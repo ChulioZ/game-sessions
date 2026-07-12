@@ -1421,6 +1421,18 @@ kbd {
 }
 .link-out:hover { text-decoration: underline; }
 
+/* Button variant: link a still-unlinked game to a provider (issue #74). */
+.link-out--btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* The picked provider match inside the link-provider sheet. */
+.link-match { font-size: 15px; }
+
 /* ---- Add-game lookup (search-as-you-type suggestions) ---- */
 .lookup { position: relative; }
 .lookup__menu {

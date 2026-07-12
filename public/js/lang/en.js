@@ -202,6 +202,19 @@ I18N.en = {
   'lookup.error': 'Couldn’t reach the game database',
 
   'detail.viewSource': 'View on {provider}',
+  'detail.linkProvider': 'Link to provider',
+
+  'linkProvider.title': 'Link to provider',
+  'linkProvider.searchLabel': 'Find the game at a provider',
+  'linkProvider.searchHint': 'Search the PlayStation Store, Steam and BoardGameGeek. Picking a match saves the link.',
+  'linkProvider.overridePrompt': 'Which details should be taken from the provider?',
+  'linkProvider.noDiff': 'Only the source link will be saved — the provider’s data matches this game.',
+  'linkProvider.field.image': 'Cover image',
+  'linkProvider.field.players': 'Player count',
+  'linkProvider.field.duration': 'Play time',
+  'linkProvider.field.type': 'Type',
+  'linkProvider.apply': 'Link game',
+  'linkProvider.linked': 'Game linked to provider',
 
   'startSession.crumb': 'Session',
   'startSession.title': 'New session',
