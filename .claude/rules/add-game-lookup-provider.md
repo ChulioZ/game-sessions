@@ -76,6 +76,33 @@ the store's normal server-rendered pages and reads the `__NEXT_DATA__` JSON blob
   `boardgamegeek`-style bare host `store.playstation.com` (Sony notes the `www.`
   host can interfere).
 
+## How the Xbox / Microsoft Store provider works (`lib/providers/xbox.js`)
+
+Microsoft has **no simple key-free "search games" API**, but two public,
+key-free endpoints together cover it, so (like BGG) the provider splits the job:
+
+- **search = storefront autosuggest,** `www.microsoft.com/msstoreapiprod/api/
+  autosuggest?market=<locale>&sources=DCatAll-Products&query=<q>` (no auth, no
+  `clientId` needed). Returns `{ ResultSets: [{ Suggests: [...] }] }`; keep
+  `Source === 'Game'` (drops apps/DLC) and read the store product id from each
+  suggest's `Metas` (`BigCatalogId`). Image URLs here are protocol-relative
+  (`//store-images.s-microsoft.com/...`) → prefix `https:`.
+- **detail = the public catalog service,** `displaycatalog.mp.microsoft.com/
+  v7.0/products/<id>?market=<COUNTRY>&languages=<locale>&fieldsTemplate=Details`
+  (no auth). Gives the real `ProductTitle`, the `Images` array (prefer
+  `BoxArt`), and player counts from Xbox Live capability `Attributes`
+  (`SinglePlayer` floors min at 1; `*Multiplayer`/`*Coop` carry numeric
+  `Minimum`/`Maximum`, and the widest `Maximum` is the max player count).
+
+**Known limits — don't treat these as bugs:**
+- Both endpoints are undocumented/store-facing; every parser degrades to
+  null/empty, never throws.
+- **Digital games only.** **No play-time** → `duration` defaults to `'long'`.
+- The "View on Xbox" link is built from the id alone as
+  `www.xbox.com/<locale>/games/store/_/<id>` (the `_` slug placeholder resolves).
+- Covers download only because `store-images.s-microsoft.com` is allowlisted
+  (`s-microsoft.com`); locale defaults to `de-de`, override `XBOX_LOCALE`.
+
 ## Testing the lookup — never hit the network
 
 Unit-test the pure parsers (`parseSearch`/`parseProduct`/`parsePlayers`/

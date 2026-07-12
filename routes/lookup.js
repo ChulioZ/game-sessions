@@ -1,9 +1,9 @@
 'use strict';
 
 /*
- * Add-game lookup: proxies external game-database providers (PlayStation Store
- * for now) so the browser never makes the cross-origin call itself. Mounted at
- * /api/lookup in lib/app.js.
+ * Add-game lookup: proxies external game-database providers (PlayStation Store,
+ * BoardGameGeek, Steam, Nintendo eShop, Xbox) so the browser never makes the
+ * cross-origin call itself. Mounted at /api/lookup in lib/app.js.
  *
  *   GET /api/lookup/search?provider=psstore&q=witcher
  *       -> { results: [{ providerId, title, thumbnail }] }

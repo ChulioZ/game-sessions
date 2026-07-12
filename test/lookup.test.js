@@ -255,3 +255,73 @@ test('nintendo search returns 502 when Nintendo is unreachable', async () => {
   assert.equal(res.status, 502);
   assert.equal(res.body.error, 'provider_unreachable');
 });
+
+// --- Xbox / Microsoft Store provider (autosuggest search -> catalog detail) --
+
+const XBOX_SEARCH = {
+  ResultSets: [
+    {
+      Suggests: [
+        {
+          Source: 'Game',
+          Title: 'Halo Infinite',
+          ImageUrl: '//store-images.s-microsoft.com/image/apps.9999.infinite.jpg',
+          Metas: [{ Key: 'BigCatalogId', Value: '9PP5G1F0C2GV' }],
+        },
+        // A non-game suggestion is dropped by the provider.
+        { Source: 'App', Title: 'Halo Companion', Metas: [{ Key: 'BigCatalogId', Value: '9ABC' }] },
+      ],
+    },
+  ],
+};
+const XBOX_DETAIL = {
+  Product: {
+    LocalizedProperties: [
+      {
+        ProductTitle: 'Halo Infinite',
+        Images: [{ ImagePurpose: 'BoxArt', Uri: '//store-images.s-microsoft.com/image/box' }],
+      },
+    ],
+    Properties: {
+      Attributes: [
+        { Name: 'SinglePlayer' },
+        { Name: 'XblOnlineMultiplayer', Minimum: 2, Maximum: 8 },
+      ],
+    },
+  },
+};
+
+test('GET /api/lookup/search?provider=xbox returns only game suggestions', async () => {
+  stubFetch((url) => {
+    assert.match(url, /msstoreapiprod\/api\/autosuggest/);
+    return jsonRes(XBOX_SEARCH);
+  });
+  const res = await request(app).get('/api/lookup/search?provider=xbox&q=halo');
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body.results, [
+    { providerId: '9PP5G1F0C2GV', title: 'Halo Infinite', thumbnail: 'https://store-images.s-microsoft.com/image/apps.9999.infinite.jpg' },
+  ]);
+});
+
+test('GET /api/lookup/game?provider=xbox returns digital detail (players, long duration)', async () => {
+  stubFetch((url) => {
+    assert.match(url, /displaycatalog\.mp\.microsoft\.com/);
+    return jsonRes(XBOX_DETAIL);
+  });
+  const res = await request(app).get('/api/lookup/game?provider=xbox&id=9PP5G1F0C2GV');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.title, 'Halo Infinite');
+  assert.equal(res.body.type, 'digital');
+  assert.equal(res.body.duration, 'long');
+  assert.equal(res.body.minPlayers, 1); // SinglePlayer floors the minimum
+  assert.equal(res.body.maxPlayers, 8);
+  assert.equal(res.body.imageUrl, 'https://store-images.s-microsoft.com/image/box');
+  assert.equal(res.body.url, 'https://www.xbox.com/de-de/games/store/_/9PP5G1F0C2GV');
+});
+
+test('xbox search returns 502 when the provider is unreachable', async () => {
+  stubFetch(() => { throw new Error('network down'); });
+  const res = await request(app).get('/api/lookup/search?provider=xbox&q=zzzunreachable');
+  assert.equal(res.status, 502);
+  assert.equal(res.body.error, 'provider_unreachable');
+});

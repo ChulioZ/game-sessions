@@ -25,8 +25,9 @@ code and documentation are in English.
   duration (short / medium / long), a required player range (min–max), and an
   optional cover image (paste from clipboard or pick a file). When adding a
   game, the title field doubles as a **search-as-you-type lookup**: it queries
-  the **PlayStation Store**, **Steam** and the **Nintendo eShop** (digital games)
-  and **BoardGameGeek** (board games) together and merges the hits into one
+  the **PlayStation Store**, **Steam**, the **Nintendo eShop** and the
+  **Xbox / Microsoft Store** (digital games) and **BoardGameGeek** (board games)
+  together and merges the hits into one
   dropdown. When several stores return the **same title** (e.g. a cross-platform
   game), they collapse into a **single row with one badge per platform** — click
   a badge to fill from that store, or the title to use the top match. Pick a
@@ -101,13 +102,14 @@ code and documentation are in English.
 - **Runs entirely on your machine.** Fonts and the icon set are self-hosted
   under `public/fonts/`, and the subtle background grain is an inline SVG in the
   stylesheet — no CDNs. The only runtime external calls are **opt-in**: the
-  add-game lookup queries the PlayStation Store, Steam, the Nintendo eShop and
-  BoardGameGeek server-side (via `/api/lookup/*`) only when you type a title to
-  search; it sends just the search text, and the app works fully without it.
-  None of these need an API key or account. The PS Store locale defaults to
-  `de-de` (`PSSTORE_LOCALE`); Steam defaults to the German store, `de`/`german`
-  (`STEAM_CC` / `STEAM_LOCALE`); the Nintendo eShop defaults to the German store,
-  `de` (`NINTENDO_LOCALE`).
+  add-game lookup queries the PlayStation Store, Steam, the Nintendo eShop, the
+  Xbox / Microsoft Store and BoardGameGeek server-side (via `/api/lookup/*`) only
+  when you type a title to search; it sends just the search text, and the app
+  works fully without it. None of these need an API key or account. The PS Store
+  locale defaults to `de-de` (`PSSTORE_LOCALE`); Steam defaults to the German
+  store, `de`/`german` (`STEAM_CC` / `STEAM_LOCALE`); the Nintendo eShop defaults
+  to the German store, `de` (`NINTENDO_LOCALE`); the Xbox / Microsoft Store
+  defaults to the German store, `de-de` (`XBOX_LOCALE`).
 
 ```
 server.js            starts the HTTP server (the only place that listens)
@@ -127,8 +129,11 @@ lib/
                      endpoints (storesearch / appdetails) (digital games)
     nintendo.js      Nintendo eShop: search + detail via Nintendo of Europe's
                      public Solr endpoint (Switch games)
+    xbox.js          Xbox / Microsoft Store: search via the storefront
+                     autosuggest API, detail via the public catalog service
+                     (digital games)
 routes/
-  lookup.js          /api/lookup            (search/game — provider proxy: PS Store, BGG, Steam, Nintendo)
+  lookup.js          /api/lookup            (search/game — provider proxy: PS Store, BGG, Steam, Nintendo, Xbox)
   rounds.js          /api/rounds            (list, detail, create, delete)
   games.js           …/games                (add [+cover download/source],
                                              edit [+link to provider],

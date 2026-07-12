@@ -1259,7 +1259,7 @@ function closeSheet() {
 
 // --- Shared add-game / link-provider lookup plumbing ---
 // Provider display names are proper nouns, not translated (see the source link).
-const PROVIDER_LABELS = { psstore: 'PlayStation Store', bgg: 'BoardGameGeek', steam: 'Steam', nintendo: 'Nintendo eShop' };
+const PROVIDER_LABELS = { psstore: 'PlayStation Store', bgg: 'BoardGameGeek', steam: 'Steam', nintendo: 'Nintendo eShop', xbox: 'Xbox' };
 function providerLabel(provider) {
   return PROVIDER_LABELS[provider] || provider;
 }
@@ -1274,7 +1274,7 @@ function lookupProviderType(provider) {
 // the merged list is ranked by how well each title matches the query, re-sorted
 // in place as each provider arrives. One provider failing must not hide the
 // others' results — only an all-providers failure shows the error state.
-const LOOKUP_PROVIDERS = ['psstore', 'bgg', 'steam', 'nintendo'];
+const LOOKUP_PROVIDERS = ['psstore', 'bgg', 'steam', 'nintendo', 'xbox'];
 const MAX_SUGGESTIONS = 10;
 
 async function searchProvider(provider, q) {
