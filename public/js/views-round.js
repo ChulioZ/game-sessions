@@ -1218,11 +1218,24 @@ async function showGameDetail(rid, gameId) {
   titleEl.addEventListener('click', () => startTitleEdit(titleEl));
   h1.append(titleEl, space());
 
-  const typeEl = h(typeTag(game.type));
-  makeEditableTag(typeEl, () => openMenu(typeEl, [
-    { value: 'analog', label: t('type.analog') },
-    { value: 'digital', label: t('type.digital') },
-  ], game.type, (v) => updateGame({ type: v })));
+  // Platform tag (editable). Switching to a concrete platform derives the type;
+  // switching to Other seeds it from the current type and reveals a second,
+  // editable analog/digital tag so Other games keep a manual type.
+  const platform = gamePlatform(game);
+  const platEl = h(platformTag(platform));
+  makeEditableTag(platEl, () => openMenu(platEl,
+    PLATFORM_IDS.map((p) => ({ value: p, label: t('platform.' + p) })),
+    platform,
+    (v) => updateGame(v === 'other' ? { platform: 'other', type: game.type } : { platform: v })));
+
+  let typeEl = null;
+  if (platform === 'other') {
+    typeEl = h(typeTag(game.type));
+    makeEditableTag(typeEl, () => openMenu(typeEl, [
+      { value: 'analog', label: t('type.analog') },
+      { value: 'digital', label: t('type.digital') },
+    ], game.type, (v) => updateGame({ type: v })));
+  }
 
   const hasDur = ['short', 'medium', 'long'].includes(game.duration);
   const durEl = hasDur
@@ -1240,7 +1253,9 @@ async function showGameDetail(rid, gameId) {
     : h(`<span class="tag tag--players tag--empty">${esc(t('detail.setPlayers'))}</span>`);
   makeEditableTag(plEl, () => openPlayersPopover(plEl));
 
-  h1.append(typeEl, space(), durEl, space(), plEl);
+  h1.append(platEl, space());
+  if (typeEl) h1.append(typeEl, space());
+  h1.append(durEl, space(), plEl);
   if (game.retired) h1.append(space(), h(`<span class="tag tag--retired">${iconText('ti-trash', t('result.retiredTag'))}</span>`));
 
   app.appendChild(head);
@@ -1381,6 +1396,47 @@ function providerLogo(provider) {
 // A provider's game type: BoardGameGeek is analog, every store is digital.
 function lookupProviderType(provider) {
   return provider === 'bgg' ? 'analog' : 'digital';
+}
+
+// --- Platform (Analog / PS / Xbox / Switch / Steam / Other) ---
+// The user-facing platform field. `type` (analog/digital) is derived from it for
+// the five concrete platforms; only `other` keeps a manual analog/digital choice.
+const PLATFORM_IDS = ['analog', 'ps', 'xbox', 'switch', 'steam', 'other'];
+// Platform id → the brand-logo provider key (ids differ: ps↔psstore, switch↔nintendo).
+const PLATFORM_PROVIDER = { ps: 'psstore', xbox: 'xbox', switch: 'nintendo', steam: 'steam' };
+// The platform a picked lookup hit implies, from its provider (add-game auto-fill).
+function providerPlatform(provider) {
+  return { psstore: 'ps', xbox: 'xbox', nintendo: 'switch', steam: 'steam', bgg: 'analog' }[provider] || 'other';
+}
+// Derived analog/digital type for a platform (Other defaults to analog).
+function platformType(platform) {
+  return platform === 'ps' || platform === 'xbox' || platform === 'switch' || platform === 'steam'
+    ? 'digital'
+    : 'analog';
+}
+// Brand glyph (the four stores) or null (analog/other use a Tabler icon instead).
+function platformLogo(platform) {
+  return PLATFORM_PROVIDER[platform] ? providerLogo(PLATFORM_PROVIDER[platform]) : null;
+}
+// Tabler icon for the non-branded platforms.
+function platformIcon(platform) {
+  return platform === 'analog' ? 'ti-dice-3' : 'ti-device-gamepad-2';
+}
+// A tag showing a game's platform: brand glyph for the four stores, a Tabler
+// icon for analog/other. Brand glyphs are the sanctioned hardcoded-color
+// exception (see .claude/rules/theme-derived-colors.md).
+function platformTag(platform) {
+  const logo = platformLogo(platform);
+  const mark = logo
+    ? `<span class="tag__logo" aria-hidden="true">${logo}</span>`
+    : `<i class="ti ${platformIcon(platform)}" aria-hidden="true"></i>`;
+  return `<span class="tag tag--platform">${mark} ${t('platform.' + platform)}</span>`;
+}
+// The platform an existing game should display: its stored field, or a defensive
+// fallback for any legacy game written before the field existed.
+function gamePlatform(game) {
+  if (PLATFORM_IDS.includes(game.platform)) return game.platform;
+  return game.type === 'digital' ? 'other' : 'analog';
 }
 
 // The lookup queries every provider in parallel and merges the hits into one
@@ -1575,10 +1631,14 @@ function showAddGame(round) {
           <div class="muted field__hint">${esc(t('addGame.searchHint'))}</div>
         </div>
         <div class="field">
-          <label>${esc(t('addGame.typeLabel'))}</label>
-          <div class="opt-cards" id="typeSeg">
-            <button type="button" class="opt-card is-on" data-type="analog"><i class="ti ti-dice-3" aria-hidden="true"></i>${esc(t('type.analog'))}</button>
-            <button type="button" class="opt-card" data-type="digital"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i>${esc(t('type.digital'))}</button>
+          <label>${esc(t('addGame.platformLabel'))}</label>
+          <div class="opt-cards opt-cards--platform" id="platformSeg"></div>
+          <div class="field field--sub" id="otherTypeField" hidden>
+            <label>${esc(t('addGame.typeLabel'))}</label>
+            <div class="opt-cards" id="typeSeg">
+              <button type="button" class="opt-card is-on" data-type="analog"><i class="ti ti-dice-3" aria-hidden="true"></i>${esc(t('type.analog'))}</button>
+              <button type="button" class="opt-card" data-type="digital"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i>${esc(t('type.digital'))}</button>
+            </div>
           </div>
         </div>
         <div class="field">
@@ -1650,11 +1710,34 @@ function showAddGame(round) {
   });
   form.querySelector('.sheet__close').addEventListener('click', dismiss);
 
+  // Platform selector; `type` is derived from it (only Other reveals a manual
+  // analog/digital sub-control).
+  let platform = 'analog';
   let type = 'analog';
-  const seg = form.querySelector('#typeSeg');
-  seg.querySelectorAll('.opt-card').forEach((card) => {
+  const platformSeg = form.querySelector('#platformSeg');
+  const otherTypeField = form.querySelector('#otherTypeField');
+  const typeSeg = form.querySelector('#typeSeg');
+  platformSeg.innerHTML = PLATFORM_IDS.map((p) => {
+    const logo = platformLogo(p);
+    const mark = logo
+      ? `<span class="opt-card__logo" aria-hidden="true">${logo}</span>`
+      : `<i class="ti ${platformIcon(p)}" aria-hidden="true"></i>`;
+    return `<button type="button" class="opt-card${p === 'analog' ? ' is-on' : ''}" data-platform="${p}">${mark}${esc(t('platform.' + p))}</button>`;
+  }).join('');
+
+  function selectPlatform(p) {
+    platform = p;
+    platformSeg.querySelectorAll('.opt-card').forEach((c) => c.classList.toggle('is-on', c.dataset.platform === p));
+    otherTypeField.hidden = p !== 'other';
+    // Concrete platforms derive the type; Other keeps whatever the sub-control shows.
+    type = p === 'other' ? typeSeg.querySelector('.opt-card.is-on').dataset.type : platformType(p);
+  }
+  platformSeg.querySelectorAll('.opt-card').forEach((card) => {
+    card.addEventListener('click', () => selectPlatform(card.dataset.platform));
+  });
+  typeSeg.querySelectorAll('.opt-card').forEach((card) => {
     card.addEventListener('click', () => {
-      seg.querySelectorAll('.opt-card').forEach((c) => c.classList.toggle('is-on', c === card));
+      typeSeg.querySelectorAll('.opt-card').forEach((c) => c.classList.toggle('is-on', c === card));
       type = card.dataset.type;
     });
   });
@@ -1758,12 +1841,10 @@ function showAddGame(round) {
   const menu = form.querySelector('#lookupMenu');
   let lookup; // set below via attachLookup; pickSuggestion uses it to close the menu
 
-  // Fill the type/duration/player controls from a provider detail object.
+  // Fill the duration/player controls from a provider detail object. The type is
+  // not set here — it follows the platform, which pickSuggestion sets from the
+  // provider.
   function applyDetail(d) {
-    if (d.type) {
-      type = d.type;
-      seg.querySelectorAll('.opt-card').forEach((c) => c.classList.toggle('is-on', c.dataset.type === type));
-    }
     if (d.duration) {
       duration = d.duration;
       durSeg.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-on', c.dataset.duration === duration));
@@ -1781,11 +1862,11 @@ function showAddGame(round) {
     lookup.closeMenu();
     titleInput.value = r.title;
     chosenSource = { provider: r.provider, externalId: r.providerId, url: '' };
-    // Set the obvious type now so it's right even if the detail call fails:
-    // BoardGameGeek titles are analog, every store (PlayStation, Steam, …) is
-    // digital. A store cover comes from the search thumbnail; a BGG cover
+    // Pre-fill the platform from the provider so it's right even if the detail
+    // call fails (BoardGameGeek → Analog, each store → its platform); the type
+    // follows. A store cover comes from the search thumbnail; a BGG cover
     // arrives with the detail call.
-    applyDetail({ type: lookupProviderType(r.provider) });
+    selectPlatform(providerPlatform(r.provider));
     if (r.thumbnail && !pastedBlob) showProviderImage(r.thumbnail);
     let d;
     try {
@@ -1814,6 +1895,7 @@ function showAddGame(round) {
     if (maxPlayers < minPlayers) return toast(t('addGame.toast.playersRange'));
     const fd = new FormData();
     fd.append('title', title);
+    fd.append('platform', platform);
     fd.append('type', type);
     fd.append('duration', duration);
     fd.append('minPlayers', minPlayers);

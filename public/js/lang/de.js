@@ -11,6 +11,13 @@ I18N.de = {
   'type.digital': 'Digital',
   'type.analog': 'Analog',
 
+  'platform.analog': 'Analog',
+  'platform.ps': 'PlayStation',
+  'platform.xbox': 'Xbox',
+  'platform.switch': 'Switch',
+  'platform.steam': 'Steam',
+  'platform.other': 'Sonstige',
+
   'duration.short': 'Kurz',
   'duration.medium': 'Mittel',
   'duration.long': 'Lang',
@@ -182,6 +189,7 @@ I18N.de = {
   'addGame.title': 'Spiel hinzufügen',
   'addGame.titleLabel': 'Titel',
   'addGame.titlePlaceholder': 'z. B. Die Siedler von Catan',
+  'addGame.platformLabel': 'Plattform',
   'addGame.typeLabel': 'Art',
   'addGame.durationLabel': 'Spieldauer',
   'addGame.durationHint': 'Kurz: unter 30 Min. · Mittel: 30–60 Min. · Lang: über 60 Min.',

@@ -25,8 +25,9 @@ test('starting a session picks from matching games and returns them', async () =
 
 test('type filter narrows the pool', async () => {
   const round = await createRound(request);
-  await addGame(round.id, { title: 'A', type: 'analog' });
-  await addGame(round.id, { title: 'B', type: 'digital' });
+  // type is derived from platform: Analog → analog, a store platform → digital.
+  await addGame(round.id, { title: 'A', platform: 'analog' });
+  await addGame(round.id, { title: 'B', platform: 'ps' });
   const res = await request(app)
     .post(`/api/rounds/${round.id}/sessions`)
     .send({ filter: 'digital', count: 5 });

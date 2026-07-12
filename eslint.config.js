@@ -54,6 +54,9 @@ const frontendGlobals = {
   scoreHit: 'readonly', providerLabel: 'readonly', lookupProviderType: 'readonly',
   providerLogo: 'readonly', PROVIDER_LOGOS: 'readonly',
   PROVIDER_LABELS: 'readonly', LOOKUP_PROVIDERS: 'readonly', MAX_SUGGESTIONS: 'readonly',
+  PLATFORM_IDS: 'readonly', PLATFORM_PROVIDER: 'readonly', providerPlatform: 'readonly',
+  platformType: 'readonly', platformLogo: 'readonly', platformIcon: 'readonly',
+  platformTag: 'readonly', gamePlatform: 'readonly',
   // views-member.js
   showMember: 'readonly', memberStats: 'readonly',
   // views-session.js

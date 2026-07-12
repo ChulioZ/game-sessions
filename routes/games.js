@@ -14,6 +14,11 @@ const { getProvider, isAllowedImageUrl } = require('../lib/providers');
 const router = express.Router({ mergeParams: true });
 
 const DURATIONS = ['short', 'medium', 'long'];
+// Platform is the primary, user-facing field; the analog/digital `type` (which
+// still drives Regal filters, badges and buy-next) is derived from it. Only the
+// `other` platform lets the client pick the type freely.
+const PLATFORMS = ['analog', 'ps', 'xbox', 'switch', 'steam', 'other'];
+const PLATFORM_TYPE = { analog: 'analog', ps: 'digital', xbox: 'digital', switch: 'digital', steam: 'digital' };
 const IMG_TIMEOUT_MS = 10000;
 const MAX_IMG_BYTES = 10 * 1024 * 1024; // mirror the multer upload limit
 
@@ -68,7 +73,12 @@ router.post('/', upload.single('image'), async (req, res) => {
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   const title = String(req.body.title || '').trim();
-  const type = req.body.type === 'digital' ? 'digital' : 'analog';
+  // Platform (default analog) drives the type for the five concrete platforms;
+  // only `other` honours the client-supplied analog/digital type.
+  const platform = PLATFORMS.includes(req.body.platform) ? req.body.platform : 'analog';
+  const type = platform === 'other'
+    ? (req.body.type === 'digital' ? 'digital' : 'analog')
+    : PLATFORM_TYPE[platform];
   const duration = DURATIONS.includes(req.body.duration) ? req.body.duration : 'medium';
   if (!title) return res.status(400).json({ error: 'Title is missing' });
 
@@ -87,6 +97,7 @@ router.post('/', upload.single('image'), async (req, res) => {
   const game = {
     id: id(),
     title,
+    platform,
     type,
     duration,
     minPlayers,
@@ -122,7 +133,20 @@ router.patch('/:gid', upload.single('image'), async (req, res) => {
     if (!title) return res.status(400).json({ error: 'Title is missing' });
     game.title = title;
   }
-  if (b.type !== undefined) {
+  // Platform is authoritative: for a concrete platform the type is derived and a
+  // client-sent type is ignored; `other` (or a bare type edit, e.g. the Other
+  // analog/digital sub-control and the link-provider override) honours the type.
+  if (b.platform !== undefined) {
+    if (PLATFORMS.includes(b.platform)) {
+      game.platform = b.platform;
+      if (b.platform !== 'other') {
+        game.type = PLATFORM_TYPE[b.platform];
+      } else if (b.type !== undefined) {
+        game.type = b.type === 'digital' ? 'digital' : 'analog';
+      }
+    }
+    // An invalid platform is ignored (leave platform/type untouched).
+  } else if (b.type !== undefined) {
     game.type = b.type === 'digital' ? 'digital' : 'analog';
   }
   if (b.duration !== undefined) {

@@ -93,6 +93,74 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { store } = require('./helpers');
 
+test('POST games defaults platform to analog and derives an analog type', async () => {
+  const round = await createRound(request);
+  const res = await addGame(round.id, { title: 'Ludo' });
+  assert.equal(res.status, 201);
+  assert.equal(res.body.platform, 'analog');
+  assert.equal(res.body.type, 'analog');
+});
+
+test('POST games derives type from a concrete platform, ignoring a client type', async () => {
+  const round = await createRound(request);
+  // A digital platform forces type=digital even if the client sends analog.
+  const res = await addGame(round.id, { title: 'Bloodborne', platform: 'ps', type: 'analog' });
+  assert.equal(res.body.platform, 'ps');
+  assert.equal(res.body.type, 'digital');
+});
+
+test('POST games honours the client type only for the Other platform', async () => {
+  const round = await createRound(request);
+  const dig = await addGame(round.id, { title: 'VR thing', platform: 'other', type: 'digital' });
+  assert.equal(dig.body.platform, 'other');
+  assert.equal(dig.body.type, 'digital');
+  const ana = await addGame(round.id, { title: 'Card thing', platform: 'other', type: 'analog' });
+  assert.equal(ana.body.type, 'analog');
+});
+
+test('POST games falls back to analog for an unknown platform', async () => {
+  const round = await createRound(request);
+  const res = await addGame(round.id, { title: 'Mystery', platform: 'dreamcast' });
+  assert.equal(res.body.platform, 'analog');
+  assert.equal(res.body.type, 'analog');
+});
+
+test('PATCH platform derives the type and ignores a stray client type', async () => {
+  const round = await createRound(request);
+  const game = (await addGame(round.id)).body;
+  const res = await request(app)
+    .patch(`/api/rounds/${round.id}/games/${game.id}`)
+    .send({ platform: 'steam', type: 'analog' });
+  assert.equal(res.body.platform, 'steam');
+  assert.equal(res.body.type, 'digital');
+});
+
+test('PATCH to the Other platform keeps a manually set type', async () => {
+  const round = await createRound(request);
+  const game = (await addGame(round.id)).body;
+  const res = await request(app)
+    .patch(`/api/rounds/${round.id}/games/${game.id}`)
+    .send({ platform: 'other', type: 'digital' });
+  assert.equal(res.body.platform, 'other');
+  assert.equal(res.body.type, 'digital');
+  // A later bare type edit (the Other analog/digital sub-control) still applies.
+  const flip = await request(app)
+    .patch(`/api/rounds/${round.id}/games/${game.id}`)
+    .send({ type: 'analog' });
+  assert.equal(flip.body.platform, 'other');
+  assert.equal(flip.body.type, 'analog');
+});
+
+test('PATCH ignores an invalid platform and leaves the field untouched', async () => {
+  const round = await createRound(request);
+  const game = (await addGame(round.id, { platform: 'ps' })).body;
+  const res = await request(app)
+    .patch(`/api/rounds/${round.id}/games/${game.id}`)
+    .send({ platform: 'gamecube' });
+  assert.equal(res.body.platform, 'ps');
+  assert.equal(res.body.type, 'digital');
+});
+
 test('POST games stores a provider source link', async () => {
   const round = await createRound(request);
   const res = await addGame(round.id, {

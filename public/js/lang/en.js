@@ -11,6 +11,13 @@ I18N.en = {
   'type.digital': 'Digital',
   'type.analog': 'Analog',
 
+  'platform.analog': 'Analog',
+  'platform.ps': 'PlayStation',
+  'platform.xbox': 'Xbox',
+  'platform.switch': 'Switch',
+  'platform.steam': 'Steam',
+  'platform.other': 'Other',
+
   'duration.short': 'Short',
   'duration.medium': 'Medium',
   'duration.long': 'Long',
@@ -182,6 +189,7 @@ I18N.en = {
   'addGame.title': 'Add game',
   'addGame.titleLabel': 'Title',
   'addGame.titlePlaceholder': 'e.g. Catan',
+  'addGame.platformLabel': 'Platform',
   'addGame.typeLabel': 'Type',
   'addGame.durationLabel': 'Play time',
   'addGame.durationHint': 'Short: under 30 min · Medium: 30–60 min · Long: over 60 min',

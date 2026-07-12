@@ -21,9 +21,12 @@ code and documentation are in English.
   is a lobby of round cards (members, game/session counts, last result); a new
   round is set up on a playful "seats around the table" screen, optionally
   importing the games list from an existing round.
-- **Games** – each game has a title, type (analog / digital), an expected
-  duration (short / medium / long), a required player range (min–max), and an
-  optional cover image (paste from clipboard or pick a file). When adding a
+- **Games** – each game has a title, a **platform** (Analog / PlayStation / Xbox
+  / Switch / Steam / Sonstige), an expected duration (short / medium / long), a
+  required player range (min–max), and an optional cover image (paste from
+  clipboard or pick a file). The analog / digital type used by the filters and
+  badges is derived from the platform (only "Sonstige" lets you pick it by hand).
+  When adding a
   game, the title field doubles as a **search-as-you-type lookup**: it queries
   the **PlayStation Store**, **Steam**, the **Nintendo eShop** and the
   **Xbox / Microsoft Store** (digital games) and **BoardGameGeek** (board games)
@@ -32,7 +35,7 @@ code and documentation are in English.
   game), they collapse into a **single row with one badge per platform** — click
   a badge to fill from that store, or the title to use the top match. Pick a
   suggestion to auto-fill the title, cover art, player range, play time and
-  type, and store a link back to the source page (shown on the game's detail
+  platform, and store a link back to the source page (shown on the game's detail
   view). The lookup is optional — manual entry works exactly as before, and the
   app degrades gracefully when a source is unreachable (one provider failing
   still shows the others' results).
