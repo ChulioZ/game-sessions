@@ -1309,13 +1309,49 @@ function attachLookup(input, menu, onPick, onInput) {
   let searchTimer;
   let searchSeq = 0; // guards against out-of-order responses
 
+  // The menu is `position: fixed` (see styles.css), so it floats free of the
+  // sheet's scroll box and can't be clipped by it. That means we place it
+  // ourselves against the input's viewport rect: below by default, flipped
+  // above when there's more room there, and capped so it never runs off-screen.
+  function positionMenu() {
+    const r = input.getBoundingClientRect();
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const gap = 4;
+    const edge = 8; // keep a little clearance from the viewport edge
+    const spaceBelow = vh - r.bottom - gap - edge;
+    const spaceAbove = r.top - gap - edge;
+    const openUp = spaceBelow < 180 && spaceAbove > spaceBelow;
+    const avail = Math.max(openUp ? spaceAbove : spaceBelow, 120);
+    menu.style.left = r.left + 'px';
+    menu.style.width = r.width + 'px';
+    menu.style.maxHeight = Math.min(340, avail) + 'px';
+    if (openUp) {
+      menu.style.top = 'auto';
+      menu.style.bottom = (vh - r.top + gap) + 'px';
+    } else {
+      menu.style.bottom = 'auto';
+      menu.style.top = (r.bottom + gap) + 'px';
+    }
+  }
+  // Reposition while open so the menu tracks the input if the sheet scrolls or
+  // the window resizes; listeners are bound only while the menu is visible.
+  const reposition = () => { if (!menu.hidden) positionMenu(); };
+  function openMenu() {
+    menu.hidden = false;
+    positionMenu();
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition);
+  }
+
   function closeMenu() {
     menu.hidden = true;
     menu.innerHTML = '';
+    window.removeEventListener('scroll', reposition, true);
+    window.removeEventListener('resize', reposition);
   }
   function showMenuMsg(msg) {
     menu.innerHTML = `<div class="lookup__msg muted">${esc(msg)}</div>`;
-    menu.hidden = false;
+    openMenu();
   }
 
   function runSearch(q) {
@@ -1360,7 +1396,7 @@ function attachLookup(input, menu, onPick, onInput) {
       });
       // A muted, non-clickable hint while a slower provider is still pending.
       if (pending > 0) menu.appendChild(h(`<div class="lookup__msg muted">${esc(t('lookup.loadingMore'))}</div>`));
-      menu.hidden = false;
+      openMenu();
     }
 
     LOOKUP_PROVIDERS.forEach((provider, prio) => {

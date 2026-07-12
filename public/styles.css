@@ -1435,11 +1435,12 @@ kbd {
 
 /* ---- Add-game lookup (search-as-you-type suggestions) ---- */
 .lookup { position: relative; }
+/* Fixed, not absolute: the menu is positioned against the viewport by
+   attachLookup (left/top/width/max-height set in JS), so it floats free of the
+   sheet's `overflow-y: auto` scroll box and never gets clipped by it. See
+   .claude/rules/lookup-menu-fixed-position.md. */
 .lookup__menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
+  position: fixed;
   z-index: 50;
   background: var(--surface);
   border: 1px solid var(--line);
