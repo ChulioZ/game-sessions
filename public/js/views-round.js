@@ -1449,7 +1449,7 @@ const LOOKUP_PROVIDERS = ['psstore', 'bgg', 'steam', 'nintendo', 'xbox'];
 const MAX_SUGGESTIONS = 10;
 
 async function searchProvider(provider, q) {
-  const res = await api('GET', `/api/lookup/search?provider=${provider}&q=${encodeURIComponent(q)}`);
+  const res = await api('GET', `/api/lookup/search?provider=${provider}&q=${encodeURIComponent(q)}&lang=${encodeURIComponent(getLocale())}`);
   return ((res && res.results) || []).map((r) => Object.assign({ provider }, r));
 }
 
@@ -1870,7 +1870,7 @@ function showAddGame(round) {
     if (r.thumbnail && !pastedBlob) showProviderImage(r.thumbnail);
     let d;
     try {
-      d = await api('GET', `/api/lookup/game?provider=${encodeURIComponent(r.provider)}&id=${encodeURIComponent(r.providerId)}`);
+      d = await api('GET', `/api/lookup/game?provider=${encodeURIComponent(r.provider)}&id=${encodeURIComponent(r.providerId)}&lang=${encodeURIComponent(getLocale())}`);
     } catch {
       toast(t('lookup.error'));
       return;
@@ -1985,7 +1985,7 @@ function showLinkProvider(round, game) {
     resultBox.innerHTML = `<div class="section muted">${esc(t('lookup.searching'))}</div>`;
     let d;
     try {
-      d = await api('GET', `/api/lookup/game?provider=${encodeURIComponent(r.provider)}&id=${encodeURIComponent(r.providerId)}`);
+      d = await api('GET', `/api/lookup/game?provider=${encodeURIComponent(r.provider)}&id=${encodeURIComponent(r.providerId)}&lang=${encodeURIComponent(getLocale())}`);
     } catch {
       resultBox.innerHTML = '';
       toast(t('lookup.error'));

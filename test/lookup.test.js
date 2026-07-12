@@ -129,7 +129,10 @@ test('GET /api/lookup/search?provider=bgg returns BGG-id results (via Wikidata)'
 });
 
 test('GET /api/lookup/game?provider=bgg returns analog detail with players + bucketed duration', async () => {
+  // detail() now makes two calls: BGG geekitems (data) + a Wikidata label query
+  // (localized title). With no localized label, the BGG canonical name is kept.
   stubFetch((url) => {
+    if (/query\.wikidata\.org/.test(url)) return jsonRes({ results: { bindings: [] } });
     assert.match(url, /api\.geekdo\.com\/api\/geekitems/);
     return jsonRes(GEEK_CATAN);
   });
@@ -142,6 +145,44 @@ test('GET /api/lookup/game?provider=bgg returns analog detail with players + buc
   assert.equal(res.body.maxPlayers, 4);
   assert.equal(res.body.imageUrl, 'https://cf.geekdo-images.com/x/pic.png');
   assert.equal(res.body.url, 'https://boardgamegeek.com/boardgame/13/catan');
+});
+
+test('bgg search threads lang into the Wikidata query (de -> German-first labels)', async () => {
+  let seen = '';
+  stubFetch((url) => {
+    seen = url;
+    return jsonRes(WDQS_CATAN);
+  });
+  const res = await request(app).get('/api/lookup/search?provider=bgg&q=catan&lang=de');
+  assert.equal(res.status, 200);
+  // The requested language reaches the SPARQL sent to Wikidata (form-encoded, so
+  // spaces arrive as '+').
+  assert.match(decodeURIComponent(seen).replace(/\+/g, ' '), /wikibase:language "de,en"/);
+});
+
+test('bgg game with lang=de prefers the German Wikidata label over the BGG English name', async () => {
+  stubFetch((url) => {
+    if (/query\.wikidata\.org/.test(url)) {
+      assert.match(decodeURIComponent(url).replace(/\+/g, ' '), /wikibase:language "de,en"/);
+      return jsonRes({ results: { bindings: [{ itemLabel: { value: 'Die Siedler von Catan' } }] } });
+    }
+    return jsonRes(GEEK_CATAN);
+  });
+  const res = await request(app).get('/api/lookup/game?provider=bgg&id=13&lang=de');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.title, 'Die Siedler von Catan'); // German label wins
+  assert.equal(res.body.minPlayers, 3); // other data still comes from BGG
+});
+
+test('bgg game still succeeds (BGG name kept) when the Wikidata label query fails', async () => {
+  stubFetch((url) => {
+    if (/query\.wikidata\.org/.test(url)) throw new Error('wikidata down');
+    return jsonRes(GEEK_CATAN);
+  });
+  // Distinct id so the route's per-(lang,id) cache doesn't serve an earlier hit.
+  const res = await request(app).get('/api/lookup/game?provider=bgg&id=14&lang=de');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.title, 'Catan'); // falls back to BGG's canonical name
 });
 
 test('bgg search returns 502 when Wikidata is unreachable', async () => {

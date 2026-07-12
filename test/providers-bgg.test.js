@@ -19,6 +19,36 @@ test('buildSparql escapes quotes and backslashes so a typed quote cannot break t
   assert.match(q, /mwapi:srsearch "a\\"b\\\\c haswbstatement:P2339"/);
 });
 
+test('buildSparql embeds the requested wikibase:language (preferred first, other as fallback)', () => {
+  assert.match(bgg.buildSparql('catan', 8, 'de'), /wikibase:language "de,en"/);
+  assert.match(bgg.buildSparql('catan', 8, 'en'), /wikibase:language "en,de"/);
+  // Defaults to en-first when no locale is given.
+  assert.match(bgg.buildSparql('catan'), /wikibase:language "en,de"/);
+  // A non-2-letter/injection-y value falls back to en (no raw value leaks in).
+  assert.match(bgg.buildSparql('catan', 8, 'de"} evil'), /wikibase:language "en,de"/);
+});
+
+// --- buildLabelSparql / parseLabel (localized saved title on pick) --------
+
+test('buildLabelSparql resolves the P2339 entity label in the requested language', () => {
+  const q = bgg.buildLabelSparql('13', 'de');
+  assert.match(q, /wdt:P2339 "13"/);
+  assert.match(q, /wikibase:language "de,en"/);
+  assert.match(q, /LIMIT 1$/);
+  // en-first by default, and the id is escaped like the search query.
+  assert.match(bgg.buildLabelSparql('13'), /wikibase:language "en,de"/);
+  assert.match(bgg.buildLabelSparql('a"b'), /wdt:P2339 "a\\"b"/);
+});
+
+test('parseLabel returns the label, or null for a missing/Q-id placeholder', () => {
+  const wdqs = (v) => ({ results: { bindings: v === undefined ? [] : [{ itemLabel: { value: v } }] } });
+  assert.equal(bgg.parseLabel(wdqs('Die Siedler von Catan')), 'Die Siedler von Catan');
+  assert.equal(bgg.parseLabel(wdqs('Q13')), null); // unresolved label -> null
+  assert.equal(bgg.parseLabel(wdqs()), null); // no rows
+  assert.equal(bgg.parseLabel(null), null);
+  assert.equal(bgg.parseLabel({}), null);
+});
+
 // --- parseSearch ---------------------------------------------------------
 
 function wdqs(rows) {

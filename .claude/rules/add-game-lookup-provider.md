@@ -41,6 +41,29 @@ splits the job across two public, key-free endpoints:
   (on `cf.geekdo-images.com`), and `canonical_link`. So the saved game's data,
   cover, and "View on BoardGameGeek" link are genuinely BGG, not Wikidata.
 
+### Title language follows the UI locale (`lang` param, issue #114)
+
+BGG titles are **localized to the app's active language**. `/api/lookup/search`
+and `/api/lookup/game` accept a `lang` query param (allowlist `de`/`en`, default
+`en` when absent — see `lookupLang` in `routes/lookup.js`), which the frontend
+sends as `getLocale()` and which is **part of the cache key** (so a de/en switch
+isn't served a stale-language hit). The route passes it as the trailing arg to
+`provider.search(q, limit, lang)` / `provider.detail(id, lang)`; the other
+providers ignore it (they localize via their own env locale — `PSSTORE_LOCALE`
+etc. — turning them per-request is a deliberate follow-up).
+
+BGG honors it at **both** layers, both via Wikidata's language-tagged labels:
+- **search label** — `buildSparql` emits `wikibase:label ... wikibase:language
+  "<lang>,<other>"` (preferred first, the other as fallback), so the dropdown row
+  shows the localized name.
+- **saved title** — on pick, `detail(id, lang)` runs a **second, key-free
+  Wikidata query** (`buildLabelSparql` → the label of the `wdt:P2339 = id`
+  entity) and uses it as the title, **falling back to BGG's English canonical
+  `item.name`** when there's no localized label or the query fails. This is why
+  the provider owns the language (route/frontend stay generic). The extra hop is
+  cached and only runs on pick. `labelLanguages()` guards the language literal
+  against injection (non-2-letter → `en`).
+
 **Known limits — don't treat these as bugs:**
 - **No play *time* from Wikidata; from BGG it's minutes**, bucketed to the app's
   short/medium/long via the **average** of min/max play time (matches the

@@ -118,12 +118,14 @@ code and documentation are in English.
   stylesheet — no CDNs. The only runtime external calls are **opt-in**: the
   add-game lookup queries the PlayStation Store, Steam, the Nintendo eShop, the
   Xbox / Microsoft Store and BoardGameGeek server-side (via `/api/lookup/*`) only
-  when you type a title to search; it sends just the search text, and the app
-  works fully without it. None of these need an API key or account. The PS Store
-  locale defaults to `de-de` (`PSSTORE_LOCALE`); Steam defaults to the German
-  store, `de`/`german` (`STEAM_CC` / `STEAM_LOCALE`); the Nintendo eShop defaults
-  to the German store, `de` (`NINTENDO_LOCALE`); the Xbox / Microsoft Store
-  defaults to the German store, `de-de` (`XBOX_LOCALE`).
+  when you type a title to search; it sends just the search text and the active
+  UI language, and the app works fully without it. None of these need an API key
+  or account. BoardGameGeek titles follow the **active UI language** (German or
+  English, falling back to the other), so a German search fills in the German
+  game name. The PS Store locale defaults to `de-de` (`PSSTORE_LOCALE`); Steam
+  defaults to the German store, `de`/`german` (`STEAM_CC` / `STEAM_LOCALE`); the
+  Nintendo eShop defaults to the German store, `de` (`NINTENDO_LOCALE`); the
+  Xbox / Microsoft Store defaults to the German store, `de-de` (`XBOX_LOCALE`).
   The one exception is the **buy-next suggestions** feature: pressing its
   "generate" button calls the [Claude API](https://www.anthropic.com/)
   server-side (via `/api/rounds/:rid/recommendations`) and requires an
