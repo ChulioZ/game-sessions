@@ -102,6 +102,16 @@ yourself):
   trivial; don't let cheapness alone float it to the top.
 - Weight `enhancement`, user-requested, and long-standing pain higher; weight
   "nice to have" lower.
+- **Judge an issue by the value at the end of its chain, not by its immediate
+  output.** An analysis, investigation, spec, or documentation issue that only
+  *produces docs or follow-up issues* is **not** automatically low value — if
+  those docs/issues unlock genuinely valuable features or fix real problems
+  downstream, the issue inherits that end-of-chain value. Rate it on what the
+  whole chain ultimately delivers (discounted a little for the extra hop and the
+  uncertainty that the follow-up work actually lands), not on the fact that this
+  step alone ships no user-facing change. Only *terminal* docs work — a change
+  whose output is the final deliverable and leads nowhere further (a copy tweak, a
+  README polish, a rename) — is the low-value "pure-docs" case above.
 
 **Effort / risk — cheaper and safer is better:**
 
