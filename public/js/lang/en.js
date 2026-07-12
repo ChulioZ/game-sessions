@@ -193,6 +193,13 @@ I18N.en = {
   'addGame.toast.noImage': 'No image in the clipboard',
   'addGame.toast.pasteFail': 'Couldn’t paste – please use ⌘V',
   'addGame.toast.useShortcut': 'Please use ⌘V to paste',
+  'addGame.searchHint': 'Start typing to get suggestions from the PlayStation Store.',
+  'addGame.toast.filled': 'Details filled in from the PlayStation Store',
+  'lookup.searching': 'Searching…',
+  'lookup.noResults': 'No matches found',
+  'lookup.error': 'Couldn’t reach the PlayStation Store',
+
+  'detail.viewSource': 'View on {provider}',
 
   'startSession.crumb': 'Session',
   'startSession.title': 'New session',

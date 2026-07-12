@@ -193,6 +193,13 @@ I18N.de = {
   'addGame.toast.noImage': 'Kein Bild in der Zwischenablage',
   'addGame.toast.pasteFail': 'Einfügen nicht möglich – bitte ⌘V benutzen',
   'addGame.toast.useShortcut': 'Bitte ⌘V zum Einfügen benutzen',
+  'addGame.searchHint': 'Tippen für Vorschläge aus dem PlayStation Store.',
+  'addGame.toast.filled': 'Details aus dem PlayStation Store übernommen',
+  'lookup.searching': 'Suche läuft …',
+  'lookup.noResults': 'Keine Treffer gefunden',
+  'lookup.error': 'PlayStation Store nicht erreichbar',
+
+  'detail.viewSource': 'Auf {provider} ansehen',
 
   'startSession.crumb': 'Session',
   'startSession.title': 'Neue Session',

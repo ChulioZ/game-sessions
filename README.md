@@ -20,8 +20,14 @@ code and documentation are in English.
   importing the games list from an existing round.
 - **Games** – each game has a title, type (analog / digital), an expected
   duration (short / medium / long), a required player range (min–max), and an
-  optional cover image (paste from clipboard or pick a file). Details can be
-  edited inline on the game's detail page. Games are never lost by accident:
+  optional cover image (paste from clipboard or pick a file). When adding a
+  game, the title field doubles as a **search-as-you-type lookup against the
+  PlayStation Store** (digital games): pick a suggestion to auto-fill the title,
+  cover art, player range and type, and store a link back to the store page
+  (shown on the game's detail view). The lookup is optional — manual entry works
+  exactly as before, and the app degrades gracefully when the store is
+  unreachable. Details can be edited inline on the game's detail page. Games are
+  never lost by accident:
   instead of deleting, they are **retired** — kept with a timestamp in a
   browsable archive and restorable any time. Only already-retired games can be
   permanently deleted.
@@ -80,10 +86,13 @@ code and documentation are in English.
   written atomically on every change). Cover images are stored as files under
   `data/uploads/`; only their paths live in `data.json`.
 - **Frontend:** plain HTML/CSS/vanilla JS under `public/` — **no build step**.
-- **Runs entirely on your machine.** No data is sent to any external service.
-  Fonts and the icon set are self-hosted under `public/fonts/`, and the subtle
-  background grain is an inline SVG in the stylesheet — no CDNs or third-party
-  APIs are involved at runtime.
+- **Runs entirely on your machine.** Fonts and the icon set are self-hosted
+  under `public/fonts/`, and the subtle background grain is an inline SVG in the
+  stylesheet — no CDNs. The one runtime external call is **opt-in**: the
+  add-game lookup queries the PlayStation Store server-side (via `/api/lookup/*`)
+  only when you type a title to search; it sends just the search text, and the
+  app works fully without it. The store locale defaults to `de-de` and is
+  overridable with the `PSSTORE_LOCALE` env var.
 
 ```
 server.js            starts the HTTP server (the only place that listens)
@@ -93,9 +102,15 @@ lib/
                      routes so deep links / reloads work)
   store.js           in-memory data + atomic load/save (data/ folder), helpers
   upload.js          multer image-upload config
+  providers/         external game-database providers for the add-game lookup
+    index.js         provider registry + image-host allowlist
+    psstore.js       PlayStation Store: search + detail via the store's
+                     server-rendered page data (digital games)
 routes/
+  lookup.js          /api/lookup            (search/game — PlayStation Store proxy)
   rounds.js          /api/rounds            (list, detail, create, delete)
-  games.js           …/games                (add, edit, retire/restore, delete)
+  games.js           …/games                (add [+cover download/source],
+                                             edit, retire/restore, delete)
   members.js         …/members              (edit name / avatar color)
   sessions.js        …/sessions             (start, results, choice, finish,
                                              cancel, delete, remove one game)

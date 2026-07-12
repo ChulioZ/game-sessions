@@ -86,3 +86,80 @@ test('DELETE only works on retired games and scrubs feed entries', async () => {
   assert.ok(!detail.body.activities.some((a) => a.gameId === game.id));
   assert.ok(detail.body.activities.some((a) => a.type === 'game_deleted'));
 });
+
+// --- Provider source + server-side cover download (issue #41 follow-up) ---
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { store } = require('./helpers');
+
+test('POST games stores a provider source link', async () => {
+  const round = await createRound(request);
+  const res = await addGame(round.id, {
+    title: 'The Witcher 3',
+    type: 'digital',
+    sourceProvider: 'psstore',
+    sourceExternalId: 'UP4497-PPSA10407_00-0000000000000001',
+    sourceUrl: 'https://store.playstation.com/de-de/product/UP4497-PPSA10407_00-0000000000000001',
+  });
+  assert.equal(res.status, 201);
+  assert.deepEqual(res.body.source, {
+    provider: 'psstore',
+    externalId: 'UP4497-PPSA10407_00-0000000000000001',
+    url: 'https://store.playstation.com/de-de/product/UP4497-PPSA10407_00-0000000000000001',
+  });
+});
+
+test('POST games ignores an unknown source provider and a non-http source url', async () => {
+  const round = await createRound(request);
+  const bad = await addGame(round.id, { sourceProvider: 'evil', sourceExternalId: '1' });
+  assert.equal(bad.body.source, undefined);
+
+  const noUrl = await addGame(round.id, {
+    sourceProvider: 'psstore',
+    sourceExternalId: 'X',
+    sourceUrl: 'javascript:alert(1)',
+  });
+  assert.equal(noUrl.body.source.url, null); // rejected, but the link id is kept
+});
+
+test('POST games downloads a cover from an allowlisted host', async () => {
+  const realFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    status: 200,
+    headers: { get: () => 'image/png' },
+    arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
+  });
+  try {
+    const round = await createRound(request);
+    const res = await addGame(round.id, {
+      title: 'The Witcher 3',
+      imageUrl: 'https://image.api.playstation.com/vulcan/witcher.png',
+    });
+    assert.equal(res.status, 201);
+    assert.match(res.body.image, /^\/uploads\/[0-9a-f]+\.png$/);
+    const file = path.join(store.UPLOAD_DIR, path.basename(res.body.image));
+    assert.ok(fs.existsSync(file));
+  } finally {
+    global.fetch = realFetch;
+  }
+});
+
+test('POST games does not download a cover from a non-allowlisted host', async () => {
+  const realFetch = global.fetch;
+  let called = false;
+  global.fetch = async () => { called = true; throw new Error('should not fetch'); };
+  try {
+    const round = await createRound(request);
+    const res = await addGame(round.id, {
+      title: 'The Witcher 3',
+      imageUrl: 'https://evil.example.com/x.png',
+    });
+    assert.equal(res.status, 201);
+    assert.equal(res.body.image, null);
+    assert.equal(called, false);
+  } finally {
+    global.fetch = realFetch;
+  }
+});
