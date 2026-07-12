@@ -407,7 +407,9 @@ const durationTag = (duration) => {
 // Games from before the player-count feature could lack the fields -> no tag.
 const playersTag = (min, max) => {
   if (!Number.isInteger(min) || !Number.isInteger(max)) return '';
-  const text = min === max ? t('players.single', { n: min }) : t('players.range', { min, max });
+  const text = min === max
+    ? tn(min, 'players.one', 'players.single', { n: min })
+    : t('players.range', { min, max });
   return `<span class="tag tag--players"><i class="ti ti-users" aria-hidden="true"></i> ${text}</span>`;
 };
 

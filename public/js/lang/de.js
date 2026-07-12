@@ -172,6 +172,7 @@ I18N.de = {
   'addGame.typeLabel': 'Art',
   'addGame.durationLabel': 'Spieldauer',
   'addGame.durationHint': 'Kurz: unter 30 Min. · Mittel: 30–60 Min. · Lang: über 60 Min.',
+  'players.one': '1 Person',
   'players.single': '{n} Personen',
   'players.range': '{min}–{max} Personen',
   'addGame.playersLabel': 'Personen (min.–max.)',

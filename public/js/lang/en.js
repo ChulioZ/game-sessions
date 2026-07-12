@@ -172,6 +172,7 @@ I18N.en = {
   'addGame.typeLabel': 'Type',
   'addGame.durationLabel': 'Play time',
   'addGame.durationHint': 'Short: under 30 min · Medium: 30–60 min · Long: over 60 min',
+  'players.one': '1 player',
   'players.single': '{n} players',
   'players.range': '{min}–{max} players',
   'addGame.playersLabel': 'Players (min–max)',
