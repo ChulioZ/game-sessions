@@ -90,11 +90,14 @@ code and documentation are in English.
   rate highly but rarely play, so loved titles get back on the table (no
   network, no key). **Layer B** is an opt-in "generate suggestions" button that
   asks an LLM for real new titles to consider buying, matched to your
-  collection's taste; the result is cached per round. It sends only an
-  **anonymized taste profile** (game titles + collection shape, never member
-  names or ids) to the [Claude API](https://www.anthropic.com/), and needs an
-  `ANTHROPIC_API_KEY` — without one, the button reports it isn't set up and
-  Layer A still works. This is the app's only outbound LLM call and it fires
+  collection's taste; the result is cached per round. Suggestions are
+  **platform-aware** (each pick is tagged with one of the platforms your round
+  actually plays on, and carries a store-**search** link so you can go look it
+  up), and their reason text is written in the **active UI language**. It sends
+  only an **anonymized taste profile** (game titles + collection shape, never
+  member names or ids) to the [Claude API](https://www.anthropic.com/), and
+  needs an `ANTHROPIC_API_KEY` — without one, the button reports it isn't set up
+  and Layer A still works. This is the app's only outbound LLM call and it fires
   only when you press the button.
 - **Designs** – per round, pick a colour scheme (page tone + accent); the
   whole UI derives from it — surfaces, shadows, even the dark "stage" of the

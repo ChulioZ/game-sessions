@@ -318,12 +318,22 @@ function renderBuyNext(round, activeGames, statsByGame) {
        </div>`);
     const body = collapse.querySelector('.buynext__body');
     const list = h('<div class="recommend-list"></div>');
-    items.forEach(({ title, reason }) => {
+    items.forEach(({ title, reason, platform, url }) => {
+      // platform/url are absent on runs cached before #106 — degrade to the
+      // plain title-and-reason row in that case.
+      const badge = platform ? ` ${platformTag(platform)}` : '';
+      const link = url
+        ? `<a class="recommend-item__link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">
+             <i class="ti ti-external-link" aria-hidden="true"></i> ${esc(t('buynext.view'))}</a>`
+        : '';
       list.appendChild(h(`<div class="recommend-item">
            <div class="recommend-item__info">
-             <span class="recommend-item__title">${esc(title)}</span>
+             <span class="recommend-item__head">
+               <span class="recommend-item__title">${esc(title)}</span>${badge}
+             </span>
              ${reason ? `<span class="recommend-item__reason">${esc(reason)}</span>` : ''}
            </div>
+           ${link}
          </div>`));
     });
     body.appendChild(list);
@@ -370,7 +380,7 @@ async function generateBuyNext(round, btn) {
   btn.disabled = true;
   btn.innerHTML = `<i class="ti ti-loader-2 spin" aria-hidden="true"></i> ${esc(t('buynext.generating'))}`;
   try {
-    const rec = await api('POST', `/api/rounds/${round.id}/recommendations`);
+    const rec = await api('POST', `/api/rounds/${round.id}/recommendations`, { locale: getLocale() });
     round.recommendations = rec;
     justGeneratedBuyNext.add(round.id); // show the fresh list expanded (#113)
     showRound(round.id); // re-render the Start tab with the cached list

@@ -102,6 +102,7 @@ I18N.en = {
   'buynext.regenerate': 'Regenerate',
   'buynext.generating': 'Generating…',
   'buynext.meta': 'Generated {when} · {model}',
+  'buynext.view': 'View',
   'buynext.unavailable': 'Suggestion generation isn’t set up on this server.',
   'buynext.failed': 'Couldn’t generate suggestions right now.',
 

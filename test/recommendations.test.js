@@ -4,6 +4,8 @@ const { test, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 const { app, createRound } = require('./helpers');
+// The router hangs its pure helpers off itself for unit testing (see the module).
+const rec = require('../routes/recommendations');
 
 // The route calls the global fetch (like the lookup providers), so stub it and
 // restore afterwards — nothing ever hits the real Anthropic API. Also restore
@@ -59,7 +61,16 @@ test('POST generates, parses, filters owned, and caches a buy-next list', async 
   const res = await request(app).post(`/api/rounds/${round.id}/recommendations`);
   assert.equal(res.status, 200);
   assert.equal(res.body.model, 'claude-haiku-4-5');
-  assert.deepEqual(res.body.items, [{ title: 'Splendor', reason: 'Fast and tactical.' }]);
+  // All games are analog, so the only target platform is analog: an item with no
+  // platform is bucketed to it and gets a BoardGameGeek search link.
+  assert.deepEqual(res.body.items, [
+    {
+      title: 'Splendor',
+      platform: 'analog',
+      reason: 'Fast and tactical.',
+      url: 'https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=Splendor',
+    },
+  ]);
   assert.ok(res.body.generatedAt);
 
   // GET returns the cached list.
@@ -130,4 +141,90 @@ test('GET on a round with nothing generated returns null', async () => {
 test('unknown round returns 404', async () => {
   const res = await request(app).post('/api/rounds/nope/recommendations');
   assert.equal(res.status, 404);
+});
+
+test('POST is platform-aware and localized: prompt targets the round platforms, reasons in German', async () => {
+  process.env.ANTHROPIC_API_KEY = 'test-key';
+  const round = await createRound(request);
+  await addGame(round.id, { title: 'Gran Turismo 7', platform: 'ps' });
+  await addGame(round.id, { title: 'Catan', platform: 'analog' });
+  let sentBody = '';
+  global.fetch = async (_url, opts) => {
+    sentBody = opts.body;
+    return anthropicReply([
+      { title: 'Ratchet & Clank', platform: 'ps', reason: 'Bunter Plattformer.' },
+      { title: 'Azul', platform: 'analog', reason: 'Elegantes Legespiel.' },
+      { title: 'Zelda', platform: 'switch', reason: 'x' }, // switch not a target here -> dropped
+    ]);
+  };
+  const res = await request(app)
+    .post(`/api/rounds/${round.id}/recommendations`)
+    .send({ locale: 'de' });
+  assert.equal(res.status, 200);
+
+  const prompt = JSON.parse(sentBody).messages[0].content;
+  assert.match(prompt, /Only recommend games available on these platforms: .*ps/);
+  assert.match(prompt, /analog/);
+  assert.match(prompt, /Write each "reason" in German/);
+
+  // The switch item is dropped (not a platform this round plays on); the rest are
+  // tagged and get a store-search link on their own platform.
+  assert.deepEqual(res.body.items.map((i) => i.title), ['Ratchet & Clank', 'Azul']);
+  assert.equal(res.body.items[0].platform, 'ps');
+  assert.ok(res.body.items[0].url.startsWith('https://store.playstation.com/'));
+  assert.equal(res.body.items[1].platform, 'analog');
+  assert.ok(res.body.items[1].url.startsWith('https://boardgamegeek.com/'));
+  assert.equal(res.body.locale, 'de');
+});
+
+test('buildProfile derives the platform set; digital present wins, analog-only stays analog', () => {
+  const digital = {
+    games: [
+      { id: '1', title: 'A', type: 'digital', platform: 'ps' },
+      { id: '2', title: 'B', type: 'analog', platform: 'analog' },
+      { id: '3', title: 'C', type: 'digital', platform: 'steam', retired: true }, // retired ignored
+    ],
+    members: [],
+    sessions: [],
+  };
+  assert.deepEqual(rec.buildProfile(digital).platforms, ['ps', 'analog']);
+
+  const analog = {
+    games: [
+      { id: '1', title: 'A', type: 'analog', platform: 'analog' },
+      { id: '2', title: 'B', type: 'digital' }, // legacy: no platform, digital -> not targetable
+    ],
+    members: [],
+    sessions: [],
+  };
+  assert.deepEqual(rec.buildProfile(analog).platforms, ['analog']);
+});
+
+test('parseItems validates the platform against the target set and dedupes titles', () => {
+  const data = {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify([
+          { title: 'Hades', platform: 'steam', reason: 'a' },
+          { title: 'Hades', platform: 'ps', reason: 'dupe title, dropped' },
+          { title: 'Nope', platform: 'xbox', reason: 'not a target, dropped' },
+          { title: 'Owned', platform: 'ps', reason: 'owned, dropped' },
+        ]),
+      },
+    ],
+  };
+  const items = rec.parseItems(data, ['owned'], ['ps', 'steam']);
+  assert.deepEqual(items.map((i) => i.title), ['Hades']);
+  assert.equal(items[0].platform, 'steam');
+  assert.ok(items[0].url.startsWith('https://store.steampowered.com/'));
+});
+
+test('platformSearchUrl builds a search link per platform (and null for other)', () => {
+  assert.match(rec.platformSearchUrl('analog', 'Catan'), /^https:\/\/boardgamegeek\.com\/.*q=Catan$/);
+  assert.match(rec.platformSearchUrl('ps', 'Gran Turismo'), /store\.playstation\.com\/.*\/search\/Gran%20Turismo$/);
+  assert.match(rec.platformSearchUrl('steam', 'Hades'), /store\.steampowered\.com\/search\/\?term=Hades$/);
+  assert.match(rec.platformSearchUrl('xbox', 'Forza'), /microsoft\.com\/.*q=Forza$/);
+  assert.match(rec.platformSearchUrl('switch', 'Mario'), /nintendo\.com\/search\/\?q=Mario$/);
+  assert.equal(rec.platformSearchUrl('other', 'x'), null);
 });

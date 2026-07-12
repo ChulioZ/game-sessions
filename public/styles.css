@@ -1135,7 +1135,18 @@ h1, h2, h3 { font-family: var(--font-display); }
   border-radius: 12px;
   padding: 10px 14px;
 }
-.recommend-item__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.recommend-item__info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.recommend-item__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.recommend-item__link {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--brand-dark);
+  white-space: nowrap;
+}
 .recommend-item__title { font-weight: 700; cursor: pointer; }
 .recommend-item__title:hover { text-decoration: underline; }
 .recommend-item__reason { color: var(--warn); font-size: 14px; font-weight: 600; }
