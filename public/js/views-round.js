@@ -1636,8 +1636,8 @@ function showAddGame(round) {
           <div class="field field--sub" id="otherTypeField" hidden>
             <label>${esc(t('addGame.typeLabel'))}</label>
             <div class="opt-cards" id="typeSeg">
-              <button type="button" class="opt-card is-on" data-type="analog"><i class="ti ti-dice-3" aria-hidden="true"></i>${esc(t('type.analog'))}</button>
-              <button type="button" class="opt-card" data-type="digital"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i>${esc(t('type.digital'))}</button>
+              <button type="button" class="opt-card" data-type="analog"><i class="ti ti-dice-3" aria-hidden="true"></i>${esc(t('type.analog'))}</button>
+              <button type="button" class="opt-card is-on" data-type="digital"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i>${esc(t('type.digital'))}</button>
             </div>
           </div>
         </div>
