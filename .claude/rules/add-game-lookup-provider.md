@@ -68,8 +68,9 @@ the store's normal server-rendered pages and reads the `__NEXT_DATA__` JSON blob
 - It's **undocumented storefront scraping**. Sony can change the page shape any
   time and break parsing, so every parser returns null/empty instead of throwing.
 - **Digital games only** — it can't help for board games.
-- **No play duration** — the PS Store has no such concept; `duration` is always
-  null and left to manual entry.
+- **No play duration** — the PS Store has no such concept, so nothing is scraped;
+  `duration` defaults to `'long'` (digital titles almost always run long, matching
+  the Nintendo/Steam default), pre-selecting that bucket in the add-game sheet.
 - **Player count is best-effort** (scraped from rendered HTML); often just "1".
 - Locale defaults to `de-de`, override with `PSSTORE_LOCALE`. Use
   `boardgamegeek`-style bare host `store.playstation.com` (Sony notes the `www.`

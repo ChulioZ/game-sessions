@@ -62,7 +62,7 @@ test('search returns 502 when the provider is unreachable', async () => {
   assert.equal(res.body.error, 'provider_unreachable');
 });
 
-test('GET /api/lookup/game returns normalized detail (digital, players, no duration)', async () => {
+test('GET /api/lookup/game returns normalized detail (digital, players, default long duration)', async () => {
   stubFetch((url) => {
     assert.match(url, /\/product\//);
     return htmlRes(page({ 'Product:X': PROD }, '<span class="compatText">1 - 4 players</span>'));
@@ -71,7 +71,7 @@ test('GET /api/lookup/game returns normalized detail (digital, players, no durat
   assert.equal(res.status, 200);
   assert.equal(res.body.title, 'The Witcher 3: Wild Hunt');
   assert.equal(res.body.type, 'digital');
-  assert.equal(res.body.duration, null);
+  assert.equal(res.body.duration, 'long');
   assert.equal(res.body.minPlayers, 1);
   assert.equal(res.body.maxPlayers, 4);
   assert.equal(res.body.imageUrl, 'https://image.api.playstation.com/vulcan/w.png');
