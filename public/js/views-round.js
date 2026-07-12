@@ -250,6 +250,14 @@ function renderStartTab(round, activeGames) {
 function renderRegalTab(round, activeGames) {
   const rid = round.id;
 
+  // Filters (and sort) persist for the session but are scoped to one round —
+  // opening a different round's Regal resets them to defaults.
+  if (regalFiltersRid !== round.id) {
+    regalFilters = { type: 'all', durations: new Set(), query: '' };
+    gamesSort = 'random';
+    regalFiltersRid = round.id;
+  }
+
   // Stats per active game (for the rating pills and sorting).
   const statsByGame = {};
   activeGames.forEach((g) => (statsByGame[g.id] = gameStats(round, g.id)));
@@ -277,10 +285,11 @@ function renderRegalTab(round, activeGames) {
     const avgMap = {};
     activeGames.forEach((g) => (avgMap[g.id] = statsByGame[g.id].avg));
 
-    // Search pill + sort next to the heading. Sort is kept for the session;
-    // search and filter chips are local to this view.
+    // Search pill + sort next to the heading. Sort, search and filter chips are
+    // all kept for the session (scoped to this round) — see regalFilters.
     const search = h(`<label class="search-pill"><i class="ti ti-search" aria-hidden="true"></i><input type="search" placeholder="${esc(t('games.search'))}" aria-label="${esc(t('games.search'))}" /></label>`);
     const searchInput = search.querySelector('input');
+    searchInput.value = regalFilters.query;
     const sortSel = h(`<select class="sort-select" aria-label="${esc(t('games.sortLabel'))}">
         <option value="random">${esc(t('games.sort.random'))}</option>
         <option value="name">${esc(t('games.sort.name'))}</option>
@@ -296,11 +305,13 @@ function renderRegalTab(round, activeGames) {
       analog: activeGames.filter((g) => g.type === 'analog').length,
       digital: activeGames.filter((g) => g.type === 'digital').length,
     };
-    let typeFilter = 'all';
-    const durFilter = new Set();
-    let query = '';
+    // Initialize from the persisted state; durFilter is the same Set instance,
+    // so toggling it writes straight back into regalFilters.
+    let typeFilter = regalFilters.type;
+    const durFilter = regalFilters.durations;
+    let query = regalFilters.query;
     const chips = h(`<div class="filter-chips">
-        <button class="chip is-on" data-type="all">${esc(t('games.filter.all', { n: activeGames.length }))}</button>
+        <button class="chip" data-type="all">${esc(t('games.filter.all', { n: activeGames.length }))}</button>
         <button class="chip" data-type="analog"><i class="ti ti-dice-3" aria-hidden="true"></i>${esc(t('games.filter.analog', { n: counts.analog }))}</button>
         <button class="chip" data-type="digital"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i>${esc(t('games.filter.digital', { n: counts.digital }))}</button>
         <span class="filter-chips__sep"></span>
@@ -308,9 +319,13 @@ function renderRegalTab(round, activeGames) {
         <button class="chip" data-dur="medium"><i class="ti ti-clock" aria-hidden="true"></i>${esc(t('duration.medium'))}</button>
         <button class="chip" data-dur="long"><i class="ti ti-hourglass" aria-hidden="true"></i>${esc(t('duration.long'))}</button>
       </div>`);
+    // Reflect the persisted filters on the freshly built chips.
+    chips.querySelectorAll('[data-type]').forEach((c) => c.classList.toggle('is-on', c.dataset.type === typeFilter));
+    chips.querySelectorAll('[data-dur]').forEach((c) => c.classList.toggle('is-on', durFilter.has(c.dataset.dur)));
     chips.querySelectorAll('[data-type]').forEach((chip) => {
       chip.addEventListener('click', () => {
         typeFilter = chip.dataset.type;
+        regalFilters.type = typeFilter;
         chips.querySelectorAll('[data-type]').forEach((c) => c.classList.toggle('is-on', c === chip));
         renderGames();
       });
@@ -387,6 +402,7 @@ function renderRegalTab(round, activeGames) {
 
     searchInput.addEventListener('input', () => {
       query = searchInput.value;
+      regalFilters.query = query;
       renderGames();
     });
     sortSel.addEventListener('change', () => {
