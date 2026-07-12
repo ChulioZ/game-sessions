@@ -33,6 +33,11 @@
   no-build vanilla frontend is fine for a single instance and *acceptable* for
   multi-tenant with a thin build added later — a framework rewrite is **not** a
   prerequisite and would be the single biggest waste of effort here.
+- **The goal is a website *and* native iOS/Android store apps** (per
+  `CLAUDE.md`), not just responsive web. Good news: the backend is already
+  **API-first** (clean JSON `/api/*` routes), which is the hard prerequisite.
+  Recommend reaching the stores by **wrapping the existing web UI with Capacitor**
+  (plus a PWA step), **not** a React Native/Flutter rewrite. See §2.4.
 - **Data:** move `data/data.json` → **PostgreSQL** (managed). This is
   non-negotiable for more than one concurrent writer or more than one process.
 - **Legal (DE/EU):** once hosted for real users, an **Impressum (§ 5 DDG)** and a
@@ -180,6 +185,73 @@ constraint of milestone one.
 **Rejected: keep the JSON file + a file lock / single-writer queue.** Possible
 for a single instance, but it's engineering effort spent propping up a design
 you're going to replace anyway, and it still can't scale horizontally.
+
+### 2.4 Delivery: web, PWA, and native iOS/Android apps
+
+**The stated goal is a hosted website *and* an app** ([`CLAUDE.md`](../CLAUDE.md):
+"bring this live as a hosted **website and app**"). "App" here means real
+**native iOS/Android apps in the App Store and Play Store**, not just a
+phone-friendly website — so how the UI is *delivered* is a first-class
+architectural question, not an afterthought.
+
+**Current.** One delivery channel: a server-rendered app shell + client-side-
+routed SPA served by Express ([`lib/app.js`](../lib/app.js) SPA fallback,
+[`public/js/router.js`](../public/js/router.js)). No manifest, no service worker,
+no native packaging. It's a website, full stop.
+
+**The one thing already right: the backend is API-first.** Every data operation
+is a JSON call under `/api/*` ([`lib/app.js`](../lib/app.js) L21–28), cleanly
+separated from the frontend. That is *the* hard prerequisite for native apps —
+any client (web, PWA, native shell) talks to the same API. The app does **not**
+need a backend rewrite to go native.
+
+**Three delivery options (not mutually exclusive):**
+
+1. **PWA — installable web app.** Add a web app manifest + service worker so the
+   existing SPA installs to the home screen and works offline. *Cheapest by far*
+   and reuses 100% of the current UI. **Limit:** it is **not** an App Store /
+   Play Store listing — Android installs it well, iOS support is partial (limited
+   push, no store presence). Good as a first step and a fallback, but it does
+   **not** by itself satisfy "an app in the stores."
+2. **Capacitor wrapper — RECOMMENDED path to the stores.** Wrap the *existing web
+   frontend* in a native shell ([Capacitor](https://capacitorjs.com/)): one thin
+   native project per platform loads the same HTML/JS/CSS, and you ship real
+   `.ipa`/`.aab` bundles to both stores. Reuses essentially the whole current UI,
+   unlocks native APIs (push via APNs/FCM, and **camera/barcode scanning** to add
+   games by scanning a box — a feature the competitor
+   [Boardy](https://www.boardyboard.com/) already has), and keeps a single UI
+   codebase. This is the lowest-effort route from "website" to "store apps" given
+   what's already built. Pairs naturally with the thin frontend build in §2.2.
+3. **Native / cross-platform rewrite (React Native / Flutter).** Best-in-class
+   native UX and performance, but a **second full frontend codebase** to build
+   and maintain forever, throwing away the working vanilla SPA. **Rejected**
+   unless the UX bar demands truly native feel — which a game-night collection
+   manager almost certainly does not.
+
+**Recommendation:** **API-first backend (already true) → PWA (installable, offline)
+→ Capacitor wrapper for App Store + Play Store**, in that order. Defer any
+RN/Flutter rewrite indefinitely.
+
+**What going native cascades into (carried through the rest of this doc):**
+- **Auth (§5):** native apps can't rely on browser cookies the same way — they
+  need **token-based auth** (OAuth 2.0 + PKCE, refresh tokens in the platform
+  **Keychain/Keystore**). Build the account model token-first so web and native
+  share it.
+- **Legal & store compliance (§9):** each store adds its own gate on top of DSGVO
+  — **Apple App Review** + **Google Play** policies, **privacy nutrition labels /
+  Data Safety** declarations, an age rating, a public **privacy-policy URL**, and
+  Apple's requirement that **any app offering account creation must offer in-app
+  account deletion** (which the API can already do — see the clean delete in
+  [`routes/games.js`](../routes/games.js)). Apple/Google become additional
+  distributors/processors.
+- **Ops/release (§8):** paid developer accounts (**Apple Developer ~$99/yr**,
+  **Google Play ~$25 one-time**), app signing, and mobile build/release CI —
+  distinct from the web deploy pipeline.
+- **Push infrastructure** (APNs/FCM) if notifications are wanted — new, optional.
+
+**Blocker note:** native apps are **not** a launch blocker for the *website*, but
+they **depend on** the same spine (auth, API, hosting) — so building that spine
+token-first (§5) avoids rework when the apps come. Sequenced in Phase 2/3.
 
 ---
 
@@ -586,8 +658,10 @@ projects and a real launch asset.
   contrast — the theme system is color-mix-derived per
   [`.claude/rules/theme-derived-colors.md`](../.claude/rules/theme-derived-colors.md),
   which helps but isn't a guarantee). A public product should run an a11y audit.
-- **Mobile** — verify the responsive story holds for a public audience on phones
-  (the app is used on a couch; mobile is likely the primary device).
+- **Mobile web** — verify the responsive story holds for a public audience on
+  phones (the app is used on a couch; mobile is likely the primary device). This
+  is *separate from* the **native iOS/Android apps** the product also targets —
+  the delivery strategy for those (PWA → Capacitor) is covered in **§2.4**.
 - **Legal surfaces in-product** — Impressum/privacy links in the footer (§9).
 
 **Recommendation.** None of these block *milestone one* (your group already knows
@@ -627,7 +701,7 @@ backups and monitoring — nothing public yet.
 ### Phase 2 — Multi-tenant SaaS
 | Item | Effort | Risk | Blocker? |
 |---|---|---|---|
-| Account model (users, email verify, password reset **or IdP/OAuth**) | **L** | **High** | Blocker for public sign-up (§5) |
+| Account model (users, email verify, password reset **or IdP/OAuth**) — build **token-first** so native apps share it (§2.4/§5) | **L** | **High** | Blocker for public sign-up (§5) |
 | **Tenant model + isolation** (`tenant_id` everywhere, central enforcement, RLS) | **L** | **Very High** | Blocker — cross-tenant leak is catastrophic (§6) |
 | Roles/permissions mapped to mutating routes | M | Med | Blocker |
 | Invitations (link/email) + onboarding / empty states | M–L | Med | Blocker for usable sign-up (§11) |
@@ -635,12 +709,15 @@ backups and monitoring — nothing public yet.
 | Terms of Service / AGB, DPAs (host, DB, Anthropic), transfer basis | S (+external) | Med | Legal must for SaaS (§9) |
 | Consent mechanism **iff** non-essential tracking is added | S | Low | Conditional (§9.3) |
 
-### Phase 3 — Scale & polish (as needed)
+### Phase 3 — Native apps, scale & polish (as needed)
 | Item | Effort | Risk |
 |---|---|---|
 | Thin frontend build (content-hash cache-busting + minify, `esbuild`) | S–M | Low |
+| **PWA** — manifest + service worker, installable + offline (§2.4) | M | Low |
+| **Capacitor wrapper** → App Store + Play Store apps; push + barcode scan (§2.4) | **L** | Med |
+| **App-store compliance & mobile release pipeline** — dev accounts, signing, privacy labels, in-app account deletion, mobile CI (§2.4/§9) | M | Med |
 | Horizontal scaling (multi-process behind LB — enabled by stateless tier) | M | Med |
-| Accessibility audit + mobile pass | M | Low |
+| Accessibility audit + mobile-web responsiveness pass | M | Low |
 | Coverage reporting + broaden tests around auth/tenant code | M | Low |
 | Localize server-side error messages if user-facing surfaces grow | S | Low |
 
@@ -688,14 +765,22 @@ scope; **not filed as part of #40.**
 14. **SaaS legal pack** — ToS/AGB, DPAs (host, DB, Anthropic), international-
     transfer basis, retention policy (lawyer-reviewed).
 
-**Phase 3 — scale & polish**
+**Phase 3 — native apps, scale & polish**
 15. **Thin frontend build for cache-busting** — `esbuild` bundle with
     content-hashed filenames + minification; keep build optional for local dev.
-16. **Accessibility & mobile audit** — a11y pass (focus/ARIA/contrast), mobile
-    responsiveness verification.
-17. **Test coverage reporting** — add coverage, close gaps around auth/tenant
+16. **PWA: installable, offline-capable web app** — web app manifest + service
+    worker so the SPA installs to the home screen and works offline (§2.4).
+17. **Native iOS/Android apps via Capacitor** — wrap the existing web UI in a
+    native shell, ship to App Store + Play Store; unlock push (APNs/FCM) and
+    camera/barcode scanning (§2.4).
+18. **App-store compliance & mobile release pipeline** — Apple/Google developer
+    accounts, app signing, privacy nutrition labels / Data Safety, in-app account
+    deletion, mobile build/release CI (§2.4/§9).
+19. **Accessibility & mobile-web audit** — a11y pass (focus/ARIA/contrast) and
+    mobile-web responsiveness verification.
+20. **Test coverage reporting** — add coverage, close gaps around auth/tenant
     code.
-18. **Trademark clearance & rebrand** — attorney DPMA/EUIPO search for the chosen
+21. **Trademark clearance & rebrand** — attorney DPMA/EUIPO search for the chosen
     name (`rundenwahl` / `ludopick`), then swap `app.title`/`<title>` + marketing
     copy.
 
@@ -711,7 +796,11 @@ not an architecture problem; it's an **operations, security, and data-model**
 problem, concentrated in four hard blockers: **a real database + stateless tier,
 authentication, transport/edge security, and production hosting**. Clear those as
 a **single authenticated instance** first, then layer **accounts + tenant
-isolation** to reach the recommended **multi-tenant SaaS** end-state. The legal
+isolation** to reach the recommended **multi-tenant SaaS** end-state. The product
+also targets **native iOS/Android apps**, not just a website — and the backend's
+API-first shape already makes that cheap: reach the stores by **wrapping the
+existing web UI with Capacitor** (after a PWA step), not a native rewrite, and
+build auth **token-first** so web and native share it. The legal
 work (Impressum under DDG, DSGVO privacy policy) is a real must once strangers'
 data is hosted, but the app's no-tracking, self-hosted-fonts, `localStorage`-only
 design means it likely **needs no cookie banner** — a head start most projects
