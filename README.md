@@ -93,7 +93,10 @@ code and documentation are in English.
   collection's taste; the result is cached per round. Suggestions are
   **platform-aware** (each pick is tagged with one of the platforms your round
   actually plays on, and carries a store-**search** link so you can go look it
-  up), and their reason text is written in the **active UI language**. It sends
+  up), and their reason text is written in the **active UI language**. Every
+  generation is **kept as a history** rather than overwriting the last, so you
+  can page back through past runs (each shows its date/model), delete one you
+  don't want, and no good earlier list is lost. It sends
   only an **anonymized taste profile** (game titles + collection shape, never
   member names or ids) to the [Claude API](https://www.anthropic.com/), and
   needs an `ANTHROPIC_API_KEY` — without one, the button reports it isn't set up
@@ -168,8 +171,9 @@ routes/
                                              cancel, delete, remove one game)
   activities.js      …/activities           (delete an entry)
   background.js      …/background           (set the design)
-  recommendations.js …/recommendations      (buy-next: get cached list [GET],
-                                             generate via the Claude API [POST])
+  recommendations.js …/recommendations      (buy-next run history: list [GET],
+                                             generate & append via Claude [POST],
+                                             delete one run [DELETE /:runId])
 public/
   index.html
   styles.css

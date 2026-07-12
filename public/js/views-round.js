@@ -256,16 +256,32 @@ function renderStartTab(round, activeGames) {
 // that asks the backend LLM route for real buy-next titles, cached per round.
 
 // Round ids whose Layer-B list should render expanded on the *next* render
-// (issue #113). Set right before the post-generate re-render and cleared on
-// read, so a generate shows its results but every fresh entry starts collapsed.
-const justGeneratedBuyNext = new Set();
+// (issue #113). Set right before an internal re-render (generate / paging /
+// delete) and cleared on read, so those keep the list open while a fresh entry
+// to the round still starts collapsed.
+const buyNextKeepOpen = new Set();
+
+// Which run of the Layer-B history is shown per round (issue #115), keyed by
+// round id -> run id. Survives the showRound() re-renders that paging/locale
+// changes trigger; a stale/absent id falls back to the newest run.
+const buyNextSelected = {};
+
+// The round's Layer-B run history as a plain array, newest first — read
+// defensively (matches history() in routes/recommendations.js) so legacy rounds
+// with only the pre-#115 single round.recommendations object still render, with
+// no migration. Returns [] when nothing has been generated.
+function buyNextRuns(round) {
+  if (Array.isArray(round.recommendationRuns)) return round.recommendationRuns;
+  if (round.recommendations && Array.isArray(round.recommendations.items)) {
+    return [{ id: 'legacy', ...round.recommendations }];
+  }
+  return [];
+}
 
 function renderBuyNext(round, activeGames, statsByGame) {
-  const cached = round.recommendations && Array.isArray(round.recommendations.items)
-    ? round.recommendations
-    : null;
+  const runs = buyNextRuns(round);
   // Nothing to offer on a near-empty round (unless a list was already generated).
-  if (activeGames.length < 3 && !cached) return;
+  if (activeGames.length < 3 && !runs.length) return;
 
   const section = h(`<section class="buynext">
        <h2 class="buynext__head"><i class="ti ti-bulb" aria-hidden="true"></i> ${esc(t('buynext.title'))}</h2>
@@ -297,15 +313,20 @@ function renderBuyNext(round, activeGames, statsByGame) {
   // Layer B — opt-in LLM buy-next list. Titles here aren't owned games, so the
   // --static variant drops the clickable-title affordance Layer A uses.
   const llm = h(`<div class="buynext__block buynext__block--static"></div>`);
-  if (cached) {
+  if (runs.length) {
+    // Which run of the history to show: the remembered one, else the newest.
+    let idx = runs.findIndex((r) => r.id === buyNextSelected[round.id]);
+    if (idx < 0) idx = 0;
+    buyNextSelected[round.id] = runs[idx].id;
+    const cached = runs[idx];
     const items = cached.items.slice(0, 8);
     // The list can be long and this is a "once in a while" feature, so collapse
     // it by default (issue #113). It starts expanded only on the single
-    // re-render right after a generate (justGeneratedBuyNext, cleared on read);
-    // the header + regenerate button stay visible so the feature stays
-    // discoverable. The header bar doubles as the collapse toggle.
-    const startOpen = justGeneratedBuyNext.has(round.id);
-    justGeneratedBuyNext.delete(round.id);
+    // re-render right after a generate / paging / delete (buyNextKeepOpen,
+    // cleared on read); the header + regenerate button stay visible so the
+    // feature stays discoverable. The header bar doubles as the collapse toggle.
+    const startOpen = buyNextKeepOpen.has(round.id);
+    buyNextKeepOpen.delete(round.id);
     const collapse = h(`<div class="buynext__collapse${startOpen ? ' is-open' : ''}">
          <div class="buynext__bar" role="button" tabindex="0" aria-expanded="${startOpen}">
            <span class="buynext__label">${esc(t('buynext.llmTitle'))}</span>
@@ -341,6 +362,32 @@ function renderBuyNext(round, activeGames, statsByGame) {
       when: fmtDateTime(cached.generatedAt),
       model: cached.model || '',
     }))}</div>`));
+    // History controls (#115): page through past runs (numbered oldest→newest,
+    // so the newest shows n/n) and delete the shown run. Selecting a run keeps
+    // the list open across the re-render (buyNextKeepOpen).
+    const nav = h(`<div class="buynext__nav">
+         <div class="buynext__pager">
+           <button class="btn btn--sm buynext__page" data-dir="older" aria-label="${esc(t('buynext.olderRunAria'))}">
+             <i class="ti ti-chevron-left" aria-hidden="true"></i> ${esc(t('buynext.olderRun'))}</button>
+           <span class="muted buynext__pos">${esc(t('buynext.runPosition', { i: runs.length - idx, n: runs.length }))}</span>
+           <button class="btn btn--sm buynext__page" data-dir="newer" aria-label="${esc(t('buynext.newerRunAria'))}">
+             ${esc(t('buynext.newerRun'))} <i class="ti ti-chevron-right" aria-hidden="true"></i></button>
+         </div>
+         <button class="btn btn--sm btn--danger buynext__del"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('buynext.deleteRun'))}</button>
+       </div>`);
+    const older = nav.querySelector('[data-dir="older"]');
+    const newer = nav.querySelector('[data-dir="newer"]');
+    older.disabled = idx >= runs.length - 1; // no older run
+    newer.disabled = idx <= 0; // no newer run
+    const selectRun = (targetIdx) => {
+      buyNextSelected[round.id] = runs[targetIdx].id;
+      buyNextKeepOpen.add(round.id);
+      showRound(round.id);
+    };
+    older.addEventListener('click', () => { if (!older.disabled) selectRun(idx + 1); });
+    newer.addEventListener('click', () => { if (!newer.disabled) selectRun(idx - 1); });
+    nav.querySelector('.buynext__del').addEventListener('click', () => deleteBuyNextRun(round, cached));
+    body.appendChild(nav);
     const bar = collapse.querySelector('.buynext__bar');
     let expanded = startOpen;
     const toggle = () => {
@@ -381,13 +428,28 @@ async function generateBuyNext(round, btn) {
   btn.innerHTML = `<i class="ti ti-loader-2 spin" aria-hidden="true"></i> ${esc(t('buynext.generating'))}`;
   try {
     const rec = await api('POST', `/api/rounds/${round.id}/recommendations`, { locale: getLocale() });
-    round.recommendations = rec;
-    justGeneratedBuyNext.add(round.id); // show the fresh list expanded (#113)
-    showRound(round.id); // re-render the Start tab with the cached list
+    // The POST appends a new run; select and expand it on re-render (#113/#115).
+    buyNextSelected[round.id] = rec.id;
+    buyNextKeepOpen.add(round.id);
+    showRound(round.id); // re-render the Start tab with the fresh run
   } catch (e) {
     toast(e.message === 'not_configured' ? t('buynext.unavailable') : t('buynext.failed'));
     btn.disabled = false;
     btn.innerHTML = original;
+  }
+}
+
+// Delete one run from the Layer-B history (#115). After it's gone the selection
+// falls back to the newest remaining run (or the empty state), kept expanded.
+async function deleteBuyNextRun(round, run) {
+  if (!confirm(t('buynext.deleteRunConfirm'))) return;
+  try {
+    await api('DELETE', `/api/rounds/${round.id}/recommendations/${run.id}`);
+    delete buyNextSelected[round.id];
+    buyNextKeepOpen.add(round.id);
+    showRound(round.id);
+  } catch {
+    toast(t('buynext.deleteRunFailed'));
   }
 }
 

@@ -471,6 +471,8 @@ h1, h2, h3 { font-family: var(--font-display); }
 .btn--ghost:active { transform: translateY(1px); margin-bottom: 0; }
 .btn--danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 25%, var(--surface)); }
 .btn--lg { font-size: 20px; padding: 15px 28px; }
+.btn--sm { font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 10px; border-bottom-width: 3px; }
+.btn--sm:active { margin-bottom: 1.5px; }
 .btn--block { width: 100%; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -1200,6 +1202,17 @@ h1, h2, h3 { font-family: var(--font-display); }
 .buynext__collapse.is-open .buynext__caret { transform: rotate(180deg); }
 .buynext__body { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
 .buynext__body[hidden] { display: none; } /* author display: flex would otherwise beat the UA [hidden] rule */
+/* Run-history controls (issue #115): page through past runs + delete one. */
+.buynext__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.buynext__pager { display: flex; align-items: center; gap: 8px; }
+.buynext__pos { font-size: 13px; font-variant-numeric: tabular-nums; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { display: inline-block; animation: spin 0.8s linear infinite; }

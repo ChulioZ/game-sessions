@@ -3,7 +3,7 @@
 const { test, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
-const { app, createRound } = require('./helpers');
+const { app, store, createRound } = require('./helpers');
 // The router hangs its pure helpers off itself for unit testing (see the module).
 const rec = require('../routes/recommendations');
 
@@ -50,7 +50,7 @@ const anthropicReply = (items) => ({
   }),
 });
 
-test('POST generates, parses, filters owned, and caches a buy-next list', async () => {
+test('POST generates, parses, filters owned, and caches a buy-next run', async () => {
   process.env.ANTHROPIC_API_KEY = 'test-key';
   const { round } = await ratedRound();
   global.fetch = async () =>
@@ -61,6 +61,7 @@ test('POST generates, parses, filters owned, and caches a buy-next list', async 
   const res = await request(app).post(`/api/rounds/${round.id}/recommendations`);
   assert.equal(res.status, 200);
   assert.equal(res.body.model, 'claude-haiku-4-5');
+  assert.ok(res.body.id, 'the run carries an id');
   // All games are analog, so the only target platform is analog: an item with no
   // platform is bucketed to it and gets a BoardGameGeek search link.
   assert.deepEqual(res.body.items, [
@@ -73,9 +74,87 @@ test('POST generates, parses, filters owned, and caches a buy-next list', async 
   ]);
   assert.ok(res.body.generatedAt);
 
-  // GET returns the cached list.
+  // GET returns the history (newest first) with the run just generated.
   const get = await request(app).get(`/api/rounds/${round.id}/recommendations`);
-  assert.deepEqual(get.body.items, res.body.items);
+  assert.ok(Array.isArray(get.body));
+  assert.equal(get.body.length, 1);
+  assert.deepEqual(get.body[0].items, res.body.items);
+});
+
+test('generating twice appends a run — the earlier run is kept (no overwrite)', async () => {
+  process.env.ANTHROPIC_API_KEY = 'test-key';
+  const { round } = await ratedRound();
+  global.fetch = async () => anthropicReply([{ title: 'Splendor', reason: 'first run' }]);
+  const first = await request(app).post(`/api/rounds/${round.id}/recommendations`);
+  global.fetch = async () => anthropicReply([{ title: 'Wingspan', reason: 'second run' }]);
+  const second = await request(app).post(`/api/rounds/${round.id}/recommendations`);
+
+  const get = await request(app).get(`/api/rounds/${round.id}/recommendations`);
+  assert.equal(get.body.length, 2);
+  // Newest first.
+  assert.equal(get.body[0].id, second.body.id);
+  assert.equal(get.body[1].id, first.body.id);
+  assert.equal(get.body[0].items[0].title, 'Wingspan');
+  assert.equal(get.body[1].items[0].title, 'Splendor');
+});
+
+test('DELETE removes one run from the history and persists', async () => {
+  process.env.ANTHROPIC_API_KEY = 'test-key';
+  const { round } = await ratedRound();
+  global.fetch = async () => anthropicReply([{ title: 'Splendor', reason: 'a' }]);
+  const first = await request(app).post(`/api/rounds/${round.id}/recommendations`);
+  global.fetch = async () => anthropicReply([{ title: 'Wingspan', reason: 'b' }]);
+  await request(app).post(`/api/rounds/${round.id}/recommendations`);
+
+  const del = await request(app).delete(`/api/rounds/${round.id}/recommendations/${first.body.id}`);
+  assert.equal(del.status, 200);
+  assert.equal(del.body.length, 1);
+
+  const get = await request(app).get(`/api/rounds/${round.id}/recommendations`);
+  assert.equal(get.body.length, 1);
+  assert.equal(get.body[0].items[0].title, 'Wingspan');
+});
+
+test('DELETE of an unknown run or round is a 404', async () => {
+  process.env.ANTHROPIC_API_KEY = 'test-key';
+  const { round } = await ratedRound();
+  global.fetch = async () => anthropicReply([{ title: 'Splendor', reason: 'a' }]);
+  await request(app).post(`/api/rounds/${round.id}/recommendations`);
+
+  const badRun = await request(app).delete(`/api/rounds/${round.id}/recommendations/nope`);
+  assert.equal(badRun.status, 404);
+  const badRound = await request(app).delete('/api/rounds/nope/recommendations/whatever');
+  assert.equal(badRound.status, 404);
+});
+
+test('a legacy single round.recommendations object reads as one run and folds in on write', async () => {
+  process.env.ANTHROPIC_API_KEY = 'test-key';
+  const round = await createRound(request);
+  // Simulate pre-#115 data: the old single object, no recommendationRuns array.
+  const stored = store.findRound(round.id);
+  stored.recommendations = {
+    generatedAt: '2026-01-01T00:00:00.000Z',
+    model: 'claude-haiku-4-5',
+    locale: 'en',
+    items: [{ title: 'Legacy Pick', platform: 'analog', reason: 'old', url: null }],
+  };
+
+  // GET reads it as a one-run history (synthetic 'legacy' id), without mutating.
+  const get = await request(app).get(`/api/rounds/${round.id}/recommendations`);
+  assert.equal(get.body.length, 1);
+  assert.equal(get.body[0].id, 'legacy');
+  assert.equal(get.body[0].items[0].title, 'Legacy Pick');
+  assert.ok(stored.recommendations, 'GET does not migrate the legacy object');
+
+  // A new generate folds the legacy run into the array and appends the new one.
+  global.fetch = async () => anthropicReply([{ title: 'Fresh Pick', reason: 'new' }]);
+  await request(app).post(`/api/rounds/${round.id}/recommendations`);
+  const after = await request(app).get(`/api/rounds/${round.id}/recommendations`);
+  assert.equal(after.body.length, 2);
+  assert.equal(after.body[0].items[0].title, 'Fresh Pick');
+  assert.equal(after.body[1].id, 'legacy');
+  assert.ok(!stored.recommendations, 'the legacy object is retired once written');
+  assert.ok(Array.isArray(stored.recommendationRuns));
 });
 
 test('the outbound payload contains no member identifiers', async () => {
@@ -116,7 +195,7 @@ test('an upstream failure is a soft 502 and writes no cache', async () => {
   assert.equal(res.status, 502);
   assert.equal(res.body.error, 'provider_unreachable');
   const get = await request(app).get(`/api/rounds/${round.id}/recommendations`);
-  assert.equal(get.body, null);
+  assert.deepEqual(get.body, []);
 });
 
 test('an unparseable reply is a soft 502, not a crash', async () => {
@@ -131,11 +210,11 @@ test('an unparseable reply is a soft 502, not a crash', async () => {
   assert.equal(res.status, 502);
 });
 
-test('GET on a round with nothing generated returns null', async () => {
+test('GET on a round with nothing generated returns an empty history', async () => {
   const round = await createRound(request);
   const res = await request(app).get(`/api/rounds/${round.id}/recommendations`);
   assert.equal(res.status, 200);
-  assert.equal(res.body, null);
+  assert.deepEqual(res.body, []);
 });
 
 test('unknown round returns 404', async () => {

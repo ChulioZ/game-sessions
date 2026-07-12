@@ -16,10 +16,17 @@
  * never break the app: no key -> 503 { error: 'not_configured' }; upstream
  * failure/timeout/unparseable reply -> 502 { error: 'provider_unreachable' }.
  * Either way the client falls back to Layer A.
+ *
+ * Runs are kept as a history (issue #115): each generate appends a run rather
+ * than overwriting the last, and nothing is auto-pruned, so the group can page
+ * back through past proposals. The history lives in round.recommendationRuns
+ * (newest first). The pre-#115 single round.recommendations object is read as a
+ * one-run history and folded into the array the first time we write (ensureRuns),
+ * so there is no standalone migration (see CLAUDE.md).
  */
 
 const express = require('express');
-const { saveData, findRound } = require('../lib/store');
+const { saveData, findRound, id } = require('../lib/store');
 
 const router = express.Router({ mergeParams: true });
 
@@ -234,10 +241,35 @@ async function generate(profile, locale) {
   }
 }
 
+// The round's run history as a plain array, newest first — read defensively so
+// no migration is needed (CLAUDE.md). Prefers the #115 round.recommendationRuns
+// array; otherwise folds the legacy single round.recommendations object into a
+// one-run history (given a stable synthetic id, since it predates run ids).
+// Pure: never mutates the round (GET must be side-effect-free).
+function history(round) {
+  if (Array.isArray(round.recommendationRuns)) return round.recommendationRuns;
+  if (round.recommendations && Array.isArray(round.recommendations.items)) {
+    return [{ id: 'legacy', ...round.recommendations }];
+  }
+  return [];
+}
+
+// Materialize round.recommendationRuns from history() before a write, so a
+// mutation (append/delete) operates on the array and the legacy object is
+// retired in the same save — the one place the read-time normalization is
+// persisted. Callers must saveData() after mutating.
+function ensureRuns(round) {
+  if (!Array.isArray(round.recommendationRuns)) {
+    round.recommendationRuns = history(round);
+    delete round.recommendations;
+  }
+  return round.recommendationRuns;
+}
+
 router.get('/', (req, res) => {
   const round = findRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
-  res.json(round.recommendations || null);
+  res.json(history(round));
 });
 
 router.post('/', async (req, res) => {
@@ -248,16 +280,28 @@ router.post('/', async (req, res) => {
   const result = await generate(buildProfile(round), locale);
   if (result.error === 'not_configured') return res.status(503).json({ error: 'not_configured' });
   if (result.error) return res.status(502).json({ error: 'provider_unreachable' });
-  // Optional cache field, written only when present and read defensively — added
-  // like `source` in #41, so there is no migration (see CLAUDE.md).
-  round.recommendations = {
+  const run = {
+    id: id(),
     generatedAt: new Date().toISOString(),
     model: result.model,
     locale,
     items: result.items,
   };
+  // Append (newest first), keeping every past run — nothing is pruned (#115).
+  ensureRuns(round).unshift(run);
   saveData();
-  res.json(round.recommendations);
+  res.json(run);
+});
+
+router.delete('/:runId', (req, res) => {
+  const round = findRound(req.params.rid);
+  if (!round) return res.status(404).json({ error: 'Round not found' });
+  const runs = ensureRuns(round);
+  const idx = runs.findIndex((r) => r.id === req.params.runId);
+  if (idx === -1) return res.status(404).json({ error: 'Run not found' });
+  runs.splice(idx, 1);
+  saveData();
+  res.json(runs);
 });
 
 // The router is the module's default export (so lib/app.js can mount it); the
@@ -266,4 +310,5 @@ router.buildProfile = buildProfile;
 router.buildPrompt = buildPrompt;
 router.parseItems = parseItems;
 router.platformSearchUrl = platformSearchUrl;
+router.history = history;
 module.exports = router;
