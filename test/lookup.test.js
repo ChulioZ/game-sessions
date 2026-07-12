@@ -206,3 +206,52 @@ test('steam search returns 502 when Steam is unreachable', async () => {
   assert.equal(res.status, 502);
   assert.equal(res.body.error, 'provider_unreachable');
 });
+
+// --- Nintendo eShop provider (NoE Solr search, both hops the same endpoint) --
+
+const NINTENDO_DOC = {
+  fs_id: '70010000000153',
+  title: 'Mario Kart 8 Deluxe',
+  url: '/de-de/Spiele/Nintendo-Switch-Spiele/mk8-5678.html',
+  players_from: 1,
+  players_to: 8,
+  image_url_sq_s: 'https://www.nintendo.com/eu/media/images/mk8_square.jpg',
+};
+const NINTENDO_JSON = { response: { numFound: 1, docs: [NINTENDO_DOC] } };
+
+test('GET /api/lookup/search?provider=nintendo returns normalized Switch results', async () => {
+  stubFetch((url) => {
+    assert.match(url, /searching\.nintendo-europe\.com/);
+    assert.match(url, /system_type%3Anintendoswitch/); // Switch-only filter
+    return jsonRes(NINTENDO_JSON);
+  });
+  const res = await request(app).get('/api/lookup/search?provider=nintendo&q=mario');
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body.results, [
+    { providerId: '70010000000153', title: 'Mario Kart 8 Deluxe', thumbnail: 'https://www.nintendo.com/eu/media/images/mk8_square.jpg' },
+  ]);
+});
+
+test('GET /api/lookup/game?provider=nintendo returns digital detail (players, long duration)', async () => {
+  stubFetch((url) => {
+    assert.match(url, /searching\.nintendo-europe\.com/);
+    assert.match(url, /fs_id/); // detail filters the index down to one item
+    return jsonRes(NINTENDO_JSON);
+  });
+  const res = await request(app).get('/api/lookup/game?provider=nintendo&id=70010000000153');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.title, 'Mario Kart 8 Deluxe');
+  assert.equal(res.body.type, 'digital');
+  assert.equal(res.body.duration, 'long');
+  assert.equal(res.body.minPlayers, 1);
+  assert.equal(res.body.maxPlayers, 8);
+  assert.equal(res.body.imageUrl, 'https://www.nintendo.com/eu/media/images/mk8_square.jpg');
+  assert.equal(res.body.url, 'https://www.nintendo.com/de-de/Spiele/Nintendo-Switch-Spiele/mk8-5678.html');
+});
+
+test('nintendo search returns 502 when Nintendo is unreachable', async () => {
+  stubFetch(() => { throw new Error('network down'); });
+  const res = await request(app).get('/api/lookup/search?provider=nintendo&q=zzzunreachable');
+  assert.equal(res.status, 502);
+  assert.equal(res.body.error, 'provider_unreachable');
+});

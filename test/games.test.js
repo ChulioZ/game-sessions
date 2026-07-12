@@ -184,6 +184,28 @@ test('POST games downloads a cover from the Steam image host', async () => {
   }
 });
 
+test('POST games downloads a cover from the Nintendo image host', async () => {
+  const realFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    status: 200,
+    headers: { get: () => 'image/jpeg' },
+    arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
+  });
+  try {
+    const round = await createRound(request);
+    const res = await addGame(round.id, {
+      title: 'Mario Kart 8 Deluxe',
+      imageUrl: 'https://www.nintendo.com/eu/media/images/mk8_square.jpg',
+    });
+    assert.equal(res.status, 201);
+    assert.match(res.body.image, /^\/uploads\/[0-9a-f]+\.jpg$/);
+    assert.ok(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(res.body.image))));
+  } finally {
+    global.fetch = realFetch;
+  }
+});
+
 test('POST games downloads a cover from an allowlisted host', async () => {
   const realFetch = global.fetch;
   global.fetch = async () => ({
