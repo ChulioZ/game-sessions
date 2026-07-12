@@ -1449,6 +1449,12 @@ const PLATFORM_PROVIDER = { ps: 'psstore', xbox: 'xbox', switch: 'nintendo', ste
 function providerPlatform(provider) {
   return { psstore: 'ps', xbox: 'xbox', nintendo: 'switch', steam: 'steam', bgg: 'analog' }[provider] || 'other';
 }
+// The lookup provider a platform belongs to (inverse of providerPlatform): the
+// four stores map via PLATFORM_PROVIDER, analog → BoardGameGeek. Returns null for
+// 'other' (and any platform with no dedicated provider), meaning "no preference".
+function platformProvider(platform) {
+  return platform === 'analog' ? 'bgg' : (PLATFORM_PROVIDER[platform] || null);
+}
 // Derived analog/digital type for a platform (Other defaults to analog).
 function platformType(platform) {
   return platform === 'ps' || platform === 'xbox' || platform === 'switch' || platform === 'steam'
@@ -1513,11 +1519,13 @@ function scoreHit(title, q) {
 
 // Wire search-as-you-type merged provider suggestions onto an input + menu.
 // onPick(result) fires when a suggestion is chosen; onInput() (optional) fires
-// on every manual edit. Returns { closeMenu, search }: closeMenu dismisses the
-// menu programmatically (e.g. after a pick), search(q) runs a lookup immediately
-// (e.g. for a prefilled value on open). Shared by showAddGame and
-// showLinkProvider so the two lookups stay in sync.
-function attachLookup(input, menu, onPick, onInput) {
+// on every manual edit. preferredProvider (optional) biases ranking toward one
+// provider (see groupLookupHits) — showLinkProvider passes the game's platform
+// provider; showAddGame passes nothing. Returns { closeMenu, search }: closeMenu
+// dismisses the menu programmatically (e.g. after a pick), search(q) runs a
+// lookup immediately (e.g. for a prefilled value on open). Shared by showAddGame
+// and showLinkProvider so the two lookups stay in sync.
+function attachLookup(input, menu, onPick, onInput, preferredProvider) {
   let searchTimer;
   let searchSeq = 0; // guards against out-of-order responses
 
@@ -1585,7 +1593,7 @@ function attachLookup(input, menu, onPick, onInput) {
     // badge (or a new row) in place — see lookup-group.js.
     function render() {
       if (seq !== searchSeq) return; // a newer keystroke superseded this search
-      const groups = groupLookupHits(hits, MAX_SUGGESTIONS);
+      const groups = groupLookupHits(hits, MAX_SUGGESTIONS, preferredProvider);
       if (!groups.length) {
         if (pending > 0) return showMenuMsg(t('lookup.searching'));
         return showMenuMsg(anyFulfilled ? t('lookup.noResults') : t('lookup.error'));
@@ -2014,8 +2022,11 @@ function showLinkProvider(round, game) {
   const resultBox = form.querySelector('#linkResult');
   input.value = game.title;
 
-  // Wire the shared lookup; a manual edit clears the pending match panel.
-  const lookup = attachLookup(input, menu, pickSuggestion, () => { resultBox.innerHTML = ''; });
+  // Wire the shared lookup; a manual edit clears the pending match panel. The
+  // game's platform already tells us the obviously-correct provider, so bias the
+  // ranking toward it (null for 'Other'/legacy → ranking unchanged) — issue #112.
+  const preferred = platformProvider(gamePlatform(game));
+  const lookup = attachLookup(input, menu, pickSuggestion, () => { resultBox.innerHTML = ''; }, preferred);
   // The title is already filled in, so search for it right away — setting
   // input.value above doesn't fire an 'input' event, so trigger it explicitly.
   lookup.search(game.title);
