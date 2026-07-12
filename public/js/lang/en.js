@@ -200,6 +200,7 @@ I18N.en = {
   'lookup.loadingMore': 'Loading more results…',
   'lookup.noResults': 'No matches found',
   'lookup.error': 'Couldn’t reach the game database',
+  'lookup.fillFrom': 'Fill from {provider}',
 
   'detail.viewSource': 'View on {provider}',
   'detail.linkProvider': 'Link to provider',

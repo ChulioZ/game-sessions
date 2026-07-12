@@ -1325,27 +1325,38 @@ function attachLookup(input, menu, onPick, onInput) {
     let pending = LOOKUP_PROVIDERS.length;
     let anyFulfilled = false;
 
-    // Sort by relevance desc, then provider priority (LOOKUP_PROVIDERS order),
-    // then the provider's own returned order (stable). Re-run on every arrival so
-    // a late high-relevance hit moves above earlier, weaker ones.
+    // Group same-title hits from different providers into one row (ranked by
+    // each group's best member), then render one row per group with a badge per
+    // contributing provider. Re-run on every arrival so a late provider adds a
+    // badge (or a new row) in place — see lookup-group.js.
     function render() {
       if (seq !== searchSeq) return; // a newer keystroke superseded this search
-      const ranked = hits.slice()
-        .sort((a, b) => b.score - a.score || a.prio - b.prio || a.order - b.order)
-        .slice(0, MAX_SUGGESTIONS);
-      if (!ranked.length) {
+      const groups = groupLookupHits(hits, MAX_SUGGESTIONS);
+      if (!groups.length) {
         if (pending > 0) return showMenuMsg(t('lookup.searching'));
         return showMenuMsg(anyFulfilled ? t('lookup.noResults') : t('lookup.error'));
       }
       menu.innerHTML = '';
-      ranked.forEach((r) => {
-        const thumb = r.thumbnail
-          ? `<img class="lookup__thumb" src="${esc(r.thumbnail)}" alt="" loading="lazy" />`
-          : `<span class="lookup__thumb lookup__thumb--none" aria-hidden="true"><i class="ti ${typeIcon(lookupProviderType(r.provider))}"></i></span>`;
-        const opt = h(`<button type="button" class="lookup__opt">${thumb}<span class="lookup__title">${esc(r.title)}</span></button>`);
-        // mousedown (not click) so it fires before the input's blur closes the menu.
-        opt.addEventListener('mousedown', (e) => { e.preventDefault(); onPick(r); });
-        menu.appendChild(opt);
+      groups.forEach((g) => {
+        const thumb = g.thumbnail
+          ? `<img class="lookup__thumb" src="${esc(g.thumbnail)}" alt="" loading="lazy" />`
+          : `<span class="lookup__thumb lookup__thumb--none" aria-hidden="true"><i class="ti ${typeIcon(lookupProviderType(g.primary.provider))}"></i></span>`;
+        const row = h(`<div class="lookup__opt">
+            <button type="button" class="lookup__pick">${thumb}<span class="lookup__title">${esc(g.title)}</span></button>
+            <span class="lookup__badges"></span>
+          </div>`);
+        // mousedown (not click) so it fires before the input's blur closes the
+        // menu. The title/thumb picks the highest-priority provider…
+        row.querySelector('.lookup__pick')
+          .addEventListener('mousedown', (e) => { e.preventDefault(); onPick(g.primary); });
+        // …and each badge picks that specific provider's hit.
+        const badges = row.querySelector('.lookup__badges');
+        g.members.forEach((m) => {
+          const badge = h(`<button type="button" class="lookup__badge" title="${esc(t('lookup.fillFrom', { provider: providerLabel(m.provider) }))}">${esc(providerLabel(m.provider))}</button>`);
+          badge.addEventListener('mousedown', (e) => { e.preventDefault(); onPick(m); });
+          badges.appendChild(badge);
+        });
+        menu.appendChild(row);
       });
       // A muted, non-clickable hint while a slower provider is still pending.
       if (pending > 0) menu.appendChild(h(`<div class="lookup__msg muted">${esc(t('lookup.loadingMore'))}</div>`));

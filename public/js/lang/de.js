@@ -200,6 +200,7 @@ I18N.de = {
   'lookup.loadingMore': 'Weitere Ergebnisse werden geladen …',
   'lookup.noResults': 'Keine Treffer gefunden',
   'lookup.error': 'Spieldatenbank nicht erreichbar',
+  'lookup.fillFrom': 'Von {provider} übernehmen',
 
   'detail.viewSource': 'Auf {provider} ansehen',
   'detail.linkProvider': 'Mit Anbieter verknüpfen',

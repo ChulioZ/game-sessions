@@ -1452,8 +1452,15 @@ kbd {
 .lookup__opt {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   width: 100%;
+}
+.lookup__pick {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   text-align: left;
   border: 1px solid transparent;
   background: transparent;
@@ -1463,7 +1470,32 @@ kbd {
   font-weight: 600;
   cursor: pointer;
 }
-.lookup__opt:hover { background: var(--brand-tint); }
+.lookup__pick:hover { background: var(--brand-tint); }
+/* One badge per contributing provider on a merged (same-title) row; clicking a
+   badge fills the sheet from that provider. Tones derive from the theme. */
+.lookup__badges {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  max-width: 46%;
+}
+.lookup__badge {
+  flex: none;
+  border: 1px solid var(--brand-edge);
+  background: var(--brand-tint-soft);
+  color: var(--brand-dark);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.lookup__badge:hover { background: var(--brand-tint); border-color: var(--brand); }
 .lookup__thumb {
   flex: none;
   width: 40px;

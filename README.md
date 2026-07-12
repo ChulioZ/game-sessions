@@ -24,7 +24,9 @@ code and documentation are in English.
   game, the title field doubles as a **search-as-you-type lookup**: it queries
   the **PlayStation Store**, **Steam** and the **Nintendo eShop** (digital games)
   and **BoardGameGeek** (board games) together and merges the hits into one
-  dropdown. Pick a
+  dropdown. When several stores return the **same title** (e.g. a cross-platform
+  game), they collapse into a **single row with one badge per platform** — click
+  a badge to fill from that store, or the title to use the top match. Pick a
   suggestion to auto-fill the title, cover art, player range, play time and
   type, and store a link back to the source page (shown on the game's detail
   view). The lookup is optional — manual entry works exactly as before, and the
