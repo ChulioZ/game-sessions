@@ -22,8 +22,9 @@ code and documentation are in English.
   duration (short / medium / long), a required player range (min–max), and an
   optional cover image (paste from clipboard or pick a file). When adding a
   game, the title field doubles as a **search-as-you-type lookup**: it queries
-  the **PlayStation Store** and **Steam** (digital games) and **BoardGameGeek**
-  (board games) together and merges the hits into one dropdown. Pick a
+  the **PlayStation Store**, **Steam** and the **Nintendo eShop** (digital games)
+  and **BoardGameGeek** (board games) together and merges the hits into one
+  dropdown. Pick a
   suggestion to auto-fill the title, cover art, player range, play time and
   type, and store a link back to the source page (shown on the game's detail
   view). The lookup is optional — manual entry works exactly as before, and the
@@ -95,12 +96,13 @@ code and documentation are in English.
 - **Runs entirely on your machine.** Fonts and the icon set are self-hosted
   under `public/fonts/`, and the subtle background grain is an inline SVG in the
   stylesheet — no CDNs. The only runtime external calls are **opt-in**: the
-  add-game lookup queries the PlayStation Store, Steam and BoardGameGeek
-  server-side (via `/api/lookup/*`) only when you type a title to search; it
-  sends just the search text, and the app works fully without it. None of these
-  need an API key or account. The PS Store locale defaults to `de-de`
-  (`PSSTORE_LOCALE`); Steam defaults to the German store, `de`/`german`
-  (`STEAM_CC` / `STEAM_LOCALE`).
+  add-game lookup queries the PlayStation Store, Steam, the Nintendo eShop and
+  BoardGameGeek server-side (via `/api/lookup/*`) only when you type a title to
+  search; it sends just the search text, and the app works fully without it.
+  None of these need an API key or account. The PS Store locale defaults to
+  `de-de` (`PSSTORE_LOCALE`); Steam defaults to the German store, `de`/`german`
+  (`STEAM_CC` / `STEAM_LOCALE`); the Nintendo eShop defaults to the German store,
+  `de` (`NINTENDO_LOCALE`).
 
 ```
 server.js            starts the HTTP server (the only place that listens)
@@ -118,8 +120,10 @@ lib/
                      id), detail via BGG's public JSON endpoint (board games)
     steam.js         Steam: search + detail via the store's public JSON
                      endpoints (storesearch / appdetails) (digital games)
+    nintendo.js      Nintendo eShop: search + detail via Nintendo of Europe's
+                     public Solr endpoint (Switch games)
 routes/
-  lookup.js          /api/lookup            (search/game — provider proxy: PS Store, BGG, Steam)
+  lookup.js          /api/lookup            (search/game — provider proxy: PS Store, BGG, Steam, Nintendo)
   rounds.js          /api/rounds            (list, detail, create, delete)
   games.js           …/games                (add [+cover download/source],
                                              edit [+link to provider],
