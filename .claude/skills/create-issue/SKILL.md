@@ -106,7 +106,9 @@ from scratch. (For bugs: suspected cause if known, else leave to the implementer
       `npm run check:syntax` green
 
 ## Notes
-i18n (both lang files), data/migration, edge cases, out-of-scope follow-ups.
+i18n (both lang files), data/migration, edge cases, out-of-scope follow-ups,
+related/blocking issues (cross-reference them as #123 — and wire real
+dependencies per step 6).
 ```
 
 For a **bug**, replace "Proposed approach/Motivation" with **Steps to
@@ -128,6 +130,38 @@ gh issue create --title "<title>" --body-file <tmp.md> --label "<label>[,<label>
 Write the body to a scratchpad temp file and pass it with `--body-file` (avoids
 shell-escaping issues). Add labels the repo actually has (`gh label list`);
 create a new label only if the user asks.
+
+## 6. Wire up relationships as real links, not just prose
+
+If the issue is blocked by, blocks, tracks, or otherwise relates to another issue
+or PR, **record that as an actual GitHub relationship**, not only a sentence in
+the body. Prose ("Blocked by #105, don't start until it lands") is fine as context
+and belongs in the issue — but the machine-readable link must exist too, so the
+relationship shows on both issues and tooling can see it.
+
+- **Blocked-by / blocking** — use GitHub's issue-dependencies API. `issue_id` is
+  the *internal integer id* of the **blocking** issue (not its `#number`), and it
+  must be sent as an integer (`-F`, not `-f`, or the API 422s on a string):
+
+  ```bash
+  # id of the blocking issue (e.g. #105)
+  BLOCKER_ID=$(gh api repos/<owner>/<repo>/issues/105 --jq .id)
+  # mark the new issue (e.g. #106) as blocked by it
+  gh api --method POST repos/<owner>/<repo>/issues/106/dependencies/blocked_by \
+    -F issue_id="$BLOCKER_ID"
+  ```
+
+  This creates a reciprocal link: the blocked issue shows **blocked-by**, the
+  blocker shows **blocking** (verify with `gh issue view <n>`, whose output
+  includes `blocked-by:` / `blocking:` lines).
+
+- **Looser references** (related work, a follow-up, "see also", the issue this
+  splits off from) — still use a real cross-reference: mention the other issue/PR
+  as `#123` or its full URL in the body so GitHub renders a linked, back-referenced
+  mention, rather than describing it in unlinked prose.
+
+Favor the real link every time the relationship is nameable; keep the prose only
+as the human-readable *why*.
 
 ## Report
 
