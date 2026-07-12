@@ -1476,6 +1476,11 @@ function showAddGame(round) {
     }
     if (Number.isInteger(d.minPlayers)) minInput.value = d.minPlayers;
     if (Number.isInteger(d.maxPlayers)) maxInput.value = d.maxPlayers;
+    // A provider with a known min but an unknown (null) max — e.g. Steam for a
+    // multiplayer title — would otherwise leave max at the form's default (4),
+    // inventing a range the provider never claimed. Cap max at min instead; the
+    // user can raise it before saving.
+    else if (Number.isInteger(d.minPlayers)) maxInput.value = d.minPlayers;
   }
 
   async function pickSuggestion(r) {
