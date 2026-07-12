@@ -197,6 +197,7 @@ I18N.en = {
   'addGame.searchHint': 'Start typing to get suggestions from the PlayStation Store and BoardGameGeek.',
   'addGame.toast.filled': 'Details filled in from {provider}',
   'lookup.searching': 'Searching…',
+  'lookup.loadingMore': 'Loading more results…',
   'lookup.noResults': 'No matches found',
   'lookup.error': 'Couldn’t reach the game database',
 

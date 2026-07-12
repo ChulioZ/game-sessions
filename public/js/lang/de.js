@@ -197,6 +197,7 @@ I18N.de = {
   'addGame.searchHint': 'Tippen für Vorschläge aus dem PlayStation Store und von BoardGameGeek.',
   'addGame.toast.filled': 'Details von {provider} übernommen',
   'lookup.searching': 'Suche läuft …',
+  'lookup.loadingMore': 'Weitere Ergebnisse werden geladen …',
   'lookup.noResults': 'Keine Treffer gefunden',
   'lookup.error': 'Spieldatenbank nicht erreichbar',
 

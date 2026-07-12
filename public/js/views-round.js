@@ -1505,8 +1505,11 @@ function showAddGame(round) {
 
   // The lookup queries every provider in parallel and merges the hits into one
   // menu; each result carries its own provider so the follow-up detail call and
-  // the saved source use the right one. One provider failing must not hide the
-  // other's results — only an all-providers failure shows the error state.
+  // the saved source use the right one. Providers are rendered *progressively*
+  // (a fast provider's hits show before a slow one settles) and the merged list
+  // is ranked by how well each title matches the query, re-sorted in place as
+  // each provider arrives. One provider failing must not hide the other's
+  // results — only an all-providers failure shows the error state.
   const LOOKUP_PROVIDERS = ['psstore', 'bgg'];
   const MAX_SUGGESTIONS = 10;
 
@@ -1515,35 +1518,65 @@ function showAddGame(round) {
     return ((res && res.results) || []).map((r) => Object.assign({ provider }, r));
   }
 
-  // Round-robin merge so both sources are visible near the top of the menu.
-  function interleave(lists) {
-    const out = [];
-    for (let i = 0; lists.some((l) => i < l.length); i++) {
-      for (const l of lists) if (i < l.length) out.push(l[i]);
-    }
-    return out;
+  // Query-match relevance tier (higher = better), case-insensitive on trimmed
+  // strings. Exact-string tiers only — no fuzzy/edit-distance matching.
+  function scoreHit(title, q) {
+    const s = (title || '').trim().toLowerCase();
+    const query = (q || '').trim().toLowerCase();
+    if (!s || !query) return 0;
+    if (s === query) return 5; // exact title
+    if (s.startsWith(query)) return 4; // title starts with the query
+    const words = s.split(/\s+/);
+    if (words.some((w) => w.startsWith(query))) return 3; // query at a word boundary
+    if (s.includes(query)) return 2; // query anywhere as a substring
+    const qTokens = query.split(/\s+/).filter(Boolean);
+    if (qTokens.length && qTokens.every((qt) => words.some((w) => w.startsWith(qt))))
+      return 1; // loose: every query token is a word-prefix in the title
+    return 0; // no match
   }
 
-  async function runSearch(q) {
+  function runSearch(q) {
     const seq = ++searchSeq;
     showMenuMsg(t('lookup.searching'));
-    const settled = await Promise.allSettled(LOOKUP_PROVIDERS.map((p) => searchProvider(p, q)));
-    if (seq !== searchSeq) return; // a newer keystroke superseded this search
-    const lists = settled.filter((s) => s.status === 'fulfilled').map((s) => s.value);
-    if (!lists.length) return showMenuMsg(t('lookup.error')); // every provider failed
-    const results = interleave(lists).slice(0, MAX_SUGGESTIONS);
-    if (!results.length) return showMenuMsg(t('lookup.noResults'));
-    menu.innerHTML = '';
-    results.forEach((r) => {
-      const thumb = r.thumbnail
-        ? `<img class="lookup__thumb" src="${esc(r.thumbnail)}" alt="" loading="lazy" />`
-        : '<span class="lookup__thumb lookup__thumb--none" aria-hidden="true"></span>';
-      const opt = h(`<button type="button" class="lookup__opt">${thumb}<span class="lookup__title">${esc(r.title)}</span></button>`);
-      // mousedown (not click) so it fires before the input's blur closes the menu.
-      opt.addEventListener('mousedown', (e) => { e.preventDefault(); pickSuggestion(r); });
-      menu.appendChild(opt);
+    const hits = []; // accumulates across providers as each resolves
+    let pending = LOOKUP_PROVIDERS.length;
+    let anyFulfilled = false;
+
+    // Sort by relevance desc, then provider priority (LOOKUP_PROVIDERS order),
+    // then the provider's own returned order (stable). Re-run on every arrival so
+    // a late high-relevance hit moves above earlier, weaker ones.
+    function render() {
+      if (seq !== searchSeq) return; // a newer keystroke superseded this search
+      const ranked = hits.slice()
+        .sort((a, b) => b.score - a.score || a.prio - b.prio || a.order - b.order)
+        .slice(0, MAX_SUGGESTIONS);
+      if (!ranked.length) {
+        if (pending > 0) return showMenuMsg(t('lookup.searching'));
+        return showMenuMsg(anyFulfilled ? t('lookup.noResults') : t('lookup.error'));
+      }
+      menu.innerHTML = '';
+      ranked.forEach((r) => {
+        const thumb = r.thumbnail
+          ? `<img class="lookup__thumb" src="${esc(r.thumbnail)}" alt="" loading="lazy" />`
+          : '<span class="lookup__thumb lookup__thumb--none" aria-hidden="true"></span>';
+        const opt = h(`<button type="button" class="lookup__opt">${thumb}<span class="lookup__title">${esc(r.title)}</span></button>`);
+        // mousedown (not click) so it fires before the input's blur closes the menu.
+        opt.addEventListener('mousedown', (e) => { e.preventDefault(); pickSuggestion(r); });
+        menu.appendChild(opt);
+      });
+      // A muted, non-clickable hint while a slower provider is still pending.
+      if (pending > 0) menu.appendChild(h(`<div class="lookup__msg muted">${esc(t('lookup.loadingMore'))}</div>`));
+      menu.hidden = false;
+    }
+
+    LOOKUP_PROVIDERS.forEach((provider, prio) => {
+      searchProvider(provider, q).then((list) => {
+        if (seq !== searchSeq) return;
+        anyFulfilled = true;
+        list.forEach((r, order) => hits.push(Object.assign({ score: scoreHit(r.title, q), prio, order }, r)));
+      }, () => { /* provider failed — leave its hits out, others still render */ })
+        .then(() => { pending--; render(); });
     });
-    menu.hidden = false;
   }
 
   titleInput.addEventListener('input', () => {
