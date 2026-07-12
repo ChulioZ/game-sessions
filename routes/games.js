@@ -9,61 +9,12 @@ const fs = require('fs');
 const path = require('path');
 const { data, saveData, id, findRound, pushActivity, UPLOAD_DIR } = require('../lib/store');
 const upload = require('../lib/upload');
-const { getProvider, isAllowedImageUrl } = require('../lib/providers');
 
 const router = express.Router({ mergeParams: true });
 
 const DURATIONS = ['short', 'medium', 'long'];
-const IMG_TIMEOUT_MS = 10000;
-const MAX_IMG_BYTES = 10 * 1024 * 1024; // mirror the multer upload limit
 
-const EXT_BY_MIME = {
-  'image/jpeg': '.jpg',
-  'image/png': '.png',
-  'image/gif': '.gif',
-  'image/webp': '.webp',
-};
-
-// Download a provider cover image into data/uploads/ and return its /uploads
-// path, or null on any failure (never throws — a missing cover must not block
-// adding the game). The host is allowlisted by the provider layer (SSRF guard).
-async function downloadCover(url) {
-  if (!url || !isAllowedImageUrl(url)) return null;
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), IMG_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    if (!res.ok) return null;
-    const mime = (res.headers.get('content-type') || '').split(';')[0].trim();
-    const ext = EXT_BY_MIME[mime];
-    if (!ext) return null; // not an image type we store
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length === 0 || buf.length > MAX_IMG_BYTES) return null;
-    const filename = id() + ext;
-    fs.writeFileSync(path.join(UPLOAD_DIR, filename), buf);
-    return '/uploads/' + filename;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-// Build the optional { provider, externalId, url } source link from POST fields,
-// or null when no known provider is referenced.
-function buildSource(body) {
-  const provider = getProvider(body.sourceProvider);
-  const externalId = String(body.sourceExternalId || '').trim();
-  if (!provider || !externalId) return null;
-  const url = String(body.sourceUrl || '').trim();
-  return {
-    provider: provider.id,
-    externalId,
-    url: /^https?:\/\//.test(url) ? url : null,
-  };
-}
-
-router.post('/', upload.single('image'), async (req, res) => {
+router.post('/', upload.single('image'), (req, res) => {
   const round = findRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
@@ -79,11 +30,6 @@ router.post('/', upload.single('image'), async (req, res) => {
   if (!Number.isInteger(maxPlayers) || maxPlayers < minPlayers)
     return res.status(400).json({ error: 'maxPlayers is required (integer >= minPlayers)' });
 
-  // Cover: an uploaded file wins; otherwise pull a provider image URL (if given
-  // and host-allowlisted) down into data/uploads/ so only a local path is stored.
-  let image = req.file ? '/uploads/' + req.file.filename : null;
-  if (!image && req.body.imageUrl) image = await downloadCover(req.body.imageUrl);
-
   const game = {
     id: id(),
     title,
@@ -91,12 +37,10 @@ router.post('/', upload.single('image'), async (req, res) => {
     duration,
     minPlayers,
     maxPlayers,
-    image,
+    image: req.file ? '/uploads/' + req.file.filename : null,
     retired: false,
     retiredAt: null,
   };
-  const source = buildSource(req.body);
-  if (source) game.source = source;
   round.games.push(game);
   pushActivity(round, 'game_added', { gameId: game.id, title: game.title });
   saveData();

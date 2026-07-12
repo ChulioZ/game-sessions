@@ -1165,14 +1165,6 @@ async function showGameDetail(rid, gameId) {
   }
   app.appendChild(actionWrap);
 
-  // Link back to the provider page when the game was added from an external
-  // source (BoardGameGeek). The provider name is a proper noun, not translated.
-  if (game.source && game.source.url) {
-    const providerLabel = { bgg: 'BoardGameGeek' }[game.source.provider] || game.source.provider;
-    const src = h(`<div class="section"><a class="link-out" href="${esc(game.source.url)}" target="_blank" rel="noopener noreferrer"><i class="ti ti-external-link" aria-hidden="true"></i> ${esc(t('detail.viewSource', { provider: providerLabel }))}</a></div>`);
-    app.appendChild(src);
-  }
-
   // Related sessions (those that drew this game) – newest first.
   const related = round.sessions
     .filter((s) => s.gameIds.includes(gameId))
@@ -1248,11 +1240,7 @@ function showAddGame(round) {
         </div>
         <div class="field">
           <label for="title">${esc(t('addGame.titleLabel'))}</label>
-          <div class="lookup" id="lookup">
-            <input id="title" class="input" placeholder="${esc(t('addGame.titlePlaceholder'))}" autocomplete="off" />
-            <div class="lookup__menu" id="lookupMenu" hidden></div>
-          </div>
-          <div class="muted field__hint">${esc(t('addGame.searchHint'))}</div>
+          <input id="title" class="input" placeholder="${esc(t('addGame.titlePlaceholder'))}" />
         </div>
         <div class="field">
           <label>${esc(t('addGame.typeLabel'))}</label>
@@ -1370,17 +1358,12 @@ function showAddGame(round) {
 
   // --- Image via clipboard ---
   let pastedBlob = null;
-  // A BGG suggestion can supply a cover URL and a source link; a manual paste or
-  // a manual title edit clears them (see setImage / the lookup input handler).
-  let chosenImageUrl = null;
-  let chosenSource = null;
   const pasteZone = form.querySelector('#pasteZone');
   const preview = form.querySelector('.paste-zone__preview');
   const clearBtn = form.querySelector('#clearImg');
 
   function setImage(blob) {
-    if (preview.src && preview.src.startsWith('blob:')) URL.revokeObjectURL(preview.src);
-    chosenImageUrl = null; // a pasted/cleared image overrides a provider cover
+    if (preview.src) URL.revokeObjectURL(preview.src);
     pastedBlob = blob;
     if (blob) {
       preview.src = URL.createObjectURL(blob);
@@ -1421,98 +1404,6 @@ function showAddGame(round) {
   clearBtn.addEventListener('click', () => setImage(null));
   pasteZone.addEventListener('click', () => pasteZone.focus());
 
-  // Show a provider cover from its URL (no local blob yet — the server downloads
-  // it on save). Cleared like any other image via the remove button.
-  function showProviderImage(url) {
-    if (preview.src && preview.src.startsWith('blob:')) URL.revokeObjectURL(preview.src);
-    pastedBlob = null;
-    chosenImageUrl = url;
-    preview.src = url;
-    preview.hidden = false;
-    pasteZone.classList.add('has-image');
-    clearBtn.hidden = false;
-  }
-
-  // --- Search-as-you-type suggestions (BoardGameGeek) ---
-  const titleInput = form.querySelector('#title');
-  const menu = form.querySelector('#lookupMenu');
-  let searchTimer;
-  let searchSeq = 0; // guards against out-of-order responses
-
-  function closeMenu() {
-    menu.hidden = true;
-    menu.innerHTML = '';
-  }
-  function showMenuMsg(msg) {
-    menu.innerHTML = `<div class="lookup__msg muted">${esc(msg)}</div>`;
-    menu.hidden = false;
-  }
-
-  // Fill the type/duration/player controls from a provider detail object.
-  function applyDetail(d) {
-    if (d.type) {
-      type = d.type;
-      seg.querySelectorAll('.opt-card').forEach((c) => c.classList.toggle('is-on', c.dataset.type === type));
-    }
-    if (d.duration) {
-      duration = d.duration;
-      durSeg.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-on', c.dataset.duration === duration));
-    }
-    if (Number.isInteger(d.minPlayers)) minInput.value = d.minPlayers;
-    if (Number.isInteger(d.maxPlayers)) maxInput.value = d.maxPlayers;
-  }
-
-  async function pickSuggestion(r) {
-    closeMenu();
-    titleInput.value = r.title;
-    chosenSource = { provider: 'bgg', externalId: r.providerId, url: '' };
-    let d;
-    try {
-      d = await api('GET', `/api/lookup/game?provider=bgg&id=${encodeURIComponent(r.providerId)}`);
-    } catch {
-      toast(t('lookup.error'));
-      return;
-    }
-    if (d.title) titleInput.value = d.title;
-    chosenSource.url = d.url || '';
-    applyDetail(d);
-    if (d.imageUrl && !pastedBlob) showProviderImage(d.imageUrl);
-    toast(t('addGame.toast.filled'));
-  }
-
-  async function runSearch(q) {
-    const seq = ++searchSeq;
-    showMenuMsg(t('lookup.searching'));
-    let res;
-    try {
-      res = await api('GET', `/api/lookup/search?provider=bgg&q=${encodeURIComponent(q)}`);
-    } catch {
-      if (seq === searchSeq) showMenuMsg(t('lookup.error'));
-      return;
-    }
-    if (seq !== searchSeq) return; // a newer keystroke superseded this search
-    const results = (res && res.results) || [];
-    if (!results.length) return showMenuMsg(t('lookup.noResults'));
-    menu.innerHTML = '';
-    results.forEach((r) => {
-      const label = r.year ? `${r.title} (${r.year})` : r.title;
-      const opt = h(`<button type="button" class="lookup__opt">${esc(label)}</button>`);
-      // mousedown (not click) so it fires before the input's blur closes the menu.
-      opt.addEventListener('mousedown', (e) => { e.preventDefault(); pickSuggestion(r); });
-      menu.appendChild(opt);
-    });
-    menu.hidden = false;
-  }
-
-  titleInput.addEventListener('input', () => {
-    chosenSource = null; // a manual edit no longer matches the picked suggestion
-    const q = titleInput.value.trim();
-    clearTimeout(searchTimer);
-    if (q.length < 2) return closeMenu();
-    searchTimer = setTimeout(() => runSearch(q), 300);
-  });
-  titleInput.addEventListener('blur', () => setTimeout(closeMenu, 150));
-
   async function save(again) {
     const title = form.querySelector('#title').value.trim();
     if (!title) return toast(t('addGame.toast.needTitle'));
@@ -1530,13 +1421,6 @@ function showAddGame(round) {
     if (pastedBlob) {
       const ext = (pastedBlob.type && pastedBlob.type.split('/')[1]) || 'png';
       fd.append('image', pastedBlob, 'pasted.' + ext);
-    } else if (chosenImageUrl) {
-      fd.append('imageUrl', chosenImageUrl);
-    }
-    if (chosenSource) {
-      fd.append('sourceProvider', chosenSource.provider);
-      fd.append('sourceExternalId', chosenSource.externalId);
-      if (chosenSource.url) fd.append('sourceUrl', chosenSource.url);
     }
     try {
       await api('POST', `/api/rounds/${round.id}/games`, fd);
@@ -1545,8 +1429,6 @@ function showAddGame(round) {
         // Keep the sheet open for the next game; type/duration/players stay.
         // Mark dirty so dismissing the sheet re-renders the Regal (issue #34).
         addedWhileOpen = true;
-        chosenSource = null;
-        closeMenu();
         form.querySelector('#title').value = '';
         setImage(null);
         form.querySelector('#title').focus();

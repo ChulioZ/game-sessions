@@ -1410,48 +1410,6 @@ kbd {
 /* ---- Shared small helpers ---- */
 .field__hint { margin-top: 6px; font-size: 14px; }
 
-/* External link back to a game's provider page (game detail). */
-.link-out {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--brand-dark);
-  font-weight: 700;
-  text-decoration: none;
-}
-.link-out:hover { text-decoration: underline; }
-
-/* ---- Add-game lookup (search-as-you-type suggestions) ---- */
-.lookup { position: relative; }
-.lookup__menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  z-index: 50;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
-  padding: 6px;
-  max-height: 320px;
-  overflow-y: auto;
-}
-.lookup__opt {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: 1px solid transparent;
-  background: transparent;
-  border-radius: 8px;
-  padding: 9px 12px;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-.lookup__opt:hover { background: var(--brand-tint); }
-.lookup__msg { padding: 9px 12px; font-size: 15px; }
-
 /* ---- Steppers (player counts, draw count) ---- */
 .stepper { display: inline-flex; align-items: center; gap: 4px; }
 .stepper__btn {
