@@ -50,6 +50,7 @@ const frontendGlobals = {
   activeSheet: 'writable', closeSheet: 'readonly', startDirectSession: 'readonly',
   showLinkProvider: 'readonly', attachLookup: 'readonly', searchProvider: 'readonly',
   scoreHit: 'readonly', providerLabel: 'readonly', lookupProviderType: 'readonly',
+  providerLogo: 'readonly', PROVIDER_LOGOS: 'readonly',
   PROVIDER_LABELS: 'readonly', LOOKUP_PROVIDERS: 'readonly', MAX_SUGGESTIONS: 'readonly',
   // views-member.js
   showMember: 'readonly', memberStats: 'readonly',

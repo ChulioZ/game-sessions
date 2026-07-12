@@ -1473,14 +1473,14 @@ kbd {
 }
 .lookup__pick:hover { background: var(--brand-tint); }
 /* One badge per contributing provider on a merged (same-title) row; clicking a
-   badge fills the sheet from that provider. Tones derive from the theme. */
+   badge fills the sheet from that provider. Compact brand-logo chips, so the
+   title keeps most of the row width. */
 .lookup__badges {
   flex: none;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 4px;
-  max-width: 46%;
+  gap: 5px;
 }
 .lookup__badge {
   flex: none;
@@ -1496,7 +1496,22 @@ kbd {
   white-space: nowrap;
   cursor: pointer;
 }
+/* Logo variant: a small square chip framing the full-color brand mark. The
+   logo colors are a deliberate exception to the theme system (brand identity,
+   not theme) — see theme-derived-colors.md. */
+.lookup__badge--logo {
+  width: 30px;
+  height: 30px;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: var(--line);
+  background: var(--surface);
+}
+.lookup__badge--logo svg { width: 100%; height: 100%; display: block; }
 .lookup__badge:hover { background: var(--brand-tint); border-color: var(--brand); }
+.lookup__badge--logo:hover { background: var(--brand-tint-soft); border-color: var(--brand); }
 .lookup__thumb {
   flex: none;
   width: 40px;
