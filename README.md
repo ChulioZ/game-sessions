@@ -51,9 +51,9 @@ code and documentation are in English.
 - **Round hub** – each round is a small app of its own, with a floating dock
   switching between four tabs:
   - **Start** – the launchpad: hero with the members, a big "start session"
-    button, resumable in-progress sessions, the last played result, and gentle
+    button, resumable in-progress sessions, the last played result, gentle
     retire recommendations for games that are rated low or often proposed for
-    retirement.
+    retirement, and **buy-next / play-next suggestions** (see below).
   - **Regal** (shelf) – the game collection as a card grid with filter chips
     (all / analog / digital), a search pill, sorting (random / name / rating),
     and the add-game sheet. Each card opens the game's detail page
@@ -82,6 +82,17 @@ code and documentation are in English.
   single game can be removed from a session's results.
 - **Ratings on demand** – a game's average is always computed live from all
   session votes, so deleting a session automatically corrects every average.
+- **Buy-next / play-next suggestions** – on the Start tab, a two-layer
+  recommender. **Layer A** is always on and fully local: it resurfaces games you
+  rate highly but rarely play, so loved titles get back on the table (no
+  network, no key). **Layer B** is an opt-in "generate suggestions" button that
+  asks an LLM for real new titles to consider buying, matched to your
+  collection's taste; the result is cached per round. It sends only an
+  **anonymized taste profile** (game titles + collection shape, never member
+  names or ids) to the [Claude API](https://www.anthropic.com/), and needs an
+  `ANTHROPIC_API_KEY` — without one, the button reports it isn't set up and
+  Layer A still works. This is the app's only outbound LLM call and it fires
+  only when you press the button.
 - **Designs** – per round, pick a colour scheme (page tone + accent); the
   whole UI derives from it — surfaces, shadows, even the dark "stage" of the
   finale.
@@ -110,6 +121,12 @@ code and documentation are in English.
   store, `de`/`german` (`STEAM_CC` / `STEAM_LOCALE`); the Nintendo eShop defaults
   to the German store, `de` (`NINTENDO_LOCALE`); the Xbox / Microsoft Store
   defaults to the German store, `de-de` (`XBOX_LOCALE`).
+  The one exception is the **buy-next suggestions** feature: pressing its
+  "generate" button calls the [Claude API](https://www.anthropic.com/)
+  server-side (via `/api/rounds/:rid/recommendations`) and requires an
+  `ANTHROPIC_API_KEY`. It is strictly opt-in (only on that click), sends an
+  anonymized taste profile with no member identifiers, and the app is fully
+  functional without the key.
 
 ```
 server.js            starts the HTTP server (the only place that listens)
@@ -143,6 +160,8 @@ routes/
                                              cancel, delete, remove one game)
   activities.js      …/activities           (delete an entry)
   background.js      …/background           (set the design)
+  recommendations.js …/recommendations      (buy-next: get cached list [GET],
+                                             generate via the Claude API [POST])
 public/
   index.html
   styles.css
@@ -153,6 +172,7 @@ public/
     lang/de.js       German strings
     core.js          DOM/API helpers, stats, design, language picker  (loads first)
     ranking.js       tie-aware podium places ("1, 2, 2, 4")
+    buynext.js       local "play these again" recommender (Layer A)
     views-home.js    lobby + new round
     views-round.js   round hub (Start/Regal/Chronik/Pokale), archive,
                      design picker, game detail, add game
@@ -189,6 +209,8 @@ From other devices on your home network: `http://<your-computer-ip>:3000`
 
 Use a different port: `PORT=8080 npm start`
 Use a different data folder: `DATA_DIR=/path/to/data npm start`
+Enable buy-next AI suggestions: `ANTHROPIC_API_KEY=sk-ant-… npm start`
+(optional — everything else works without it)
 
 ## Development
 

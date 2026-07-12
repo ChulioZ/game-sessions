@@ -231,6 +231,10 @@ function renderStartTab(round, activeGames) {
     app.appendChild(banner);
   }
 
+  // Buy-next / play-next suggestions (issue #101): a local rediscovery list
+  // (Layer A) plus an opt-in LLM buy-next list (Layer B).
+  renderBuyNext(round, activeGames, statsByGame);
+
   // Quick actions: quieter secondary tasks below the fold.
   const actions = h('<div class="hub-actions"></div>');
   const addGameBtn = h(
@@ -244,6 +248,96 @@ function renderStartTab(round, activeGames) {
   actions.appendChild(addGameBtn);
   actions.appendChild(bgBtn);
   app.appendChild(actions);
+}
+
+// --- Buy-next / play-next suggestions (issue #101).
+// Layer A: a local, always-on "play these again" list (highly-rated but
+// rarely-played owned games), gated on enough votes. Layer B: an opt-in button
+// that asks the backend LLM route for real buy-next titles, cached per round.
+function renderBuyNext(round, activeGames, statsByGame) {
+  const cached = round.recommendations && Array.isArray(round.recommendations.items)
+    ? round.recommendations
+    : null;
+  // Nothing to offer on a near-empty round (unless a list was already generated).
+  if (activeGames.length < 3 && !cached) return;
+
+  const section = h(`<section class="buynext">
+       <h2 class="buynext__head"><i class="ti ti-bulb" aria-hidden="true"></i> ${esc(t('buynext.title'))}</h2>
+     </section>`);
+
+  // Layer A — local rediscovery. Enough data = three times as many votes as
+  // members (same gate as the retirement banner).
+  const playNext = playNextRecommendations(activeGames, statsByGame, round.members.length * 3);
+  if (playNext.length) {
+    const block = h(`<div class="buynext__block">
+         <div class="buynext__label">${esc(t('buynext.playTitle'))}</div>
+         <div class="muted buynext__sub">${esc(t('buynext.playSub'))}</div>
+         <div class="recommend-list"></div>
+       </div>`);
+    const list = block.querySelector('.recommend-list');
+    playNext.slice(0, 5).forEach(({ game, avg }) => {
+      const item = h(`<div class="recommend-item">
+           <div class="recommend-item__info">
+             <span class="recommend-item__title">${esc(game.title)} ${typeTag(game.type)}</span>
+           </div>
+           <span class="score-pill" style="background:${avgColor(avg)}">Ø ${avg.toFixed(1)}</span>
+         </div>`);
+      item.querySelector('.recommend-item__title').addEventListener('click', () => showGameDetail(round.id, game.id));
+      list.appendChild(item);
+    });
+    section.appendChild(block);
+  }
+
+  // Layer B — opt-in LLM buy-next list. Titles here aren't owned games, so the
+  // --static variant drops the clickable-title affordance Layer A uses.
+  const llm = h(`<div class="buynext__block buynext__block--static"></div>`);
+  if (cached) {
+    llm.appendChild(h(`<div class="buynext__label">${esc(t('buynext.llmTitle'))}</div>`));
+    const list = h('<div class="recommend-list"></div>');
+    cached.items.slice(0, 8).forEach(({ title, reason }) => {
+      list.appendChild(h(`<div class="recommend-item">
+           <div class="recommend-item__info">
+             <span class="recommend-item__title">${esc(title)}</span>
+             ${reason ? `<span class="recommend-item__reason">${esc(reason)}</span>` : ''}
+           </div>
+         </div>`));
+    });
+    llm.appendChild(list);
+    llm.appendChild(h(`<div class="muted buynext__meta">${esc(t('buynext.meta', {
+      when: fmtDateTime(cached.generatedAt),
+      model: cached.model || '',
+    }))}</div>`));
+    const regen = h(`<button class="btn buynext__gen"><i class="ti ti-refresh" aria-hidden="true"></i> ${esc(t('buynext.regenerate'))}</button>`);
+    regen.addEventListener('click', () => generateBuyNext(round, regen));
+    llm.appendChild(regen);
+  } else {
+    llm.appendChild(h(`<div class="buynext__label">${esc(t('buynext.llmTitle'))}</div>`));
+    llm.appendChild(h(`<div class="muted buynext__sub">${esc(t('buynext.llmIntro'))}</div>`));
+    const gen = h(`<button class="btn btn--primary buynext__gen"><i class="ti ti-sparkles" aria-hidden="true"></i> ${esc(t('buynext.generate'))}</button>`);
+    gen.addEventListener('click', () => generateBuyNext(round, gen));
+    llm.appendChild(gen);
+    llm.appendChild(h(`<div class="muted buynext__note"><i class="ti ti-cloud-up" aria-hidden="true"></i> ${esc(t('buynext.llmNote'))}</div>`));
+  }
+  section.appendChild(llm);
+
+  app.appendChild(section);
+}
+
+// POST the round's taste profile to the LLM route and re-render on success. On
+// failure the app is untouched — Layer A stays as the fallback.
+async function generateBuyNext(round, btn) {
+  const original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<i class="ti ti-loader-2 spin" aria-hidden="true"></i> ${esc(t('buynext.generating'))}`;
+  try {
+    const rec = await api('POST', `/api/rounds/${round.id}/recommendations`);
+    round.recommendations = rec;
+    showRound(round.id); // re-render the Start tab with the cached list
+  } catch (e) {
+    toast(e.message === 'not_configured' ? t('buynext.unavailable') : t('buynext.failed'));
+    btn.disabled = false;
+    btn.innerHTML = original;
+  }
 }
 
 // --- Regal tab: the games library — search, filter chips, cover grid.

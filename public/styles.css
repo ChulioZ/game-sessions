@@ -1137,6 +1137,38 @@ h1, h2, h3 { font-family: var(--font-display); }
 .recommend-item__btn { flex: none; color: var(--warn); padding: 8px 14px; font-size: 15px; }
 .recommend-more { font-size: 14px; padding: 2px 4px; }
 
+/* Buy-next / play-next suggestions (issue #101). Surfaces derive from the
+   round's accent so they match every theme (see .claude/rules). */
+.buynext { margin-top: 20px; display: flex; flex-direction: column; gap: 16px; }
+.buynext__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+}
+.buynext__block {
+  background: var(--brand-tint-soft);
+  border: 1px solid var(--brand-edge);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.buynext__label { font-weight: 700; font-size: 15px; }
+.buynext__sub { font-size: 14px; margin: 0; }
+.buynext__note { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.buynext__meta { font-size: 13px; }
+.buynext__gen { align-self: flex-start; }
+.buynext__block--static .recommend-item__title { cursor: default; }
+.buynext__block--static .recommend-item__title:hover { text-decoration: none; }
+.buynext .recommend-item__reason { color: var(--ink-soft); font-weight: 500; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { display: inline-block; animation: spin 0.8s linear infinite; }
+
 /* Utility footer: quiet, grouped maintenance actions. */
 .round-footer {
   display: flex;

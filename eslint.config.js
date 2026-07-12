@@ -38,14 +38,16 @@ const frontendGlobals = {
   typeIcon: 'readonly', typeTag: 'readonly',
   durationTag: 'readonly', playersTag: 'readonly', typeBadge: 'readonly',
   durationBadge: 'readonly',
-  // ranking.js + lookup-group.js (also CommonJS modules for tests — hence `module`)
-  computePlaces: 'readonly', groupLookupHits: 'readonly', module: 'readonly',
+  // ranking.js + lookup-group.js + buynext.js (also CommonJS modules for tests — hence `module`)
+  computePlaces: 'readonly', groupLookupHits: 'readonly',
+  playNextRecommendations: 'readonly', module: 'readonly',
   // views-home.js
   showHome: 'readonly', showNewRound: 'readonly',
   // views-round.js
   showRound: 'readonly', showRetired: 'readonly', THEMES: 'readonly',
   showBackground: 'readonly', showGameDetail: 'readonly', showAddGame: 'readonly',
   HUB_TABS: 'readonly', renderHubDock: 'readonly', renderStartTab: 'readonly',
+  renderBuyNext: 'readonly', generateBuyNext: 'readonly',
   renderRegalTab: 'readonly', renderChronikTab: 'readonly', renderPokaleTab: 'readonly',
   activeSheet: 'writable', closeSheet: 'readonly', startDirectSession: 'readonly',
   showLinkProvider: 'readonly', attachLookup: 'readonly', searchProvider: 'readonly',
