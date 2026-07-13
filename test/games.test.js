@@ -412,3 +412,63 @@ test('PATCH keeps the old cover when an imageUrl host is not allowlisted', async
     global.fetch = realFetch;
   }
 });
+
+// --- Uploaded-file hardening (issue #133): verify real content, derive the
+// stored extension from the detected type, reject non-images. ---
+
+// Minimal buffers carrying real magic bytes (padded past the 12-byte sniff min).
+const PNG_BYTES = Buffer.concat([
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(8),
+]);
+const JPEG_BYTES = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(8)]);
+
+test('POST games stores an uploaded PNG and derives the extension from the content', async () => {
+  const round = await createRound(request);
+  // Filename lies (.jpg) and mimetype is generic — the stored ext must follow
+  // the real PNG magic bytes, not the client-supplied name.
+  const res = await request(app)
+    .post(`/api/rounds/${round.id}/games`)
+    .field('title', 'Chess').field('minPlayers', '2').field('maxPlayers', '4')
+    .attach('image', PNG_BYTES, { filename: 'cover.jpg', contentType: 'image/jpeg' });
+  assert.equal(res.status, 201);
+  assert.match(res.body.image, /^\/uploads\/[0-9a-f]+\.png$/);
+  assert.ok(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(res.body.image))));
+});
+
+test('POST games rejects an uploaded file whose content is not a real image', async () => {
+  const round = await createRound(request);
+  // A spoofed upload: image/* mimetype but the bytes are not an image.
+  const before = fs.readdirSync(store.UPLOAD_DIR).length;
+  const res = await request(app)
+    .post(`/api/rounds/${round.id}/games`)
+    .field('title', 'Chess').field('minPlayers', '2').field('maxPlayers', '4')
+    .attach('image', Buffer.from('<script>alert(1)</script>'), {
+      filename: 'evil.png', contentType: 'image/png',
+    });
+  assert.equal(res.status, 400);
+  // Nothing was written to disk for the rejected upload.
+  assert.equal(fs.readdirSync(store.UPLOAD_DIR).length, before);
+});
+
+test('PATCH rejects a spoofed image upload and keeps the old cover', async () => {
+  const round = await createRound(request);
+  const game = (await addGame(round.id)).body;
+  // Give it a real cover first.
+  const first = await request(app)
+    .patch(`/api/rounds/${round.id}/games/${game.id}`)
+    .attach('image', JPEG_BYTES, { filename: 'a.jpg', contentType: 'image/jpeg' });
+  assert.equal(first.status, 200);
+  assert.match(first.body.image, /\.jpg$/);
+  const cover = first.body.image;
+
+  const res = await request(app)
+    .patch(`/api/rounds/${round.id}/games/${game.id}`)
+    .attach('image', Buffer.from('not an image'), {
+      filename: 'x.png', contentType: 'image/png',
+    });
+  assert.equal(res.status, 400);
+  // The existing cover is untouched (not cleared, not deleted).
+  const detail = await request(app).get(`/api/rounds/${round.id}`);
+  assert.equal(detail.body.games.find((g) => g.id === game.id).image, cover);
+  assert.ok(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(cover))));
+});

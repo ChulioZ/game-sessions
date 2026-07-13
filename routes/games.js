@@ -8,7 +8,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { data, saveData, id, findRound, pushActivity, UPLOAD_DIR } = require('../lib/store');
-const upload = require('../lib/upload');
+const { upload, saveUploadedImage } = require('../lib/upload');
 const { getProvider, isAllowedImageUrl } = require('../lib/providers');
 
 const router = express.Router({ mergeParams: true });
@@ -91,8 +91,14 @@ router.post('/', upload.single('image'), async (req, res) => {
 
   // Cover: an uploaded file wins; otherwise pull a provider image URL (if given
   // and host-allowlisted) down into data/uploads/ so only a local path is stored.
-  let image = req.file ? '/uploads/' + req.file.filename : null;
-  if (!image && req.body.imageUrl) image = await downloadCover(req.body.imageUrl);
+  // The upload is verified by content (magic bytes), not the client mimetype.
+  let image = null;
+  if (req.file) {
+    image = saveUploadedImage(req.file);
+    if (!image) return res.status(400).json({ error: 'Uploaded file is not a supported image' });
+  } else if (req.body.imageUrl) {
+    image = await downloadCover(req.body.imageUrl);
+  }
 
   const game = {
     id: id(),
@@ -176,7 +182,9 @@ router.patch('/:gid', upload.single('image'), async (req, res) => {
   // file is deleted unless another game still references it.
   const oldImage = game.image;
   if (req.file) {
-    game.image = '/uploads/' + req.file.filename;
+    const stored = saveUploadedImage(req.file);
+    if (!stored) return res.status(400).json({ error: 'Uploaded file is not a supported image' });
+    game.image = stored;
   } else if (b.removeImage === 'true' || b.removeImage === true) {
     game.image = null;
   } else if (b.imageUrl) {
