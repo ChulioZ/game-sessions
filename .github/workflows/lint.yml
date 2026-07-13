@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Least-privilege GITHUB_TOKEN: this workflow only checks out and lints.
+permissions:
+  contents: read
+
 jobs:
   eslint:
     runs-on: ubuntu-latest
