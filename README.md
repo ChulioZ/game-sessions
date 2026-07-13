@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/ChulioZ/game-sessions/actions/workflows/ci.yml/badge.svg)](https://github.com/ChulioZ/game-sessions/actions/workflows/ci.yml)
 [![Lint](https://github.com/ChulioZ/game-sessions/actions/workflows/lint.yml/badge.svg)](https://github.com/ChulioZ/game-sessions/actions/workflows/lint.yml)
+[![Secret Scan](https://github.com/ChulioZ/game-sessions/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/ChulioZ/game-sessions/actions/workflows/secret-scan.yml)
 
 A self-hosted web app for any group or gaming round to manage their board
 and digital games, decide what to play in a session, and track how much everyone
@@ -249,7 +250,8 @@ npm run check:syntax  # node --check over all JS files
 ```
 
 CI runs the test suite plus lint and syntax checks on every push and pull
-request; Dependabot keeps dependencies updated via weekly PRs.
+request, and a gitleaks secret scan fails the build if a credential is ever
+committed; Dependabot keeps dependencies updated via weekly PRs.
 
 ## Contributing
 
