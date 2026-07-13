@@ -19,8 +19,30 @@ into responses, commits, logs, or anywhere else.
   (e.g. checking whether a server is running, confirming the folder exists). If a
   task seems to *require* reading the real data, stop and ask the user instead.
 
+**Running the app for browser/preview verification counts too — never against
+the real data.** `npm start` (and the `game-sessions` `.claude/launch.json`
+config, and any `preview_start`) default to the production `data/`, so a
+screenshot, `read_page`, `get_page_text`, or console/network dump of that running
+app **renders the group's real rounds, members and ratings into the transcript** —
+the same leak as reading the file, just laundered through the UI. So when you
+launch the app to *see a change work* (preview tools, the `run`/`verify` skills,
+a manual `curl`):
+
+- **Point it at an isolated temp `DATA_DIR`** seeded with your own generated data
+  (`test-data` skill), e.g. `DATA_DIR=$(mktemp -d) npm start` — never the default.
+  A launch.json/preview that would use the real `data/` must get `DATA_DIR`
+  overridden to a temp folder first.
+- Only the empty/generated dataset should ever appear in a screenshot or page
+  read. If you realize you've already captured real data, say so to the user and
+  don't repeat it.
+- Verifying against real data is only acceptable if the user explicitly asks you
+  to reproduce something in *their* data — then keep it in the running UI and
+  don't paste its contents.
+
 **Why:** it is private user data with no authentication guarding it; the
 whole point of keeping it out of git is that it stays local and unseen. An agent
-reading it (and possibly echoing it into a transcript, screenshot, or commit)
-would leak it. The app never needs an agent to look inside the file to work on
-the code — the schema is fully described by the code and tests.
+reading it — **or screenshotting the running app that's serving it** — and
+echoing that into a transcript, screenshot, or commit would leak it. The app
+never needs the real data to prove a code change works: a generated dataset in a
+temp `DATA_DIR` exercises every view, and the schema is fully described by the
+code and tests.
