@@ -34,6 +34,11 @@ gh issue list --state open --limit 100 \
   --json number,title,labels,body,createdAt,updatedAt,comments
 gh pr list --state open --limit 100 \
   --json number,title,labels,body,author,isDraft,createdAt,updatedAt,url
+gh api "repos/{owner}/{repo}/dependabot/alerts?state=open&per_page=100" \
+  --jq '.[] | {number, severity: .security_advisory.severity,
+    package: .dependency.package.name, manifest: .dependency.manifest_path,
+    summary: .security_advisory.summary,
+    fix: .security_vulnerability.first_patched_version.identifier}'
 ```
 
 Partition the PRs by author, then sort into candidate types:
@@ -55,6 +60,17 @@ Partition the PRs by author, then sort into candidate types:
   re-implementing the issue, and **drop that issue from the pool** so you don't
   rank both / rebuild finished work. If unsure whether a PR closes a given issue,
   check its body for the closing keyword.
+- **Dependabot *alerts* → security work.** Beyond PRs, the repo raises Dependabot
+  **vulnerability alerts** (the `gh api …/dependabot/alerts` list above — empty
+  output or a `403`/`404` just means none open or the feature's off; skip it, no
+  error). Most alerts already have a matching **Dependabot security PR** — when
+  they do, that PR is the candidate (route it to `dependabot`) and the alert is
+  merely the *reason* it jumps the queue, so **don't count both**. An alert with
+  **no open PR** (Dependabot couldn't auto-fix it — a transitive or grouped dep, a
+  bump with no safe version yet, or security updates paused) *is* its own
+  candidate: real security work needing a **manual** dependency bump → `implement`.
+  Match an alert to a PR by package name / manifest before treating it as
+  unaddressed, and dedupe several alerts that a single bump would clear.
 
 Skip (leave out of the pool entirely):
 
@@ -125,10 +141,12 @@ yourself):
 
 **Overrides — these jump to the front regardless of size:**
 
-1. **Security** — a CVE fix or a Dependabot *security* update. Keeping the app
-   safe beats feature work even though there's "no auth" (deps still ship code).
-   A patch/minor security bump that CI already validates is both urgent *and*
-   cheap → near-automatic top pick.
+1. **Security** — a CVE fix, a Dependabot *security* update, or an open
+   **Dependabot alert** (whether it arrives as a security PR or, if no PR fixes
+   it, as a manual bump — see phase 1). Keeping the app safe beats feature work
+   even though there's "no auth" (deps still ship code). A patch/minor security
+   bump that CI already validates is both urgent *and* cheap → near-automatic top
+   pick; an unfixed alert's manual bump is urgent but costs a bit more effort.
 2. **Broken core functionality** — a bug that makes a main flow (voting, saving a
    session, ratings) wrong or unusable. Correctness before polish.
 
