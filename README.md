@@ -323,4 +323,8 @@ no data anywhere when you run it.
 
 ## License
 
-[MIT](LICENSE)
+[PolyForm Noncommercial License 1.0.0](LICENSE). The source is public and you
+are free to use, study, modify, and share it for **noncommercial** purposes
+(personal use, hobby projects, education, research). Commercial use — including
+running it as a paid or revenue-generating hosted service — is not granted by
+this license; contact the maintainer for commercial terms.
