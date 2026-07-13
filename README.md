@@ -267,13 +267,18 @@ may hold your `ANTHROPIC_API_KEY`, so never commit it. Plain `npm start` ignores
 
 ```bash
 npm test              # automated tests (Node's built-in runner + supertest)
+npm run coverage      # tests with a coverage report (built-in, no extra deps)
 npm run lint          # ESLint (flat config)
 npm run check:syntax  # node --check over all JS files
 ```
 
-CI runs the test suite plus lint and syntax checks on every push and pull
-request, and a gitleaks secret scan fails the build if a credential is ever
-committed; Dependabot keeps dependencies updated via weekly PRs.
+`coverage` uses Node's built-in `--experimental-test-coverage`, so it needs no
+extra dependency. CI also runs `coverage:ci`, which adds line/function/branch
+thresholds and fails the build if coverage drops below them (Node ≥ 22.8).
+
+CI runs the test suite plus a coverage check, lint, and syntax checks on every
+push and pull request, and a gitleaks secret scan fails the build if a credential
+is ever committed; Dependabot keeps dependencies updated via weekly PRs.
 
 ## Contributing
 

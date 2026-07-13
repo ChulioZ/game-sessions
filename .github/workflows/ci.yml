@@ -6,7 +6,8 @@ on:
   pull_request:
     branches: [main]
 
-# Least-privilege GITHUB_TOKEN: this workflow only checks out and runs tests.
+# Least-privilege GITHUB_TOKEN: this workflow only checks out, runs tests, and
+# measures coverage.
 permissions:
   contents: read
 
@@ -25,3 +26,19 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+
+  # Coverage runs once on a fixed modern Node (the --test-coverage-* threshold
+  # flags need Node ≥ 22.8), separate from the test matrix so plain `npm test`
+  # stays runnable on every supported version. Fails the build if coverage drops
+  # below the floors in the `coverage:ci` script — a guard for future auth /
+  # tenant-isolation code, where an untested path can be a data-leak bug.
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - run: npm run coverage:ci
