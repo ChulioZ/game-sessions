@@ -460,17 +460,18 @@ with `tenant_id` + RLS is the right weight.
   including i18n key-parity enforcement
   ([`test/i18n-parity.test.js`](../test/i18n-parity.test.js)) and provider
   parsers tested against sample HTML with no network.
-- **CI/CD:** `CI` (test matrix Node 18–26) + `Lint` (eslint + syntax) on every
-  push/PR ([`.github/workflows/`](../.github/workflows)); Dependabot weekly.
+- **CI/CD:** `CI` (test matrix Node 18–26 + a coverage-threshold job) + `Lint`
+  (eslint + syntax) on every push/PR ([`.github/workflows/`](../.github/workflows));
+  Dependabot weekly.
+- **Coverage:** measured via Node's built-in `--experimental-test-coverage`
+  (`npm run coverage`); CI's `coverage:ci` job enforces line/function/branch
+  floors so gaps — esp. around future auth/tenant code — fail the build.
 - **Codified learnings:** a strong [`.claude/rules/`](../.claude/rules) culture
   captures the non-obvious traps — this is a real maintainability asset.
 
 **Gap for production.**
 - **No CD.** CI validates but nothing deploys; going live needs a deploy pipeline
   (§8).
-- **No coverage measurement.** Tests are broad but coverage is unknown; add
-  `c8`/`node --experimental-test-coverage` reporting so gaps (esp. around new
-  auth/tenant code) are visible.
 - **Observability is absent.** No structured logging, no error tracking (e.g.
   Sentry), no health/readiness endpoint, no metrics. A public service needs at
   minimum: a `/healthz` endpoint, structured request logs, and error alerting.
@@ -480,10 +481,10 @@ with `tenant_id` + RLS is the right weight.
 - **Frontend fragility** (§2.2) is the main structural debt; contained today by
   the rules files but real.
 
-**Recommendation.** Add coverage reporting, a central error handler, a health
-endpoint, structured logging, and an error-tracking integration. These are small,
-independently shippable, and become load-bearing the moment real users hit the
-app.
+**Recommendation.** With coverage reporting now in place, add a central error
+handler, a health endpoint, structured logging, and an error-tracking
+integration. These are small, independently shippable, and become load-bearing
+the moment real users hit the app.
 
 ---
 

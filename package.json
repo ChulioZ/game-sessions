@@ -12,6 +12,8 @@
     "start": "node server.js",
     "start:env": "node --env-file-if-exists=.env server.js",
     "test": "node --test",
+    "coverage": "node --test --experimental-test-coverage",
+    "coverage:ci": "node --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-functions=85 --test-coverage-branches=80",
     "lint": "eslint .",
     "check:syntax": "find . -path ./node_modules -prune -o -path ./data -prune -o -name '*.js' -print0 | xargs -0 -n1 node --check"
   },
