@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Anmelden · Spieleabend</title>
+  <!-- PWA (issue #142): same manifest/icons so an install from the login screen
+       is branded too. theme-color matches this page's dark background. -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#14161c" />
+  <link rel="icon" href="/icons/icon-192.png" sizes="192x192" type="image/png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <!-- Standalone login page (issue #129), intentionally independent of the SPA:
        it must render before the app (and its i18n) loads. German only — the
        app's primary UI language — and self-contained. Inline styles are allowed

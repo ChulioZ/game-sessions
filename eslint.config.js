@@ -112,4 +112,16 @@ module.exports = [
       'no-unused-vars': ['error', { vars: 'local', args: 'after-used', caughtErrors: 'all' }],
     },
   },
+  {
+    // The service worker (public/sw.js) runs in the ServiceWorkerGlobalScope,
+    // not a window: its own globals (self, caches, clients, skipWaiting, …).
+    // It's outside public/js/**, so it needs its own block rather than the
+    // frontend one above.
+    files: ['public/sw.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.serviceworker },
+    },
+  },
 ];

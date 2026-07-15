@@ -4,6 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Spieleabend</title>
+  <!-- PWA (issue #142): installable + offline. theme-color matches --brand. -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#c2410c" />
+  <link rel="icon" href="/icons/icon-192.png" sizes="192x192" type="image/png" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Spieleabend" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <!-- Root-absolute paths so assets resolve on nested routes (e.g.
        /round/:rid/regal), which the server serves index.html for. -->
   <link rel="stylesheet" href="/fonts/tabler-icons.css" />
@@ -40,5 +49,7 @@
   <script src="/js/views-session.js"></script>
   <script src="/js/router.js"></script>
   <script src="/js/main.js"></script>
+  <!-- Registers the service worker; standalone IIFE, order-independent. -->
+  <script src="/js/pwa.js"></script>
 </body>
 </html>
