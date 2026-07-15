@@ -112,6 +112,11 @@ code and documentation are in English.
   screen (home, a round tab, a game, a member, a session result, …), so a
   reload keeps you where you were and any stable view can be bookmarked or
   linked to. Browser Back/Forward move between visited views.
+- **Installable app (PWA)** – a web app manifest and a service worker make the
+  app installable to a phone or desktop home screen and let the app shell load
+  **offline** (the shell and static assets are cached; live round data still
+  needs the network). In keeping with the no-build-step stance, the manifest,
+  service worker and icons are plain static files.
 
 ## Tech & architecture
 
@@ -198,8 +203,12 @@ routes/
                                              delete one run [DELETE /:runId])
 public/
   index.html
+  login.html         standalone login page (shown only when AUTH_PASSWORD is set)
   styles.css
+  manifest.webmanifest  PWA manifest (installable app metadata + icons)
+  sw.js              service worker: precache the app shell, offline fallback
   fonts/             self-hosted fonts + Tabler icon set
+  icons/             PWA / home-screen app icons (192, 512, apple-touch)
   js/
     i18n.js          translation engine (t(), locale detection)
     lang/en.js       English strings
@@ -216,6 +225,7 @@ public/
     views-session.js session setup, voting (hot-seat), finale, results
     router.js        URL ↔ view routing (History API): deep links, reloads
     main.js          bootstrap: route from the current URL              (loads last)
+    pwa.js           registers the service worker (installable + offline)
 test/                automated tests (node --test + supertest)
 data/                all user data (git-ignored)
   data.json          created on first run
