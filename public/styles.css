@@ -783,12 +783,49 @@ h1, h2, h3 { font-family: var(--font-display); }
 .game-card__img {
   position: relative;
   aspect-ratio: 4 / 3;
-  background: var(--sunken) center/cover no-repeat;
+  background: var(--sunken);
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 40px;
   color: var(--placeholder);
+}
+
+/* Big cover frames (Regal card, detail hero, voting screen): show the WHOLE
+   cover with a blurred, zoomed copy of the same image behind it, so tall/wide
+   covers aren't cropped and no flat dead bars are left (#181). Both layers
+   inherit the frame's inline `background-image` url(), so no extra markup or a
+   second url is needed. A frame with no image inherits `none`, both layers draw
+   nothing, and the centered emoji placeholder shows on --sunken as before. */
+.game-card__img::before,
+.gd-img::before,
+.vote__img::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: inherit;
+  background-position: center;
+  background-size: cover;
+  filter: blur(22px);
+  transform: scale(1.15); /* hide the soft blurred edges under overflow:hidden */
+}
+.game-card__img::after,
+.gd-img::after,
+.vote__img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: inherit;
+  background-position: center;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+/* Overlay/interactive children must stay above the cover layers — ::after is an
+   auto-z-index positioned sibling that would otherwise paint over them. */
+.game-card__badges,
+.gd-img__edit {
+  z-index: 2;
 }
 .game-card--clickable { cursor: pointer; transition: box-shadow 0.15s ease, transform 0.08s ease; }
 .game-card--clickable:hover { box-shadow: var(--shadow); transform: translateY(-2px) rotate(-0.3deg); }
@@ -956,10 +993,12 @@ h1, h2, h3 { font-family: var(--font-display); }
 }
 .vote__who strong { color: var(--brand-dark); font-size: 22px; display: block; margin-top: 2px; }
 .vote__img {
+  position: relative;
   margin: 16px 20px 8px;
   border-radius: 12px;
   aspect-ratio: 4 / 3;
-  background: var(--sunken) center/cover no-repeat;
+  background: var(--sunken);
+  overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   font-size: 64px;
 }
@@ -1287,11 +1326,13 @@ h1, h2, h3 { font-family: var(--font-display); }
 /* Game detail page */
 .gd-head { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
 .gd-img {
+  position: relative;
   width: 240px;
   max-width: 100%;
   aspect-ratio: 4 / 3;
   border-radius: var(--radius);
-  background: var(--sunken) center/cover no-repeat;
+  background: var(--sunken);
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
