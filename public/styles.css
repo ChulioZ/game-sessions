@@ -1512,6 +1512,20 @@ kbd {
 
 /* The picked provider match inside the link-provider sheet. */
 .link-match { font-size: 15px; }
+/* Cover-override preview: the provider image the "Titelbild" toggle would apply,
+   shown beside the toggle so the user isn't opting in blind (issue #179).
+   `contain` shows the whole cover (judge the edition) on the neutral --sunken
+   letterbox — theme-derived, not a hardcoded tone. */
+.link-cover { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.link-cover__img {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+}
 
 /* ---- Add-game lookup (search-as-you-type suggestions) ---- */
 .lookup { position: relative; }

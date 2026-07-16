@@ -14,6 +14,7 @@ const assert = require('node:assert/strict');
 const request = require('supertest');
 const { app } = require('./helpers');
 const { createApp } = require('../lib/app');
+const { imageCspSources } = require('../lib/providers');
 
 test('helmet sets security headers on every response', async () => {
   const res = await request(app).get('/');
@@ -28,6 +29,13 @@ test('helmet sets security headers on every response', async () => {
   assert.match(csp, /style-src [^;]*'unsafe-inline'/);
   assert.match(csp, /img-src [^;]*data:/);
   assert.doesNotMatch(csp, /upgrade-insecure-requests/);
+  // Provider cover hosts are render-allowed on img-src, mirroring the
+  // server-side download allowlist (isAllowedImageUrl) so provider covers show
+  // in the add-game/link previews and lookup thumbnails — issue #179.
+  const imgSrc = csp.match(/img-src ([^;]*)/)[1];
+  const sources = imageCspSources();
+  assert.ok(sources.length > 0, 'there are provider image hosts to allow');
+  for (const src of sources) assert.ok(imgSrc.includes(src), `img-src lists ${src}`);
 });
 
 test('the global rate limit returns 429 once the ceiling is exceeded', async () => {

@@ -664,12 +664,30 @@ function showLinkProvider(round, game) {
     let chips = null;
     if (fields.length) {
       box.appendChild(h(`<div class="muted field__hint" style="margin:10px 0 6px">${esc(t('linkProvider.overridePrompt'))}</div>`));
-      chips = h('<div class="filter-chips"></div>');
-      fields.forEach((f) => {
+      // A wrapper holds every toggle (the cover block + the filter-chips row), so
+      // isOn(chips, key) keeps finding each chip by [data-field] wherever it sits.
+      chips = h('<div class="link-fields"></div>');
+      const chipEl = (f) => {
         const chip = h(`<button type="button" class="chip is-on" data-field="${f.key}"><i class="ti ti-check" aria-hidden="true"></i>${esc(f.label)}</button>`);
         chip.addEventListener('click', () => chip.classList.toggle('is-on'));
-        chips.appendChild(chip);
-      });
+        return chip;
+      };
+      // Cover override: pair the "Titelbild" toggle with a preview of the exact
+      // image it would apply, so the user isn't opting in blind (issue #179). The
+      // remote provider URL renders because CSP img-src lists the provider hosts.
+      const imageField = fields.find((f) => f.key === 'image');
+      if (imageField) {
+        const cover = h('<div class="link-cover"></div>');
+        cover.appendChild(h(`<img class="link-cover__img" src="${esc(d.imageUrl)}" alt="" loading="lazy" />`));
+        cover.appendChild(chipEl(imageField));
+        chips.appendChild(cover);
+      }
+      const rest = fields.filter((f) => f.key !== 'image');
+      if (rest.length) {
+        const row = h('<div class="filter-chips"></div>');
+        rest.forEach((f) => row.appendChild(chipEl(f)));
+        chips.appendChild(row);
+      }
       box.appendChild(chips);
     } else {
       box.appendChild(h(`<div class="muted field__hint" style="margin:10px 0">${esc(t('linkProvider.noDiff'))}</div>`));
