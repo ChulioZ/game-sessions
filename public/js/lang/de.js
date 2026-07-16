@@ -241,6 +241,7 @@ I18N.de = {
   'linkProvider.searchHint': 'Tippen für Vorschläge. Ein Treffer speichert die Verknüpfung.',
   'linkProvider.overridePrompt': 'Welche Angaben vom Anbieter übernehmen?',
   'linkProvider.noDiff': 'Es wird nur der Anbieter-Link gespeichert — die Daten stimmen bereits überein.',
+  'linkProvider.field.title': 'Name',
   'linkProvider.field.image': 'Titelbild',
   'linkProvider.field.players': 'Spieleranzahl',
   'linkProvider.field.duration': 'Spieldauer',

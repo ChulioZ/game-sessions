@@ -656,6 +656,12 @@ function showLinkProvider(round, game) {
       fields.push({ key: 'duration', label: t('linkProvider.field.duration') });
     if (lookupProviderType(r.provider) !== game.type)
       fields.push({ key: 'type', label: t('linkProvider.field.type') });
+    // Name: the add-game flow takes the provider title outright, so offer it
+    // here too (issue #180). Show it first — the name is the most prominent
+    // field — but only when it actually differs (trimmed, case-insensitive).
+    const provTitle = (d.title || r.title || '').trim();
+    if (provTitle && provTitle.toLowerCase() !== (game.title || '').trim().toLowerCase())
+      fields.unshift({ key: 'title', label: t('linkProvider.field.title') });
 
     resultBox.innerHTML = '';
     const box = h('<div class="section"></div>');
@@ -708,6 +714,7 @@ function showLinkProvider(round, game) {
   async function applyLink(r, d, chips) {
     const body = { sourceProvider: r.provider, sourceExternalId: r.providerId };
     if (d.url) body.sourceUrl = d.url;
+    if (isOn(chips, 'title')) body.title = (d.title || r.title || '').trim();
     if (isOn(chips, 'image') && d.imageUrl) body.imageUrl = d.imageUrl;
     if (isOn(chips, 'players')) {
       if (Number.isInteger(d.minPlayers)) body.minPlayers = d.minPlayers;

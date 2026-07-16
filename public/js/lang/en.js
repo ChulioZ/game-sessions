@@ -241,6 +241,7 @@ I18N.en = {
   'linkProvider.searchHint': 'Start typing to get suggestions. Picking a match saves the link.',
   'linkProvider.overridePrompt': 'Which details should be taken from the provider?',
   'linkProvider.noDiff': 'Only the source link will be saved — the provider’s data matches this game.',
+  'linkProvider.field.title': 'Name',
   'linkProvider.field.image': 'Cover image',
   'linkProvider.field.players': 'Player count',
   'linkProvider.field.duration': 'Play time',
