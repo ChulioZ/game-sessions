@@ -339,6 +339,11 @@ and the repository ships the workflow with it: a set of **skills** in
 done here. Whether you contribute by prompting Claude Code or by hand, these are
 the intended path — start there rather than improvising.
 
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the ground rules and the
+**contribution-licensing terms** — inbound contributions are licensed under
+Apache-2.0 (so the project can stay commercially relicensable) and every commit
+must be signed off under the Developer Certificate of Origin (`git commit -s`).
+
 ### Before you start
 
 - Read `CLAUDE.md` — it states the current constraints (local-only MVP, no auth
@@ -403,8 +408,9 @@ no data anywhere when you run it.
 
 ## License
 
-[PolyForm Noncommercial License 1.0.0](LICENSE). The source is public and you
-are free to use, study, modify, and share it for **noncommercial** purposes
-(personal use, hobby projects, education, research). Commercial use — including
-running it as a paid or revenue-generating hosted service — is not granted by
-this license; contact the maintainer for commercial terms.
+[PolyForm Noncommercial License 1.0.0](LICENSE), © 2026 Julian Zenker — the sole
+rights holder and licensor. The source is public and you are free to use, study,
+modify, and share it for **noncommercial** purposes (personal use, hobby
+projects, education, research). Commercial use — including running it as a paid
+or revenue-generating hosted service — is not granted by this license; contact
+the maintainer for commercial terms.
