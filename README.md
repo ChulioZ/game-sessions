@@ -247,6 +247,10 @@ data/                all user data (git-ignored)
   data.json          created on first run
   uploads/           cover images
 dist/                optional build output (git-ignored; npm run build)
+Dockerfile           production container image (node:22-slim, non-root, /data volume)
+.dockerignore        keeps secrets + user data out of the build context
+docker-compose.yml   one-command run with a persistent /data volume
+.github/workflows/   CI: tests, lint, secret scan, Docker image build + publish
 ```
 
 The frontend files are plain `<script>`s that share one global scope; **load
@@ -323,6 +327,28 @@ npm run start:env         # loads .env, then runs the server
 `.env` is fine), so there is no extra dependency. **`.env` is gitignored** — it
 may hold your `ANTHROPIC_API_KEY`, so never commit it. Plain `npm start` ignores
 `.env` and reads only real environment variables.
+
+### With Docker
+
+A production container image is provided (`Dockerfile`, `node:22-slim`, runs as a
+non-root user). Build and run it directly:
+
+```bash
+docker build -t spieleabend .
+docker run -p 3000:3000 -v spieleabend-data:/data spieleabend
+```
+
+Or use Compose — `docker compose up` builds the image and wires the same
+persistent volume. Data (rounds, sessions, uploaded covers) lives on the mounted
+**`/data`** volume, so it survives restarts and redeploys; point `DATABASE_URL` /
+`S3_BUCKET` elsewhere for a stateless app tier. Configure everything via
+`-e`/`environment:` (see `.env.example`). The image sets `NODE_ENV=production`, so
+it serves the content-hashed build (`dist/`).
+
+**TLS is not in the image** — terminate it at a reverse proxy or managed platform
+in front of the container, then set `TRUST_PROXY=1` (see issue #156). On merge to
+`main`, CI publishes the image to the GitHub Container Registry
+(`ghcr.io/chulioz/game-sessions`), so a host can pull it instead of building.
 
 ## Development
 
