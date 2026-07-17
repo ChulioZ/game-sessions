@@ -3,7 +3,8 @@ name: implement
 description: >-
   End-to-end workflow for implementing a change: branch from up-to-date main,
   write the prod code + tests, review locally, commit/push, open a PR, review it,
-  merge if safe, watch main's CI, and clean up the branch. Use whenever you're
+  merge if safe, watch main's CI + the Railway production deploy, and clean up
+  the branch. Use whenever you're
   told to implement, build, add, fix, or otherwise ship something — a GitHub
   issue on this repo, a directly requested change, or similar. Not for reviewing
   someone else's PR (use `review-pr`) or triaging Dependabot (use `dependabot`).
@@ -168,7 +169,7 @@ check results, not pending ones.
   `--delete-branch` removes the remote branch. Squash keeps `main` history to one
   commit per change.
 
-## 7. Monitor main's CI
+## 7. Monitor main's CI and the Railway deployment
 
 The merge triggers the **CI** and **Lint** workflows on `main`. Confirm they go
 green — a merge that red-lights `main` is not "done":
@@ -177,6 +178,26 @@ green — a merge that red-lights `main` is not "done":
 gh run list --branch main --limit 3
 gh run watch <run-id>          # or: gh run view <run-id> --log-failed
 ```
+
+Every push to `main` also triggers the **Railway production deployment**
+(issue #131). Railway reports it as a **commit status** on the merge commit —
+not a workflow run, so `gh run list` never shows it. Check the combined status
+and wait until it leaves `pending`:
+
+```bash
+git fetch origin
+gh api repos/{owner}/{repo}/commits/$(git rev-parse origin/main)/status \
+  --jq '{state: .state, statuses: [.statuses[] | {context, state, description}]}'
+```
+
+The Railway context is `game-sessions - game-sessions`; a build + deploy
+typically takes a few minutes, so poll until the state is `success`. If it ends
+`failure`/`error`, GitHub only shows "Deployment failed" — the real reason is in
+the Railway **Build/Deploy Logs** (the status's `target_url`); see
+`.claude/rules/railway-no-dockerfile-volume.md` for a known build-parse trap.
+A merge whose deploy fails leaves production on the old build — treat it like a
+red `main` workflow: investigate, fix forward on a new branch through this same
+workflow, and report it either way.
 
 If a workflow fails on `main`, treat it as urgent: investigate the failure and
 open a follow-up fix (a new branch through this same workflow). Report it either
@@ -200,8 +221,8 @@ and check, don't force-delete.
 ## Report
 
 Summarize what shipped: the branch, the PR (link + merge state), test coverage
-added, the review verdict, main's CI status, and confirmation the local branch is
-cleaned up. If you stopped early at any gate, say exactly where and why. If the
+added, the review verdict, main's CI status, the Railway deployment status, and
+confirmation the local branch is cleaned up. If you stopped early at any gate, say exactly where and why. If the
 issue closed only partially (a genuine hard limit or a split the user agreed to),
 say which part shipped and which remains, and give the exact remaining actions
 only the user can take.
