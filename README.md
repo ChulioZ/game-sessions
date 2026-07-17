@@ -141,7 +141,9 @@ code and documentation are in English.
   [express-rate-limit](https://express-rate-limit.mintlify.app/) caps requests —
   a generous global limit plus a stricter one on the billable buy-next endpoint.
   TLS is expected to terminate at a reverse proxy (`TRUST_PROXY` then forwards
-  the real client IP); see the env vars below.
+  the real client IP); see the env vars below. Responses are gzip-compressed
+  ([compression](https://github.com/expressjs/compression)), and content-hashed
+  build assets are served immutable (`sw.js` stays no-cache so updates roll out).
 - **Observability:** a `/healthz` liveness/readiness probe, structured JSON
   request/error logs to stdout (`LOG_LEVEL`, no bodies or personal data), and a
   central error handler so unexpected throws never leak a stack trace — they
