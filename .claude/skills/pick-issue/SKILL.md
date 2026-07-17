@@ -263,7 +263,10 @@ Invoke the appropriate skill with the chosen item:
   `implement` reads it with `gh issue view <N>`, branches, builds, opens the PR,
   reviews, and — if safe — merges). If the issue is still underspecified, run
   **`create-issue`**'s interview first (or ask the user) so `implement` gets a
-  clear spec.
+  clear spec. Any decisions the issue merely *needs from* the user (a host, an
+  approach, a value) are for `implement` to **drive to completion via interview**,
+  not a reason for it to ship a partial and defer the rest — see `implement`'s
+  "Scope the whole issue" section.
 - **A Dependabot PR →** invoke the **`dependabot`** skill (it reviews and merges
   the safe ones). Don't try to "implement" a dependency bump by hand.
 - **A standalone PR →** invoke the **`review-pr`** skill on it (pass the PR
