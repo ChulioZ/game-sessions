@@ -1,0 +1,34 @@
+# Keep the Docker build context small and — more importantly — never bake secrets
+# or user data into a shipped image. Mirrors .gitignore's intent for the image.
+
+# Git & CI metadata
+.git
+.github
+.gitignore
+
+# Installed / built artifacts: the image installs deps and runs the build fresh.
+node_modules
+dist
+npm-debug.log*
+
+# User data & secrets — MUST never enter the image. data/ is the group's private
+# rounds/uploads; .env may hold ANTHROPIC_API_KEY. (Runtime uses the /data volume.)
+data
+.env
+.env.local
+.env.*.local
+
+# Dev-only: tests, tooling config, docs, agent rules, editor/OS cruft.
+test
+coverage
+docs
+.claude
+eslint.config.js
+*.log
+*.bak
+.DS_Store
+
+# The container definition files themselves.
+Dockerfile
+.dockerignore
+docker-compose.yml

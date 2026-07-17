@@ -1,0 +1,25 @@
+# Run the production container on one machine (local test or a single VPS). TLS is
+# NOT here — it terminates at a reverse proxy / platform in front of this (Caddy,
+# Traefik, or a managed host), which forwards plain HTTP to port 3000; see issue
+# #156. All configuration is via env — see .env.example for the full list.
+services:
+  app:
+    build: .
+    # Or pull the image published by the Docker workflow instead of building:
+    # image: ghcr.io/chulioz/game-sessions:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist rounds, sessions and uploaded covers across restarts / redeploys.
+      - spieleabend-data:/data
+    restart: unless-stopped
+    # Examples — uncomment as needed. Set TRUST_PROXY only when a real reverse
+    # proxy actually sits in front of this container (otherwise a spoofed
+    # X-Forwarded-For could fool the rate limiter).
+    # environment:
+    #   AUTH_PASSWORD: change-me
+    #   DATABASE_URL: postgres://user:pass@host:5432/gamesessions
+    #   TRUST_PROXY: "1"
+
+volumes:
+  spieleabend-data:
