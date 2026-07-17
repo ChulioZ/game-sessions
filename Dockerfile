@@ -37,11 +37,14 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY . .
 COPY --from=build /app/dist ./dist
 
-# Run as the unprivileged built-in `node` user; give it the data directory so it
-# can write rounds/uploads to the mounted volume.
+# Run as the unprivileged built-in `node` user; pre-create the data directory it
+# writes rounds/uploads to, so whatever gets mounted at /data (a Railway Volume, a
+# compose/`-v` volume) — or the container fs itself — is owned by `node`.
+# NOTE: intentionally no Dockerfile `VOLUME /data` — Railway's Metal builder
+# rejects the VOLUME instruction ("use Railway Volumes"). Persistence is attached
+# at the platform level instead; the instruction was only a hint and isn't needed.
 RUN mkdir -p /data && chown -R node:node /data
 USER node
-VOLUME /data
 
 EXPOSE 3000
 # Liveness/readiness: hit the unauthenticated, un-rate-limited /healthz (lib/app.js).
