@@ -1,5 +1,10 @@
 node_modules/
 
+# Output of the optional cache-busting build (`npm run build`, issue #141).
+# Regenerated from public/; never committed. Delete it to go back to serving
+# the live-editable public/ tree.
+dist/
+
 # All user-specific data (rounds, sessions, uploaded cover images) lives here.
 # Never publish it.
 data/

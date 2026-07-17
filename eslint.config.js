@@ -74,7 +74,7 @@ const frontendGlobals = {
 };
 
 module.exports = [
-  { ignores: ['node_modules/**', 'data/**'] },
+  { ignores: ['node_modules/**', 'data/**', 'dist/**'] },
   js.configs.recommended,
   {
     // Empty `catch {}` is a deliberate "swallow and keep the default" idiom here.

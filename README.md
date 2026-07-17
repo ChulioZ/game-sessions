@@ -130,7 +130,12 @@ code and documentation are in English.
   or **S3-compatible object storage** when `S3_BUCKET` is set (so uploads survive
   an ephemeral/scaled host). Only the `/uploads/<key>` path is persisted either
   way.
-- **Frontend:** plain HTML/CSS/vanilla JS under `public/` — **no build step**.
+- **Frontend:** plain HTML/CSS/vanilla JS under `public/` — **no build step for
+  development** (`npm start` serves `public/` directly). An *optional*
+  cache-busting build (`npm run build`, issue #141) mirrors `public/` into
+  `dist/` with content-hashed, minified JS/CSS for production; the server serves
+  it only under `NODE_ENV=production`. It exists purely to bust stale asset
+  caches after a deploy — not a bundler or framework.
 - **Hardening:** [helmet](https://helmetjs.github.io/) sets security headers
   (CSP, `X-Content-Type-Options`, frame options, HSTS) and
   [express-rate-limit](https://express-rate-limit.mintlify.app/) caps requests —
@@ -233,10 +238,15 @@ public/
     router.js        URL ↔ view routing (History API): deep links, reloads
     main.js          bootstrap: route from the current URL              (loads last)
     pwa.js           registers the service worker (installable + offline)
+scripts/
+  build.js           optional cache-busting build: mirrors public/ into dist/
+                     with content-hashed, minified js/css (npm run build)
+  migrate-json-to-postgres.js  one-off data.json → PostgreSQL import
 test/                automated tests (node --test + supertest)
 data/                all user data (git-ignored)
   data.json          created on first run
   uploads/           cover images
+dist/                optional build output (git-ignored; npm run build)
 ```
 
 The frontend files are plain `<script>`s that share one global scope; **load
@@ -321,11 +331,20 @@ npm test              # automated tests (Node's built-in runner + supertest)
 npm run coverage      # tests with a coverage report (built-in, no extra deps)
 npm run lint          # ESLint (flat config)
 npm run check:syntax  # node --check over all JS files
+npm run build         # optional: content-hash + minify js/css into dist/
 ```
 
 `coverage` uses Node's built-in `--experimental-test-coverage`, so it needs no
 extra dependency. CI also runs `coverage:ci`, which adds line/function/branch
 thresholds and fails the build if coverage drops below them (Node ≥ 22.8).
+
+`build` (issue #141) is **optional** and only for production: it writes a
+`dist/` mirror of `public/` with content-hashed, minified JS/CSS (via
+[`esbuild`](https://esbuild.github.io/)) so a changed asset gets a fresh URL and
+never serves stale after a deploy. The server uses `dist/` only under
+`NODE_ENV=production`; plain `npm start` always serves the live-editable
+`public/` tree, so day-to-day development stays build-free. Delete `dist/` (or
+just don't build) to go back to serving `public/`.
 
 CI runs the test suite plus a coverage check, lint, and syntax checks on every
 push and pull request, and a gitleaks secret scan fails the build if a credential

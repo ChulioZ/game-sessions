@@ -11,12 +11,13 @@
   "scripts": {
     "start": "node server.js",
     "start:env": "node --env-file-if-exists=.env server.js",
+    "build": "node scripts/build.js",
     "migrate:postgres": "node scripts/migrate-json-to-postgres.js",
     "test": "node --test",
     "coverage": "node --test --experimental-test-coverage",
     "coverage:ci": "node --test --experimental-test-coverage --test-coverage-lines=90 --test-coverage-functions=85 --test-coverage-branches=80",
     "lint": "eslint .",
-    "check:syntax": "find . -path ./node_modules -prune -o -path ./data -prune -o -name '*.js' -print0 | xargs -0 -n1 node --check"
+    "check:syntax": "find . -path ./node_modules -prune -o -path ./data -prune -o -path ./dist -prune -o -name '*.js' -print0 | xargs -0 -n1 node --check"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1088.0",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "esbuild": "0.28.1",
     "eslint": "^10.7.0",
     "globals": "^17.7.0",
     "supertest": "^7.2.2"

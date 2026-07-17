@@ -19,9 +19,15 @@ asked, not to bolt onto an unrelated change as a side effect.
 
 ## Architecture (read before changing things)
 
-- **No build step, no framework.** Keep it that way unless asked. Persistence has
-  two backends (below): the default JSON file, or PostgreSQL when `DATABASE_URL`
-  is set — don't add a *third* store, an ORM, or a build step ad-hoc.
+- **No build step for development, no framework.** Keep it that way unless asked.
+  The one sanctioned exception is the *optional* cache-busting build
+  (`scripts/build.js` / `npm run build`, issue #141): it content-hashes + minifies
+  `public/js/**` + `styles.css` into `dist/`, served only under
+  `NODE_ENV=production` — see `.claude/rules/frontend-build-cache-busting.md`.
+  Don't grow it into a bundler/framework, and don't add a build step elsewhere
+  ad-hoc. Persistence has two backends (below): the default JSON file, or
+  PostgreSQL when `DATABASE_URL` is set — don't add a *third* store, an ORM, or a
+  build step ad-hoc.
 - **Backend:** Express. `server.js` only wires middleware, mounts routers, and
   `await repo.init()`s the backend before listening.
   - `lib/repo/` is the **data-access layer**: the async API every route reads and

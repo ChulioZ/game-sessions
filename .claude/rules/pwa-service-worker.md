@@ -12,12 +12,16 @@ Non-obvious things that will bite if you forget them:
   sees). `test/pwa.test.js` guards this: it parses `SHELL` out of `sw.js` and
   asserts every entry is actually served.
 
-- **Bump `CACHE` when any shell asset changes.** Assets are served **cache-first**
-  and filenames are **not** content-hashed yet (that's the separate #141), so a
-  changed `styles.css`/`*.js` would be served stale until the cache version name
-  changes. Bumping `CACHE` (`spieleabend-shell-vN`) re-precaches the shell and
-  `activate` deletes the old cache. (No deploy pipeline exists yet — #131 — so
-  this is forward-looking, but it's the one manual step a deploy must remember.)
+- **Bump `CACHE` when any shell asset changes** *for the unbuilt path.* Assets are
+  served **cache-first**, so a changed `styles.css`/`*.js` would be served stale
+  until the cache version name changes. Bumping `CACHE` (`spieleabend-shell-vN`)
+  re-precaches the shell and `activate` deletes the old cache. **Since #141** the
+  optional production build (`npm run build`) content-hashes the js/css *and*
+  rewrites the `SHELL` paths + the `CACHE` literal to a content-derived name, so a
+  **built** deploy (`NODE_ENV=production`) self-invalidates and this manual bump is
+  a no-op there. The manual `vN` bump only matters when serving the raw `public/`
+  tree (dev / a non-prod deploy). See
+  `.claude/rules/frontend-build-cache-busting.md`.
 
 - **Never cache `/api/` or `/uploads/`.** The fetch handler skips both: API
   responses are live data, and `/uploads/` is auth-gated user cover art (#129).

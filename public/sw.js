@@ -3,8 +3,8 @@
 /*
  * Service worker (issue #142): makes the SPA installable and usable offline.
  *
- * Strategy — deliberately minimal, no build step (matches the app's no-bundler
- * stance; content-hashing is the separate #141):
+ * Strategy — deliberately minimal, no build step required (matches the app's
+ * no-bundler stance):
  *  - Precache the static app shell on install (HTML/CSS/JS/manifest/icons).
  *  - Navigations: network-first, falling back to the cached shell offline, so an
  *    online visit always hits the server (which decides the auth gate, #129) and
@@ -13,11 +13,13 @@
  *  - /api/ and /uploads/ are NEVER cached — API responses are live data and
  *    /uploads/ is auth-gated user cover art; both must always go to the network.
  *
- * CACHE version: bump it whenever a shell asset changes. Without content-hashed
- * filenames (#141) the cache-first assets would otherwise serve stale JS/CSS
- * after a deploy; a new version name re-precaches the shell and `activate` drops
- * the old cache. (No deploy pipeline exists yet — #131 — so this is a
- * forward-looking note more than a live concern today.)
+ * CACHE version: bump it whenever a shell asset changes, so the cache-first
+ * assets don't serve stale JS/CSS — a new name re-precaches the shell and
+ * `activate` drops the old cache. NOTE: the optional production build
+ * (`npm run build`, #141) content-hashes the js/css AND rewrites this literal to
+ * a content-derived name, so a *built* deploy self-invalidates. This manual `vN`
+ * bump only matters when serving the unbuilt public/ tree (dev / a non-prod
+ * deploy). See .claude/rules/frontend-build-cache-busting.md.
  */
 
 const CACHE = 'spieleabend-shell-v3';
