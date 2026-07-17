@@ -99,7 +99,7 @@ function routeTo(pathname) {
 async function showResultsById(rid, sid) {
   let round;
   try {
-    round = await api('GET', '/api/rounds/' + rid);
+    round = await fetchRound(rid);
   } catch {
     return showHome();
   }

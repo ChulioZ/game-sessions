@@ -19,7 +19,7 @@ async function showRound(rid, tab) {
   // The round may not exist (e.g. a deep link / reload to a deleted round) —
   // fall back to Home instead of hanging on the loading state.
   let round;
-  try { round = await api('GET', '/api/rounds/' + rid); }
+  try { round = await fetchRound(rid); }
   catch { return showHome(); }
   applyBackground(round.background);
   setCrumbs([{ label: t('nav.home'), onClick: showHome }, { label: round.name }]);

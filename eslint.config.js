@@ -22,6 +22,7 @@ const frontendGlobals = {
   app: 'readonly', crumbs: 'readonly', toastEl: 'readonly',
   currentView: 'writable', h: 'readonly', esc: 'readonly', toastTimer: 'writable',
   toast: 'readonly', api: 'readonly', setCrumbs: 'readonly', joinNames: 'readonly',
+  fetchRound: 'readonly', invalidateRoundCache: 'readonly', roundCache: 'writable',
   applyStaticTexts: 'readonly', setupLangPicker: 'readonly', gamesSort: 'writable',
   regalFilters: 'writable', regalFiltersRid: 'writable',
   randomOrderCache: 'readonly', randomOrderedGames: 'readonly',

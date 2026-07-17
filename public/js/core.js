@@ -55,7 +55,33 @@ async function api(method, url, body) {
     }
     throw new Error(msg);
   }
+  // Any successful mutation may change round data, so drop the cached round —
+  // the next navigation re-fetches fresh. GETs (and failed calls, which threw
+  // above) leave the cache alone. api() is the one chokepoint every request
+  // goes through, which makes this invalidation airtight.
+  if (method !== 'GET') invalidateRoundCache();
   return res.status === 204 ? null : res.json();
+}
+
+/* Round cache. Tab switches re-render via showRound and used to re-fetch the
+ * full round every time — the dominant felt latency on the hosted deploy.
+ * Cache the last-fetched round briefly and serve navigations from it. Safe
+ * because (a) api() invalidates on every successful mutation, so a stale hit
+ * can only come from *another* device's change, which the short TTL bounds,
+ * and (b) views never mutate the round object in place — they re-fetch and
+ * re-render after mutations. The mid-session "fresh" fetches in
+ * views-session.js intentionally bypass this and call api() directly. */
+const ROUND_CACHE_TTL_MS = 30 * 1000;
+let roundCache = { rid: null, round: null, at: 0 };
+function invalidateRoundCache() {
+  roundCache = { rid: null, round: null, at: 0 };
+}
+async function fetchRound(rid) {
+  const fresh = roundCache.rid === rid && Date.now() - roundCache.at < ROUND_CACHE_TTL_MS;
+  if (fresh) return roundCache.round;
+  const round = await api('GET', '/api/rounds/' + rid);
+  roundCache = { rid, round, at: Date.now() };
+  return round;
 }
 
 function setCrumbs(parts) {

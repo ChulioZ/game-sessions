@@ -541,7 +541,7 @@ async function showRetired(rid) {
   syncUrl(`/round/${rid}/retired`);
   app.innerHTML = '<p class="muted">…</p>';
   let round;
-  try { round = await api('GET', '/api/rounds/' + rid); }
+  try { round = await fetchRound(rid); }
   catch { return showHome(); }
   applyBackground(round.background);
   setCrumbs([

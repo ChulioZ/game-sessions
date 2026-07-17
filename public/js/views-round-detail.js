@@ -22,7 +22,7 @@ async function showBackground(rid) {
   syncUrl(`/round/${rid}/design`);
   app.innerHTML = '<p class="muted">…</p>';
   let round;
-  try { round = await api('GET', '/api/rounds/' + rid); }
+  try { round = await fetchRound(rid); }
   catch { return showHome(); }
   applyBackground(round.background);
   setCrumbs([
@@ -83,7 +83,7 @@ async function showGameDetail(rid, gameId) {
   syncUrl(`/round/${rid}/game/${gameId}`);
   app.innerHTML = '<p class="muted">…</p>';
   let round;
-  try { round = await api('GET', '/api/rounds/' + rid); }
+  try { round = await fetchRound(rid); }
   catch { return showHome(); }
   applyBackground(round.background);
   const game = round.games.find((g) => g.id === gameId);
