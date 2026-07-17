@@ -25,6 +25,36 @@ First, be sure you understand the task. If it's a GitHub issue, read it:
 `gh issue view <N>`. If the request is ambiguous in a way that changes what you'd
 build, ask before writing code — not after.
 
+## Scope the whole issue — interview for decisions, don't defer them
+
+Aim to carry the issue **all the way to done**, not just to the edge of what you
+can do without asking. When a part feels out of reach, separate two cases:
+
+- **A decision or input you need *from* the user** — which of several viable
+  approaches, which provider / host / library, a name or value to use, a policy
+  call. This is **not** a blocker and **not** a reason to ship a partial result.
+  Driving these *with* the user is a core purpose of this skill (and of
+  `pick-issue`): the user wants to make them **by interacting with you here**, so
+  **embrace them — interview for them** (`AskUserQuestion`; recommend an option
+  when you have a view) **and carry the dependent work to the finish line.** Ask
+  up front, and again whenever a new decision surfaces mid-build (one that only
+  gates a later part can wait until you reach it). Then implement the answer and
+  keep going — don't treat "needs a decision" as the edge of the deliverable.
+- **A genuine hard limit** — a step *only the user can physically perform*, which
+  no interview can hand to you: creating an account, entering a password or
+  pasting a secret / credential, provisioning external infrastructure, paying, or
+  a real-world action. Even here, still interview for every surrounding decision
+  and do + wire up **everything** that doesn't need the user's own hands (config,
+  scaffolding, workflows, docs), then hand them a **precise, minimal checklist**
+  of the exact actions only they can take ("create the X account, then set secret
+  `Y` in repo settings — I've wired the rest"). This is the *only* legitimate
+  reason to stop short of a full close.
+
+So narrowing an issue to a partial PR is a **last resort you surface and confirm**
+with the user — never a default you pick on your own to avoid asking. When you
+genuinely must split (a real hard limit, or the user's own choice), keep the
+issue open and say exactly which part landed, which remains, and why.
+
 ## 1. Branch from up-to-date main
 
 Never commit on `main`. Start from a current base:
@@ -171,4 +201,7 @@ and check, don't force-delete.
 
 Summarize what shipped: the branch, the PR (link + merge state), test coverage
 added, the review verdict, main's CI status, and confirmation the local branch is
-cleaned up. If you stopped early at any gate, say exactly where and why.
+cleaned up. If you stopped early at any gate, say exactly where and why. If the
+issue closed only partially (a genuine hard limit or a split the user agreed to),
+say which part shipped and which remains, and give the exact remaining actions
+only the user can take.
