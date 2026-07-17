@@ -43,6 +43,14 @@ build-free. Non-obvious things that will bite if you forget them:
   `index.html` parity the pwa test guards is about the **source** files; the build
   derives the built `SHELL` from them.
 
+- **HTTP cache headers pair with the hashing (`assetCacheHeaders`, lib/app.js).**
+  Static serving marks only `name.<8-hex>.js/.css` files `immutable, max-age=1y`
+  (their URL changes when their bytes do), and `sw.js` explicitly `no-cache` — a
+  long-cached service worker would delay shell updates. Un-hashed files
+  (index.html, fonts, dev `public/` js) keep default ETag revalidation. Don't
+  blanket-`maxAge` the static mount: index.html and sw.js must never be
+  long-cached. `test/perf.test.js` guards this.
+
 - **`esbuild` is a `devDependency`** (its postinstall fetches a platform binary;
   CI's `npm ci` handles that). `test/build.test.js` runs the *real* build into a
   temp dir (no network, no touching the repo's `dist/`) and asserts the output is
