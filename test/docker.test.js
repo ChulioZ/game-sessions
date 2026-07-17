@@ -26,10 +26,13 @@ test('Dockerfile runs as the non-root node user', () => {
   assert.match(read('Dockerfile'), /^USER\s+node\s*$/m, 'image must drop to USER node');
 });
 
-test('Dockerfile keeps data on a mountable /data volume, in production mode', () => {
+test('Dockerfile keeps data on the mountable /data path, in production mode', () => {
   const df = read('Dockerfile');
   assert.match(df, /ENV\s+DATA_DIR=\/data/, 'DATA_DIR should point at /data');
-  assert.match(df, /^VOLUME\s+\/data\s*$/m, '/data should be a volume');
+  // Must NOT declare a Dockerfile `VOLUME`: Railway's Metal builder rejects the
+  // instruction ("use Railway Volumes"). Persistence is a platform/compose volume
+  // mounted at /data instead — see .claude/rules/railway-no-dockerfile-volume.md.
+  assert.doesNotMatch(df, /^\s*VOLUME\b/m, 'no Dockerfile VOLUME (Railway rejects it)');
   assert.match(df, /ENV\s+NODE_ENV=production/, 'should run in production mode');
   assert.match(df, /CMD\s+\[\s*"node"\s*,\s*"server\.js"\s*\]/, 'should start the server');
 });
