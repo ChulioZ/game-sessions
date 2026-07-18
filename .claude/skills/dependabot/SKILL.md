@@ -19,8 +19,9 @@ paper trail so a human knows exactly what's blocking it.
 review. Report every action taken (merged / commented / skipped) at the end.
 
 **This skill owns the `blocked` label.** A PR held open *on purpose* (a major
-bump with breaking changes we use, one that would introduce a build step / auth /
-a forbidden dependency, etc.) gets the `blocked` label plus an explanatory
+bump with breaking changes we use, one that would violate a settled
+architecture call in `CLAUDE.md` — a frontend framework, a third persistence
+backend, weakened tenant isolation, etc.) gets the `blocked` label plus an explanatory
 comment. That label is how `pick-issue` knows to leave the PR out of its
 candidate pool — so a held PR stays open and visible without being repeatedly
 re-triaged as "pickable work". **This sweep is the only place a `blocked` PR is
@@ -114,7 +115,8 @@ Examples of reason → next step:
 - *Major bump with breaking changes we use* → "review `<API>` usage in
   `<file>`, adapt call sites, then re-run CI." (Express, multer, and eslint are
   the majors most likely to bite here.)
-- *Introduces a build step / auth / dependency the project forbids* → cite the
+- *Violates a settled architecture call* (a frontend framework/bundler, a third
+  persistence backend, a dependency `CLAUDE.md` explicitly forbids) → cite the
   `CLAUDE.md` rule it violates; "held until we deliberately decide to change that
   policy."
 - *CI failing* → name the failing check and the error; "fix X, push, re-review."

@@ -74,10 +74,12 @@ git switch -c <type>/<short-slug>    # e.g. feat/session-export, fix/vote-tie
 ## 2. Implement — prod code plus tests
 
 Build the actual feature/fix in the production code, following this repo's
-architecture and `CLAUDE.md` (no build step, no framework, no DB, no auth; store
-mutated in place; routers in `routes/*.js`; frontend shared-global-scope scripts
-in load order). Re-read the relevant `.claude/rules/` before touching an area
-they cover.
+architecture and `CLAUDE.md` (no frontend framework/build step beyond the
+sanctioned optional cache-busting build, no third persistence backend beyond
+the JSON/Postgres pair, tenant-scoped data access via `req.repo`; the JSON
+backend's `store` mutated in place, never reassigned; routers in
+`routes/*.js`; frontend shared-global-scope scripts in load order). Re-read
+the relevant `.claude/rules/` before touching an area they cover.
 
 Add automated tests wherever applicable — this is not optional when the change is
 testable:

@@ -63,11 +63,14 @@ gh pr diff <PR>                      # the actual change
 Cross-check the diff against `CLAUDE.md` and `.claude/rules/`. For this project
 specifically, a PR is suspect if it:
 
-- adds a build step, framework, database, authentication, accounts, or a cloud
-  service **that the PR wasn't explicitly asked to add** — the MVP is
-  intentionally none of those. (Auth / accounts / hosting are roadmap work toward
-  going live, so they're legitimate when a PR is explicitly for that; still
-  suspect when they show up unrequested as a side effect of unrelated work.)
+- adds a **frontend framework/bundler** (beyond the sanctioned optional
+  cache-busting build), a **third persistence backend** (beyond the
+  JSON/Postgres pair), or weakens **tenant isolation / auth** — all settled
+  architecture calls (`CLAUDE.md`) — **unless the PR is explicitly about
+  that**. Also suspect: a *new* cloud/third-party service or dependency
+  showing up unrequested as a side effect of unrelated work — see
+  `CLAUDE.md`'s production-readiness mindset for when a mature dependency
+  replacing hand-rolled code is legitimate versus gratuitous.
 - adds a key to only one of `public/js/lang/en.js` / `de.js` (breaks i18n parity);
 - adds a top-level name in `public/js/**` without updating the `globals` list in
   `eslint.config.js`, or introduces a load-order reference (see the rules);
