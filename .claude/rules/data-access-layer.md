@@ -7,11 +7,16 @@ tree + `data.json`) and `postgres.js` (when `DATABASE_URL` is set). The point of
 the seam is that both satisfy the same contract, so the routes don't change when
 the backend does. Postgres-specific gotchas: `.claude/rules/postgres-backend.md`.
 
-**Rule:** new/changed route code calls `require('../lib/repo')` — never imports
+**Rule:** new/changed route code reads and writes round data through
+**`req.repo`** — the tenant-scoped repo the middleware (`lib/tenant.js`) sets on
+every `/api` request (#136); only the global user methods (`getUserById`,
+`createUser`, …) come from `require('../lib/repo')`. Never import
 `data`/`saveData`/`findRound`/`pushActivity` from `lib/store` to mutate the tree
-directly. If you need a new data operation, add a typed method to **both** backends
-(`lib/repo/json.js` and `lib/repo/postgres.js`) and a case to the shared contract
-(`test/support/repo-contract.js`), don't reach past it.
+directly. If you need a new data operation, add a typed **tenant-first** method
+to **both** backends (`lib/repo/json.js` and `lib/repo/postgres.js`), list it in
+`TENANT_METHODS` (`lib/repo/index.js`), and add a case to the shared contract
+(`test/support/repo-contract.js`) — don't reach past the seam. Tenancy/RLS
+gotchas: `.claude/rules/tenancy-rls.md`.
 
 Non-obvious things baked into the design — keep them:
 

@@ -3,14 +3,13 @@
 /* Routes for rounds: list, detail, create (optionally importing games), delete. */
 
 const express = require('express');
-const repo = require('../lib/repo');
 
 const router = express.Router();
 
 // Compact list for the home screen: identity, live counts, the round's design
 // and a "last played" highlight so the lobby cards can tell each round's story.
 router.get('/', async (req, res) => {
-  const rounds = await repo.listRounds();
+  const rounds = await req.repo.listRounds();
   res.json(
     rounds.map((r) => {
       // Newest finished session whose chosen game still exists (same rule as
@@ -49,7 +48,7 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/:rid', async (req, res) => {
-  const round = await repo.getRound(req.params.rid);
+  const round = await req.repo.getRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
   res.json(round);
 });
@@ -65,7 +64,7 @@ router.post('/', async (req, res) => {
 
   // The data layer mints ids and (optionally) copies the games list
   // (title/type/image only) from an existing round.
-  const round = await repo.createRound({
+  const round = await req.repo.createRound({
     name,
     members: cleanMembers,
     importFromRoundId: req.body.importFromRoundId || null,
@@ -74,7 +73,7 @@ router.post('/', async (req, res) => {
 });
 
 router.delete('/:rid', async (req, res) => {
-  const deleted = await repo.deleteRound(req.params.rid);
+  const deleted = await req.repo.deleteRound(req.params.rid);
   if (!deleted) return res.status(404).json({ error: 'Round not found' });
   res.json({ ok: true });
 });

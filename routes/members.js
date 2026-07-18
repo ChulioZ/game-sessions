@@ -21,7 +21,7 @@ const MEMBER_COLORS = [
 // Accepts any subset of { name, color, userId } — userId must be an existing
 // user's id, or null to unlink (members stay name-only seats by default).
 router.patch('/:mid', async (req, res) => {
-  const round = await repo.getRound(req.params.rid);
+  const round = await req.repo.getRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
   if (!round.members.some((m) => m.id === req.params.mid))
     return res.status(404).json({ error: 'Member not found' });
@@ -51,7 +51,7 @@ router.patch('/:mid', async (req, res) => {
 
   // No activity entry: like the inline game edits, member tweaks are minor and
   // would just clutter the feed.
-  const member = await repo.updateMember(req.params.rid, req.params.mid, patch);
+  const member = await req.repo.updateMember(req.params.rid, req.params.mid, patch);
   if (!member) return res.status(404).json({ error: 'Member not found' });
   res.json(member);
 });

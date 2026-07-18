@@ -27,7 +27,6 @@
 
 const express = require('express');
 const { id } = require('../lib/store');
-const repo = require('../lib/repo');
 
 const router = express.Router({ mergeParams: true });
 
@@ -260,13 +259,13 @@ function history(round) {
 // `recommendations` object in the same write (repo.saveRecommendationRuns).
 
 router.get('/', async (req, res) => {
-  const round = await repo.getRound(req.params.rid);
+  const round = await req.repo.getRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
   res.json(history(round));
 });
 
 router.post('/', async (req, res) => {
-  const round = await repo.getRound(req.params.rid);
+  const round = await req.repo.getRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
   // Active UI locale, sent by the client; anything but 'de' falls back to 'en'.
   const locale = req.body && req.body.locale === 'de' ? 'de' : 'en';
@@ -283,18 +282,18 @@ router.post('/', async (req, res) => {
   // Append (newest first), keeping every past run — nothing is pruned (#115).
   const runs = history(round);
   runs.unshift(run);
-  await repo.saveRecommendationRuns(req.params.rid, runs);
+  await req.repo.saveRecommendationRuns(req.params.rid, runs);
   res.json(run);
 });
 
 router.delete('/:runId', async (req, res) => {
-  const round = await repo.getRound(req.params.rid);
+  const round = await req.repo.getRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
   const runs = history(round);
   const idx = runs.findIndex((r) => r.id === req.params.runId);
   if (idx === -1) return res.status(404).json({ error: 'Run not found' });
   runs.splice(idx, 1);
-  await repo.saveRecommendationRuns(req.params.rid, runs);
+  await req.repo.saveRecommendationRuns(req.params.rid, runs);
   res.json(runs);
 });
 

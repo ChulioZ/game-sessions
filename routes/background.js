@@ -4,7 +4,6 @@
    Mounted under /api/rounds/:rid/background (mergeParams for rid). */
 
 const express = require('express');
-const repo = require('../lib/repo');
 const storage = require('../lib/storage');
 
 const router = express.Router({ mergeParams: true });
@@ -29,7 +28,7 @@ router.post('/', async (req, res) => {
     bg = { type: 'none' };
   }
 
-  const result = await repo.setBackground(req.params.rid, bg);
+  const result = await req.repo.setBackground(req.params.rid, bg);
   if (!result) return res.status(404).json({ error: 'Round not found' });
   await cleanupOldBackground(result.previous, bg);
   res.json({ background: bg });

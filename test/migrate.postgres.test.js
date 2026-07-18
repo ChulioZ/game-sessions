@@ -80,19 +80,19 @@ if (!process.env.DATABASE_URL) {
     const c = await migrate(repo, dataset);
     assert.deepEqual(c, { rounds: 2, members: 2, games: 1, sessions: 1, activities: 1, users: 1 });
 
-    const r1 = await repo.getRound('r1');
+    const r1 = await repo.getRound('default', 'r1');
     assert.equal(r1.name, 'One');
     assert.equal(r1.members[0].id, 'm1');
     assert.equal(r1.games[0].id, 'g1');
     assert.equal(r1.sessions[0].id, 's1');
     assert.equal(r1.sessions[0].votes.m1.g1.rating, 5); // nested reference intact
-    assert.equal((await repo.listActivities('r1'))[0].id, 'a1');
+    assert.equal((await repo.listActivities('default', 'r1'))[0].id, 'a1');
     // Legacy `recommendations` folded into the run history; the raw key is gone.
     assert.equal('recommendations' in r1, false);
     assert.equal(r1.recommendationRuns[0].id, 'legacy');
     assert.deepEqual(r1.recommendationRuns[0].items, [{ title: 'Rec' }]);
 
-    const r2 = await repo.getRound('r2');
+    const r2 = await repo.getRound('default', 'r2');
     assert.deepEqual(r2.background, { type: 'theme', page: 'p', accent: 'a' });
     assert.equal('recommendationRuns' in r2, false); // no recs -> key stays absent
 
@@ -103,7 +103,7 @@ if (!process.env.DATABASE_URL) {
   });
 
   test('refuses to import into a non-empty target', async () => {
-    await repo.importRounds([
+    await repo.importRounds('default', [
       { id: 'existing', name: 'X', members: [], games: [], sessions: [], activities: [], background: null },
     ]);
     await assert.rejects(() => migrate(repo, readData(dataFile)), /non-empty database/);
