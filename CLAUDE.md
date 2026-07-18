@@ -4,30 +4,71 @@ Guidance for Claude Code (and other AI assistants) working in this repository.
 
 ## What this is
 
-A small self-hosted web app for any group or gaming round to
+A self-hosted web app for any group or gaming round to
 manage their games, run "what should we play?" voting sessions, and track ratings. UI language is
 **German**; code, comments here, and docs are **English**.
 
-**Current stage — local-only MVP.** Today the app runs **local-only**, with
-intentionally **no authentication**, for a trusted home network. That is the
-*current MVP scope*, not the end goal: the intent is to bring this live as a
-hosted **website and app** (which will eventually need accounts, auth, and a
-hosting/storage story). So treat local-only / no-auth as *where we are now*, not
-a permanent principle — but don't build auth, accounts, or cloud services
-**ad-hoc or unprompted**. Those are staged roadmap work to do deliberately when
-asked, not to bolt onto an unrelated change as a side effect.
+**Current stage — live production, heading toward public multi-tenant SaaS.**
+The app started as a local-only, no-auth MVP for a trusted home network; that
+stage is over. It now runs in production on Railway (managed PostgreSQL, R2
+object storage, TLS — see `docs/deploy-railway.md`), and the token-first
+account model, tenant isolation, and onboarding UI (issues #135/#136/#138) are
+shipped, staged behind `ACCOUNTS_ENABLED` for opening public registration (see
+`.claude/rules/accounts-mode-gate.md`). Full status and remaining launch work:
+`docs/production-readiness.md`.
+
+**What this changes about how to work here.** Priority has shifted from
+*staying minimal* to *production-ready*: correctness under concurrent/
+multi-tenant load, security, observability, and long-term maintainability now
+outweigh keeping the dependency count low for its own sake. Where a mature,
+widely-used dependency solves a problem this codebase currently hand-rolls
+(schema migrations, structured logging/error tracking, request validation —
+see `docs/production-readiness.md` §7 for the current shortlist), prefer
+adopting it over growing the homegrown version further. This does **not**
+relax discipline elsewhere: still build roadmap work deliberately when asked,
+not as a side effect of an unrelated change.
+
+Applying this lens to the previously "settled" architecture calls below
+(re-examined 2026-07-19): **no frontend build step/framework** and **no third
+persistence backend** still hold, on their own merits, not as leftover
+localhost-era minimalism — the first already survived a dedicated
+production-readiness review for the public multi-tenant end-state
+(`docs/production-readiness.md` §2.2: a framework rewrite buys nothing this
+app needs), the second is about not fragmenting round-data storage across
+more than one source of truth, not about dependency count (a Redis dependency
+for rate-limiting or caching wouldn't violate it — that's not round-data
+persistence). **"No ORM" did not hold up under the same scrutiny** and is now
+an open question, not a settled one — see the Architecture section below.
 
 ## Architecture (read before changing things)
 
-- **No build step for development, no framework.** Keep it that way unless asked.
-  The one sanctioned exception is the *optional* cache-busting build
-  (`scripts/build.js` / `npm run build`, issue #141): it content-hashes + minifies
-  `public/js/**` + `styles.css` into `dist/`, served only under
-  `NODE_ENV=production` — see `.claude/rules/frontend-build-cache-busting.md`.
-  Don't grow it into a bundler/framework, and don't add a build step elsewhere
-  ad-hoc. Persistence has two backends (below): the default JSON file, or
-  PostgreSQL when `DATABASE_URL` is set — don't add a *third* store, an ORM, or a
-  build step ad-hoc.
+- **No build step for development, no framework (frontend).** Keep it that way
+  unless asked — re-examined for the public multi-tenant end-state
+  (`docs/production-readiness.md` §2.2) and it held up: the app is already a
+  working client-side-routed SPA, a framework rewrite buys nothing it can't
+  already do, and the one real risk (shared-global-scope load-order
+  fragility) is a maintainability tax already contained by `.claude/rules/`,
+  not a production-safety issue. The one sanctioned exception is the
+  *optional* cache-busting build (`scripts/build.js` / `npm run build`, issue
+  #141): it content-hashes + minifies `public/js/**` + `styles.css` into
+  `dist/`, served only under `NODE_ENV=production` — see
+  `.claude/rules/frontend-build-cache-busting.md`. Don't grow it into a
+  bundler/framework, and don't add a build step elsewhere ad-hoc.
+- **Persistence has two backends** (below): the default JSON file, or
+  PostgreSQL when `DATABASE_URL` is set. Don't add a *third* store ad hoc —
+  that call is still good, it's about not fragmenting round-data storage
+  across more than one source of truth (a Redis dependency for something
+  that isn't round data, e.g. rate-limiting, doesn't violate it). **The
+  "no ORM" stance is open, not settled**: `lib/repo/postgres.js` hand-writes
+  parameterized SQL with real, documented footguns (JSONB/array
+  serialization, the tenant-scoped `tx`/`qt` transaction helpers — see
+  `.claude/rules/postgres-backend.md`) — exactly the kind of hand-rolled,
+  correctness-critical code the mindset above argues against defaulting to.
+  Don't reach for a full ORM (Prisma-style) ad hoc — RLS and the tenant-scoped
+  transaction pattern don't retrofit cleanly into one — but a query builder
+  that also ships a real migrations story (Knex is the pragmatic fit for this
+  CommonJS codebase) is a live candidate; see `docs/production-readiness.md`
+  §7 before picking one.
 - **Backend:** Express. `server.js` only wires middleware, mounts routers, and
   `await repo.init()`s the backend before listening.
   - `lib/repo/` is the **data-access layer**: the async API every route reads and
@@ -90,7 +131,12 @@ asked, not to bolt onto an unrelated change as a side effect.
   `data.json` is fully up to date. For a future schema change, migrate the data
   once (with the server stopped, see `.claude/rules/`) rather than keeping
   migration code around permanently.
-- Data is small (one group). Prefer simple, readable code over optimization.
+- The default JSON backend (`lib/repo/json.js`) still assumes one small dataset
+  and favors simple, readable code over optimization — that's fine for
+  local/self-hosted use. **Production runs the Postgres backend instead**
+  (`lib/repo/postgres.js`, tenant-scoped, RLS-enforced), which now holds many
+  tenants' data — don't assume "small, one group" when touching anything
+  tenant-scoped or Postgres-specific.
 - Keep the `data/` folder out of git (already in `.gitignore`).
 - **Never read the production `data/` directory** (`data/data.json`,
   `data/uploads/`) — it is private user data. Reference the schema from code

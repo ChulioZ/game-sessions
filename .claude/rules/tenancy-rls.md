@@ -50,7 +50,10 @@ and the traps that cost effort:
   privilege) — that's why the Postgres test files' cleanup keeps working as-is.
 
 - **Registration mints a personal tenant** (`routes/account.js`): each new user
-  gets a fresh `tenantId`. Sharing a tenant (invites/memberships) is #138;
-  roles within one are #137. There is intentionally **no tenants table** yet —
-  the first issue that gives a tenant fields (name, settings, quotas #139) adds
-  the entity.
+  gets a fresh `tenantId`. Sharing a tenant (invites/memberships) is #207;
+  roles within one are #137. Both were reclassified 2026-07-19 as **Phase 4,
+  post-launch** work (docs/production-readiness.md §12) — not go-live blockers —
+  because "member" is already decoupled from "user" (a name-only seat the
+  owner adds), so a single-owner tenant is a complete product without either.
+  There is intentionally **no tenants table** yet — the first issue that gives
+  a tenant fields (name, settings, quotas #139) adds the entity.
