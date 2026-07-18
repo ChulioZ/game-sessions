@@ -25,7 +25,10 @@ const { logger } = require('../lib/observability');
 
 const router = express.Router();
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Deliberately backtracking-safe (CodeQL js/polynomial-redos): the domain
+// labels exclude '.', so no alternative can overlap the literal dots — the
+// match is linear even on hostile input (and validEmail length-guards first).
+const EMAIL_RE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
 const PASSWORD_MIN = 8;
 const PASSWORD_MAX = 200;
 
@@ -34,7 +37,7 @@ const baseUrl = () =>
   (process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
 
 const normalizeEmail = (raw) => String(raw || '').trim().toLowerCase();
-const validEmail = (email) => EMAIL_RE.test(email) && email.length <= 254;
+const validEmail = (email) => email.length <= 254 && EMAIL_RE.test(email);
 const validPassword = (pw) =>
   typeof pw === 'string' && pw.length >= PASSWORD_MIN && pw.length <= PASSWORD_MAX;
 
