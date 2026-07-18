@@ -72,8 +72,11 @@ module.exports = function repoContract(repo) {
       recommendationRuns: [{ id: 'run_1', items: [{ title: 'Y' }] }],
     };
     assert.equal(await repo.importRounds([round]), 1);
-    // Every id, nested reference, and field kind survives the round-trip.
-    assert.deepEqual(await repo.getRound('rnd_imported_1'), round);
+    // Every id, nested reference, and field kind survives the round-trip. The
+    // activity feed is stored but served via listActivities, not on the round.
+    const { activities, ...roundSansFeed } = round;
+    assert.deepEqual(await repo.getRound('rnd_imported_1'), roundSansFeed);
+    assert.deepEqual(await repo.listActivities('rnd_imported_1'), activities);
   });
 
   test('createRound import copies only active games (title/type/image) + logs them', async () => {
@@ -98,7 +101,8 @@ module.exports = function repoContract(repo) {
     assert.notEqual(g.id, active.id); // a fresh id, not the source game's
     // duration/players are intentionally NOT carried over by import.
     assert.equal(g.duration, undefined);
-    assert.equal(copy.activities.filter((a) => a.type === 'game_added').length, 1);
+    const feed = await repo.listActivities(copy.id);
+    assert.equal(feed.filter((a) => a.type === 'game_added').length, 1);
   });
 
   test('updateGame applies only the given patch; unknown round/game -> null', async () => {
@@ -142,7 +146,7 @@ module.exports = function repoContract(repo) {
     assert.deepEqual(s.gameIds, [keep.id]); // scrubbed
     assert.equal(s.chosenGameId, null); // reset because the chosen game was deleted
     assert.equal(s.votes.m1[game.id], undefined);
-    assert.ok(after.activities.some((a) => a.type === 'game_deleted'));
+    assert.ok((await repo.listActivities(round.id)).some((a) => a.type === 'game_deleted'));
     assert.equal(await repo.deleteGame(round.id, 'gone'), null);
   });
 
@@ -200,17 +204,31 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.saveRecommendationRuns('missing', runs), null);
   });
 
+  test('listActivities serves the feed; rounds no longer embed it', async () => {
+    const round = await freshRound();
+    assert.equal('activities' in round, false); // not on the created round…
+    await repo.createGame(round.id, {
+      title: 'A', platform: 'analog', type: 'analog', duration: 'medium',
+      minPlayers: 1, maxPlayers: 4, image: null, source: null,
+    });
+    assert.equal('activities' in (await repo.getRound(round.id)), false); // …nor on getRound
+    const feed = await repo.listActivities(round.id);
+    assert.equal(feed.length, 1);
+    assert.equal(feed[0].type, 'game_added');
+    assert.match(feed[0].id, /^[0-9a-f]{16}$/);
+    assert.equal(await repo.listActivities('missing'), null);
+  });
+
   test('deleteActivity removes a feed entry by id', async () => {
     const round = await freshRound();
     await repo.createGame(round.id, {
       title: 'A', platform: 'analog', type: 'analog', duration: 'medium',
       minPlayers: 1, maxPlayers: 4, image: null, source: null,
     });
-    const withActivity = await repo.getRound(round.id);
-    const aid = withActivity.activities[0].id;
+    const aid = (await repo.listActivities(round.id))[0].id;
     assert.equal(await repo.deleteActivity(round.id, aid), true);
     assert.equal(await repo.deleteActivity(round.id, aid), false);
-    assert.equal((await repo.getRound(round.id)).activities.length, 0);
+    assert.equal((await repo.listActivities(round.id)).length, 0);
   });
 
   test('listRounds returns every round assembled, in creation order', async () => {

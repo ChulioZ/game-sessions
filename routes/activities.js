@@ -1,12 +1,19 @@
 'use strict';
 
-/* Route for a round's activity feed: delete a single entry.
-   Mounted under /api/rounds/:rid/activities (mergeParams for rid). */
+/* Route for a round's activity feed: list it, delete a single entry.
+   Mounted under /api/rounds/:rid/activities (mergeParams for rid). The feed is
+   not part of the round payload (issue #197) — Chronik fetches it here. */
 
 const express = require('express');
 const repo = require('../lib/repo');
 
 const router = express.Router({ mergeParams: true });
+
+router.get('/', async (req, res) => {
+  const activities = await repo.listActivities(req.params.rid);
+  if (!activities) return res.status(404).json({ error: 'Round not found' });
+  res.json(activities);
+});
 
 router.delete('/:aid', async (req, res) => {
   const round = await repo.getRound(req.params.rid);

@@ -82,7 +82,7 @@ if (!process.env.DATABASE_URL) {
     assert.equal(r1.games[0].id, 'g1');
     assert.equal(r1.sessions[0].id, 's1');
     assert.equal(r1.sessions[0].votes.m1.g1.rating, 5); // nested reference intact
-    assert.equal(r1.activities[0].id, 'a1');
+    assert.equal((await repo.listActivities('r1'))[0].id, 'a1');
     // Legacy `recommendations` folded into the run history; the raw key is gone.
     assert.equal('recommendations' in r1, false);
     assert.equal(r1.recommendationRuns[0].id, 'legacy');

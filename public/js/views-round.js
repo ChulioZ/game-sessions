@@ -17,17 +17,27 @@ async function showRound(rid, tab) {
   syncUrl(roundPath(rid, activeTab));
   app.innerHTML = '<p class="muted">…</p>';
   // The round may not exist (e.g. a deep link / reload to a deleted round) —
-  // fall back to Home instead of hanging on the loading state.
-  let round;
-  try { round = await fetchRound(rid); }
-  catch { return showHome(); }
+  // fall back to Home instead of hanging on the loading state. The activity
+  // feed is not part of the round payload (#197); only Chronik renders it, so
+  // fetch it just for that tab, in parallel with the round. A failed feed
+  // fetch degrades to an empty feed (sessions still render) rather than
+  // blocking the tab.
+  let round, activities;
+  try {
+    [round, activities] = await Promise.all([
+      fetchRound(rid),
+      activeTab === 'chronik'
+        ? api('GET', `/api/rounds/${rid}/activities`).catch(() => [])
+        : [],
+    ]);
+  } catch { return showHome(); }
   applyBackground(round.background);
   setCrumbs([{ label: t('nav.home'), onClick: showHome }, { label: round.name }]);
 
   app.innerHTML = '';
   const activeGames = round.games.filter((g) => !g.retired);
   if (activeTab === 'regal') renderRegalTab(round, activeGames);
-  else if (activeTab === 'chronik') renderChronikTab(round);
+  else if (activeTab === 'chronik') renderChronikTab(round, activities);
   else if (activeTab === 'pokale') renderPokaleTab(round);
   else renderStartTab(round, activeGames);
   renderHubDock(rid, activeTab);

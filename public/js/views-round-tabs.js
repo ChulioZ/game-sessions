@@ -181,8 +181,10 @@ function renderRegalTab(round, activeGames) {
   app.appendChild(foot);
 }
 
-// --- Chronik tab: one timeline of sessions and shelf changes.
-function renderChronikTab(round) {
+// --- Chronik tab: one timeline of sessions and shelf changes. The activity
+// feed arrives as its own argument (fetched per visit by showRound, #197) —
+// it is no longer part of the round payload.
+function renderChronikTab(round, activities) {
   const rid = round.id;
   const loadCover = createCoverLoader(); // lazy session thumbs (#198)
 
@@ -191,7 +193,7 @@ function renderChronikTab(round) {
   round.sessions
     .filter((s) => s.done)
     .forEach((s) => entries.push({ kind: 'session', at: s.createdAt, session: s }));
-  (round.activities || []).forEach((a) => {
+  (activities || []).forEach((a) => {
     const meta = {
       game_added: { icon: 'ti-plus', text: t('activity.gameAdded', { title: a.title }) },
       game_retired: { icon: 'ti-trash', text: t('activity.gameRetired', { title: a.title }) },

@@ -21,8 +21,16 @@ test('POST games adds a game and logs a game_added activity', async () => {
   assert.equal(res.body.duration, 'short');
   assert.equal(res.body.retired, false);
 
+  // The feed lives on its own endpoint (#197), not in the round payload.
   const detail = await request(app).get(`/api/rounds/${round.id}`);
-  assert.ok(detail.body.activities.some((a) => a.type === 'game_added' && a.gameId === res.body.id));
+  assert.equal('activities' in detail.body, false);
+  const feed = await request(app).get(`/api/rounds/${round.id}/activities`);
+  assert.ok(feed.body.some((a) => a.type === 'game_added' && a.gameId === res.body.id));
+});
+
+test('GET activities 404s for a missing round', async () => {
+  const res = await request(app).get('/api/rounds/nope/activities');
+  assert.equal(res.status, 404);
 });
 
 test('POST games rejects missing title and invalid player counts', async () => {
@@ -40,8 +48,8 @@ test('retire flag sets retired/retiredAt and logs game_retired', async () => {
   assert.equal(res.body.retired, true);
   assert.ok(res.body.retiredAt);
 
-  const detail = await request(app).get(`/api/rounds/${round.id}`);
-  assert.ok(detail.body.activities.some((a) => a.type === 'game_retired'));
+  const feed = await request(app).get(`/api/rounds/${round.id}/activities`);
+  assert.ok(feed.body.some((a) => a.type === 'game_retired'));
 });
 
 test('restoring clears retiredAt and logs game_restored', async () => {
@@ -58,14 +66,14 @@ test('restoring clears retiredAt and logs game_restored', async () => {
 test('PATCH games edits fields without adding an activity', async () => {
   const round = await createRound(request);
   const game = (await addGame(round.id)).body;
-  const before = (await request(app).get(`/api/rounds/${round.id}`)).body.activities.length;
+  const before = (await request(app).get(`/api/rounds/${round.id}/activities`)).body.length;
   const res = await request(app)
     .patch(`/api/rounds/${round.id}/games/${game.id}`)
     .send({ title: 'Chess Deluxe', maxPlayers: 2 });
   assert.equal(res.status, 200);
   assert.equal(res.body.title, 'Chess Deluxe');
   assert.equal(res.body.maxPlayers, 2);
-  const after = (await request(app).get(`/api/rounds/${round.id}`)).body.activities.length;
+  const after = (await request(app).get(`/api/rounds/${round.id}/activities`)).body.length;
   assert.equal(after, before);
 });
 
@@ -83,8 +91,9 @@ test('DELETE only works on retired games and scrubs feed entries', async () => {
   const detail = await request(app).get(`/api/rounds/${round.id}`);
   assert.equal(detail.body.games.length, 0);
   // The add/retire entries referencing the game are gone; a game_deleted remains.
-  assert.ok(!detail.body.activities.some((a) => a.gameId === game.id));
-  assert.ok(detail.body.activities.some((a) => a.type === 'game_deleted'));
+  const feed = (await request(app).get(`/api/rounds/${round.id}/activities`)).body;
+  assert.ok(!feed.some((a) => a.gameId === game.id));
+  assert.ok(feed.some((a) => a.type === 'game_deleted'));
 });
 
 // --- Provider source + server-side cover download (issue #41 follow-up) ---

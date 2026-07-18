@@ -210,7 +210,7 @@ routes/
   members.js         …/members              (edit name / avatar color)
   sessions.js        …/sessions             (start, results, choice, finish,
                                              cancel, delete, remove one game)
-  activities.js      …/activities           (delete an entry)
+  activities.js      …/activities           (list the feed [GET], delete an entry)
   background.js      …/background           (set the design)
   recommendations.js …/recommendations      (buy-next run history: list [GET],
                                              generate & append via Claude [POST],
