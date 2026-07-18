@@ -17,7 +17,9 @@ const MEMBER_COLORS = [
   '#d4537e', '#2f6f9e', '#639922', '#993556',
 ];
 
-// Edit a member's name and/or avatar color. Accepts any subset of { name, color }.
+// Edit a member's name and/or avatar color, or link/unlink an account (#135).
+// Accepts any subset of { name, color, userId } — userId must be an existing
+// user's id, or null to unlink (members stay name-only seats by default).
 router.patch('/:mid', async (req, res) => {
   const round = await repo.getRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
@@ -36,6 +38,15 @@ router.patch('/:mid', async (req, res) => {
     if (!MEMBER_COLORS.includes(b.color))
       return res.status(400).json({ error: 'Invalid color' });
     patch.color = b.color;
+  }
+  if (b.userId !== undefined) {
+    if (b.userId === null) {
+      patch.userId = null;
+    } else {
+      const user = await repo.getUserById(String(b.userId));
+      if (!user) return res.status(400).json({ error: 'Unknown user' });
+      patch.userId = user.id;
+    }
   }
 
   // No activity entry: like the inline game edits, member tweaks are minor and

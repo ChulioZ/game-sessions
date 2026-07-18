@@ -187,6 +187,11 @@ lib/
     disk.js          default backend — files under DATA_DIR/uploads
     s3.js            S3-compatible object storage, used when S3_BUCKET set
   upload.js          multer image-upload config (persists via lib/storage)
+  auth.js            shared-password gate (active when AUTH_PASSWORD is set)
+  accounts.js        user-account primitives: Argon2id passwords, access/refresh
+                     tokens (issue #135; off unless ACCOUNTS_ENABLED)
+  mail.js            outbound e-mail (Brevo when BREVO_API_KEY is set, else
+                     logged to an in-memory outbox)
   observability.js   structured logging, /healthz, central error handler
   providers/         external game-database providers for the add-game lookup
     index.js         provider registry + image-host allowlist
@@ -202,6 +207,11 @@ lib/
                      autosuggest API, detail via the public catalog service
                      (digital games)
 routes/
+  auth.js            /api/auth              (shared-password login/logout/status)
+  account.js         /api/account           (user accounts: register, verify
+                                             e-mail, login, refresh, logout,
+                                             forgot/reset password, me —
+                                             404 unless ACCOUNTS_ENABLED)
   lookup.js          /api/lookup            (search/game — provider proxy: PS Store, BGG, Steam, Nintendo, Xbox)
   rounds.js          /api/rounds            (list, detail, create, delete)
   games.js           …/games                (add [+cover download/source],
@@ -307,6 +317,16 @@ login page and the API returns `401`. Leave `AUTH_PASSWORD` unset (the default) 
 the app stays open, as the local-only MVP runs today. Tune the login brute-force
 limit with `AUTH_RATE_LIMIT_MAX` (attempts per 15 min, default 20). The session is
 a signed, httpOnly cookie (marked `Secure` automatically behind a TLS proxy).
+
+User accounts (preview, issue #135): the token-first account model — register with
+e-mail + password (Argon2id-hashed), e-mail verification, login issuing short-lived
+access tokens + rotating refresh tokens, and password reset — lives under
+`/api/account`. It is **off by default**: set `ACCOUNTS_ENABLED=true` *and* a
+strong `SESSION_SECRET` to expose it. Verification/reset mails go out via Brevo
+(`BREVO_API_KEY`, `MAIL_FROM`, links built from `APP_BASE_URL`); without a key
+they are logged instead of sent. The account UI, tenancy, and roles are follow-up
+work (#136–#138) — until then the shared-password gate above keeps protecting the
+instance, so leave accounts off in production.
 
 Observability: logs go to stdout as structured JSON; set `LOG_LEVEL`
 (`silent`/`error`/`warn`/`info`, default `info`) to tune verbosity, and

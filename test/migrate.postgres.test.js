@@ -18,7 +18,7 @@ if (!process.env.DATABASE_URL) {
 } else {
   const { Client } = require('pg');
   const repo = require('../lib/repo'); // DATABASE_URL is set -> Postgres backend
-  const { migrate, readRounds } = require('../scripts/migrate-json-to-postgres');
+  const { migrate, readData } = require('../scripts/migrate-json-to-postgres');
 
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gs-migrate-'));
   const dataFile = path.join(dataDir, 'data.json');
@@ -49,6 +49,10 @@ if (!process.env.DATABASE_URL) {
         background: { type: 'theme', page: 'p', accent: 'a' },
       },
     ],
+    users: [{
+      id: 'u1', email: 'a@example.com', createdAt: 't', emailVerified: true,
+      identities: [{ type: 'password', hash: 'x' }], verification: null, reset: null, refreshTokens: [],
+    }],
   };
 
   before(() => {
@@ -62,7 +66,7 @@ if (!process.env.DATABASE_URL) {
       ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
     });
     await c.connect();
-    await c.query('TRUNCATE rounds, members, games, sessions, activities CASCADE');
+    await c.query('TRUNCATE rounds, members, games, sessions, activities, users CASCADE');
     await c.end();
   });
 
@@ -72,9 +76,9 @@ if (!process.env.DATABASE_URL) {
   });
 
   test('migrates data.json into Postgres, preserving ids and folding legacy recommendations', async () => {
-    const rounds = readRounds(dataFile);
-    const c = await migrate(repo, rounds);
-    assert.deepEqual(c, { rounds: 2, members: 2, games: 1, sessions: 1, activities: 1 });
+    const dataset = readData(dataFile);
+    const c = await migrate(repo, dataset);
+    assert.deepEqual(c, { rounds: 2, members: 2, games: 1, sessions: 1, activities: 1, users: 1 });
 
     const r1 = await repo.getRound('r1');
     assert.equal(r1.name, 'One');
@@ -91,12 +95,17 @@ if (!process.env.DATABASE_URL) {
     const r2 = await repo.getRound('r2');
     assert.deepEqual(r2.background, { type: 'theme', page: 'p', accent: 'a' });
     assert.equal('recommendationRuns' in r2, false); // no recs -> key stays absent
+
+    // Users (#135) ride along, id preserved.
+    const u1 = await repo.getUserById('u1');
+    assert.equal(u1.email, 'a@example.com');
+    assert.deepEqual(u1.identities, [{ type: 'password', hash: 'x' }]);
   });
 
   test('refuses to import into a non-empty target', async () => {
     await repo.importRounds([
       { id: 'existing', name: 'X', members: [], games: [], sessions: [], activities: [], background: null },
     ]);
-    await assert.rejects(() => migrate(repo, readRounds(dataFile)), /non-empty database/);
+    await assert.rejects(() => migrate(repo, readData(dataFile)), /non-empty database/);
   });
 }

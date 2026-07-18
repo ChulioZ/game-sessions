@@ -258,4 +258,74 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.updateMember(round.id, 'nobody', { name: 'X' }), null);
     assert.equal(await repo.updateMember('nowhere', mid, { name: 'X' }), null);
   });
+
+  /* -------------------------------- Users (#135) ----------------------------- */
+
+  // Route-shaped user fields: every key present (null when unset) so both
+  // backends round-trip identically — see .claude/rules/postgres-backend.md.
+  function userFields(over = {}) {
+    return {
+      email: `u${Math.random().toString(16).slice(2)}@example.com`,
+      createdAt: '2026-07-18T00:00:00.000Z',
+      emailVerified: false,
+      identities: [{ type: 'password', hash: 'argon2-hash' }],
+      verification: { tokenHash: 'vh', expiresAt: '2027-01-01T00:00:00.000Z' },
+      reset: null,
+      refreshTokens: [],
+      ...over,
+    };
+  }
+
+  test('createUser mints an id, round-trips by id and email, enforces unique email', async () => {
+    const fields = userFields();
+    const user = await repo.createUser(fields);
+    assert.match(user.id, /^[0-9a-f]{16}$/);
+    assert.deepEqual(user, { id: user.id, ...fields });
+    assert.deepEqual(await repo.getUserById(user.id), user);
+    assert.deepEqual(await repo.getUserByEmail(fields.email), user);
+    assert.equal(await repo.createUser(userFields({ email: fields.email })), 'email_taken');
+    assert.equal(await repo.getUserById('nope'), null);
+    assert.equal(await repo.getUserByEmail('nope@example.com'), null);
+  });
+
+  test('updateUser replaces whole top-level keys; deleteUser reports found/again', async () => {
+    const user = await repo.createUser(userFields());
+    const tokens = [{ tokenHash: 'th', createdAt: 't', expiresAt: '2027-01-01T00:00:00.000Z' }];
+    const updated = await repo.updateUser(user.id, {
+      emailVerified: true, verification: null, refreshTokens: tokens,
+    });
+    assert.equal(updated.emailVerified, true);
+    assert.equal(updated.verification, null);
+    assert.deepEqual(updated.refreshTokens, tokens);
+    assert.equal(updated.email, user.email); // untouched keys stay
+    assert.deepEqual(await repo.getUserById(user.id), updated);
+    assert.equal(await repo.updateUser('nope', { emailVerified: true }), null);
+
+    assert.equal(await repo.deleteUser(user.id), true);
+    assert.equal(await repo.deleteUser(user.id), false);
+    assert.equal(await repo.getUserById(user.id), null);
+  });
+
+  test('getUserById returns a snapshot: mutating it does not change the store', async () => {
+    const user = await repo.createUser(userFields());
+    const snap = await repo.getUserById(user.id);
+    snap.emailVerified = true;
+    snap.refreshTokens.push({ tokenHash: 'injected' });
+    const again = await repo.getUserById(user.id);
+    assert.equal(again.emailVerified, false);
+    assert.deepEqual(again.refreshTokens, []);
+  });
+
+  test('importUsers preserves ids; updateMember links and unlinks a user', async () => {
+    const fixed = { id: 'usr_fixed_1', ...userFields({ email: 'fixed@example.com' }) };
+    assert.equal(await repo.importUsers([fixed]), 1);
+    assert.deepEqual(await repo.getUserById('usr_fixed_1'), fixed);
+
+    const round = await freshRound();
+    const mid = round.members[0].id;
+    const linked = await repo.updateMember(round.id, mid, { userId: 'usr_fixed_1' });
+    assert.equal(linked.userId, 'usr_fixed_1');
+    const unlinked = await repo.updateMember(round.id, mid, { userId: null });
+    assert.equal(unlinked.userId, null);
+  });
 };
