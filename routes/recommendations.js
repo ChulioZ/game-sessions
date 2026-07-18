@@ -12,7 +12,8 @@
  *           list in the optional round.recommendations field, and return it.
  *
  * This is the app's first outbound LLM call — user-authorised (see
- * docs/recommendations-analysis.md) and strictly opt-in. It degrades so it can
+ * .claude/rules/buy-next-recommendations.md for why this shape was chosen over
+ * an API-grounded approach) and strictly opt-in. It degrades so it can
  * never break the app: no key -> 503 { error: 'not_configured' }; upstream
  * failure/timeout/unparseable reply -> 502 { error: 'provider_unreachable' }.
  * Either way the client falls back to Layer A.

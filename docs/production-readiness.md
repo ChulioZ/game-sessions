@@ -1,555 +1,312 @@
-# Analysis: production-readiness — local-only → publicly hosted
+# Production readiness: status, decisions & roadmap
 
-> Status: **analysis + decision** (issue #40). This document maps the full gap
-> between the app as it stands on `main` and a publicly hosted product, makes an
-> opinionated recommendation per area, and proposes a phased roadmap plus a list
-> of follow-up execution issues. **No feature code ships from #40** — only this
-> report. Everything below is grounded in the code as it stands today.
+> Originated as issue #40's gap analysis for "local-only → publicly hosted."
+> Phases 1 and 2 below (the hard blockers) have since **shipped** — this doc is
+> now the living record of what was decided and why, kept current as work
+> lands, not a one-off report. Sections describing already-shipped work are
+> deliberately short **pointers to the code / `.claude/rules/` file that now
+> owns the operative detail** — read those, not this doc, for how something
+> works today. Sections describing still-open decisions (legal, branding,
+> Phase 1.5 hardening) stay in full, since nothing else captures that
+> reasoning yet.
 >
-> The standing constraints (no auth, local-only, no build step, no DB) are the
-> subject of this review, so they are **not** binding here — but every place this
-> report recommends breaking one is called out explicitly.
->
-> The Legal section is **research, not legal advice**; the Branding section's
-> availability checks are a snapshot and are **not** a trademark clearance. Both
-> flag where a professional must confirm before anything is committed.
+> The Legal section (§9) is **research, not legal advice**; the Branding
+> section's (§10) domain-availability checks are a snapshot, **not** a
+> trademark clearance. Both flag where a professional must confirm before
+> anything is committed.
 
 ---
 
 ## 0. TL;DR
 
-- **Recommend the end-state: multi-tenant SaaS** (public sign-up, many
-  independent groups, per-tenant isolation) — because the product's own framing
-  is "any group or gaming round" ([`CLAUDE.md`](../CLAUDE.md)), which a
-  single-instance deployment can't serve. **But sequence it**: the *first* hosted
-  milestone should be a **single authenticated instance** (one group, auth gate,
-  real database, TLS) to de-risk auth/DB/ops before multiplying tenants. Same
-  destination, safer path.
-- **The three hard blockers**, in order: (1) **no authentication or
-  authorization** on any route; (2) the **process-local in-memory store** with no
-  concurrency safety; (3) **no transport security / production hosting**. Nothing
-  public can happen until all three are addressed. **Status 2026-07-19: all
-  three are shipped** (#127–#133, live on Railway — see §12 Phase 1). What
-  remains before opening **public** sign-up is the legal pack (Impressum #134,
-  blocked externally; DPAs/ToS #140) and per-tenant quotas (#139) — see §12.
-- **Keep the stack, don't rewrite.** Node/Express is fine for production. The
-  no-build vanilla frontend is fine for a single instance and *acceptable* for
-  multi-tenant with a thin build added later — a framework rewrite is **not** a
-  prerequisite and would be the single biggest waste of effort here.
-- **The goal is a website *and* native iOS/Android store apps** (per
-  `CLAUDE.md`), not just responsive web. Good news: the backend is already
-  **API-first** (clean JSON `/api/*` routes), which is the hard prerequisite.
-  Recommend reaching the stores by **wrapping the existing web UI with Capacitor**
-  (plus a PWA step), **not** a React Native/Flutter rewrite. See §2.4.
-- **Data:** move `data/data.json` → **PostgreSQL** (managed). This is
-  non-negotiable for more than one concurrent writer or more than one process.
-- **Legal (DE/EU):** once hosted for real users, an **Impressum (§ 5 DDG)** and a
-  **GDPR/DSGVO privacy policy** are **legal musts**; a cookie-consent banner is
-  **probably not required today** because the app sets no non-essential cookies
-  (it uses `localStorage` only) — but that needs confirming against the current
-  tracking (Anthropic call) and a lawyer's sign-off.
+- **End-state: multi-tenant SaaS** (public sign-up, many independent groups,
+  per-tenant isolation) — because the product's own framing is "any group or
+  gaming round" ([`CLAUDE.md`](../CLAUDE.md)), which a single-instance
+  deployment can't serve. **Sequenced through a single authenticated instance
+  first** (one group, auth gate, real database, TLS) to de-risk auth/DB/ops
+  before multiplying tenants — same destination, safer path.
+- **The three hard blockers — all shipped (2026-07-19):** (1) authentication +
+  authorization on every route, (2) a real database replacing the
+  process-local in-memory store, (3) transport security + production hosting
+  (#127–#133, live on Railway — §12 Phase 1). What remains before opening
+  **public** sign-up is the legal pack (Impressum #134, blocked externally;
+  ToS/DPAs #140) and per-tenant quotas (#139) — see §12.
+- **Kept the stack, no rewrite.** Node/Express, the no-build vanilla frontend,
+  and hand-rolled-but-tested logic all proved out in production — see §2.
+- **The goal is a website *and* native iOS/Android store apps**, not just
+  responsive web. The PWA step shipped (#142); reaching the app stores is
+  **Capacitor wrapping the existing web UI**, not a rewrite — still open, see
+  §2.4.
+- **Data lives in managed PostgreSQL** (§3) with S3-compatible object storage
+  for cover images — both shipped, both non-negotiable once there's more than
+  one concurrent writer or process.
+- **Legal (DE/EU):** once hosting real users, an **Impressum (§ 5 DDG)** and a
+  **GDPR/DSGVO privacy policy** are legal musts (§9) — both still open. A
+  cookie-consent banner is **probably not required** (no non-essential
+  cookies, `localStorage`-only), pending a lawyer's confirmation.
 - **Brand:** "Spieleabend" is generic German for "game night" — descriptively
-  weak, unregistrable as-is, and already crowded (e.g. the AI organizer
-  [Boardy](https://www.boardyboard.com/)). Recommend a distinctive coined name;
-  **`rundenwahl`** and **`ludopick`** are both free on `.com`/`.app`/`.de` as of
-  this writing. **Avoid anything with "meeple"** — it's an EU/DE trademark.
+  weak and unregistrable as-is (§10). No rebrand has happened; still an open
+  decision, not blocking anything already shipped.
 
-The rest of this document is the reasoning behind each of these.
+The rest of this document is the reasoning behind each of these, and the
+current status of what's still open.
 
 ---
 
-## 1. The recommendation up front: which end-state?
+## 1. Which end-state? — decided
 
-The issue asks to choose between two destinations, because the choice cascades
-into auth, data model, hosting, and legal.
+**Decided and executed: target multi-tenant SaaS, reached in phases.** A
+single-instance-only product could never serve "any group," so building only
+for one group would mean a second migration later. The data model was already
+close to multi-tenant: a "round" was already a self-contained unit (its own
+members, games, sessions, activities), so the tenant boundary (§6) wrapped
+rounds without reshaping them.
 
-| | **Multi-tenant SaaS** | **Single internet-exposed instance** |
+| | **Multi-tenant SaaS** (the destination) | **Single instance** (milestone one) |
 |---|---|---|
-| Who it serves | Many independent groups, public sign-up | One group, just reachable from the internet |
-| Data model | Every entity scoped to a tenant/account; strict isolation | Today's model, unchanged |
-| Auth | Full registration, sessions, roles, password reset | A single shared gate (one password / one small user set) |
-| Hosting | Real DB, backups, monitoring, scaling story | One small box + TLS is enough |
-| Legal exposure | High — you are a data processor for strangers | Moderate — your own group's data, hosted |
-| Effort | High | Low–moderate |
+| Who it serves | Many independent groups, public sign-up | One group, reachable from the internet |
+| Auth | Full registration, roles, password reset | A single shared gate |
+| Legal exposure | High — data processor for strangers | Moderate — your own group's data, hosted |
 
-**Recommendation: target multi-tenant SaaS, reached in phases.** The product
-description in [`CLAUDE.md`](../CLAUDE.md) — "any group or gaming round to manage
-their games" — is a multi-tenant ambition; a single instance can never be that
-product, so building only for one group means a second migration later. The
-data model is also *closer* to multi-tenant than it looks: a "round" is already a
-self-contained unit (its own members, games, sessions, activities — see the
-`round` object built in [`routes/rounds.js`](../routes/rounds.js) L69–78), so a
-tenant boundary can wrap rounds without reshaping them.
-
-**But the first hosted deployment should be a single authenticated instance.**
-It exercises the whole production spine — auth, database, TLS, backups,
-monitoring — for one trusted group, where a mistake costs little, before any
-stranger's data is involved. Multi-tenancy (accounts, isolation, per-tenant
-billing/quotas) is then a *data-model + authz* change layered on a system that
-already runs in production. This is the lowest-regret order.
-
-**Rejected: single instance as the end-state.** Cheapest, but it forecloses the
-stated product and a second group means a second server — no path to "any group."
-Fine only if the ambition quietly shrinks to "just us, but remote."
-
-Everything below assumes **multi-tenant is the destination, single-instance is
-milestone one**, and flags where the two diverge.
+**Rejected, as planned: single instance as the permanent end-state.** Cheapest,
+but forecloses the stated "any group" product.
 
 ---
 
 ## 2. Architecture & tech stack
 
-### 2.1 Runtime & backend — **keep**
+### 2.1 Runtime & backend — kept, as decided
 
-**Current.** Node + Express 5 ([`package.json`](../package.json) — `express
-^5.2.1`, `multer ^2.0.0`, `engines.node >=18`). The app is built in
-[`lib/app.js`](../lib/app.js) (`createApp()` wires middleware + mounts routers)
-and only `server.js` calls `listen()` — a clean split that already lets tests
-drive the app in-process. Routers are one-per-resource under `/api/rounds/…`
-([`lib/app.js`](../lib/app.js) L21–28), thin and readable.
+Node + Express 5 stayed the runtime; `server.js` only calls `listen()`,
+`lib/app.js`'s `createApp()` wires everything else, which is exactly what let
+auth, `helmet`, and rate-limit middleware slot in later without restructuring.
+**Rejected, as planned:** a Nest/Fastify rewrite — no payoff at this size.
 
-**Gap.** Nothing structural. Express 5 is current and production-grade. The
-per-resource router layout is exactly what scales cleanly to auth middleware and
-tenant scoping.
+### 2.2 Frontend — kept, thin build shipped
 
-**Recommendation — keep Node/Express.** Add cross-cutting middleware (auth,
-`helmet`, rate-limit, request logging) in `createApp()`, never in `server.js`
-(tests must keep requiring the app without a port — see
-[`.claude/rules/automated-tests.md`](../.claude/rules/automated-tests.md)).
+**Decision (still binding — cross-referenced from [`CLAUDE.md`](../CLAUDE.md)):
+no SPA framework.** The app is already a working client-side-routed SPA
+([`public/js/router.js`](../public/js/router.js)); a framework rewrite buys
+nothing it can't already do. The one real risk — shared-global-scope
+load-order fragility — is a maintainability tax contained by
+[`.claude/rules/frontend-script-load-order.md`](../.claude/rules/frontend-script-load-order.md),
+not a production-safety issue.
 
-**Rejected: rewrite to Nest/Fastify/etc.** No payoff at this size; throws away a
-clean, well-tested codebase. Fastify would buy marginal throughput the app will
-never need before a DB is the bottleneck anyway.
+**Shipped since this call was made:** the cache-busting + minification gap
+this section originally flagged is closed. `npm run build` (issue #141, see
+[`.claude/rules/frontend-build-cache-busting.md`](../.claude/rules/frontend-build-cache-busting.md))
+content-hashes and minifies `public/js/**` + `styles.css` into `dist/`, served
+only under `NODE_ENV=production`. It stays a one-command, optional,
+non-bundling step (`minifyIdentifiers: false`, never `esbuild.build`/bundling)
+— not a license to grow it into a framework or add a build step elsewhere.
 
-### 2.2 Frontend — **keep for now, add a thin build later**
+**Rejected, still rejected: SPA framework rewrite (React/Vue/Svelte).** Defer
+indefinitely; revisit only if the shared-scope pattern's complexity outgrows
+what it can hold — a code-quality trigger, not a going-live one.
 
-**Current.** Plain classic `<script>`s sharing one global scope, loaded in a
-fixed order ([`public/index.html`](../public/index.html)); no build step, no
-framework. Assets are root-absolute so deep links work behind the SPA fallback
-(see [`.claude/rules/spa-fallback-absolute-asset-paths.md`](../.claude/rules/spa-fallback-absolute-asset-paths.md)),
-and fonts are **self-hosted woff2** ([`public/fonts/`](../public/fonts)) — no
-Google Fonts CDN, which is a genuine privacy/GDPR win (no third-party font
-request leaking IPs).
+### 2.3 Statefulness & scaling — resolved
 
-**Gap.** Three things bite at production scale, none fatal:
-1. **No cache-busting.** Static assets ship without content hashes, so a deploy
-   can serve stale JS/CSS from browser/CDN caches. Today this is a home-LAN
-   non-issue; publicly it causes "hard-refresh to fix" bug reports.
-2. **No minification/bundling.** Fine over LAN; over the internet it's more bytes
-   and more round-trips than needed (modest — the JS is ~10k LOC total across
-   [`public/js/`](../public/js)).
-3. **Shared-global-scope fragility.** The load-order trap (documented in
-   [`.claude/rules/frontend-script-load-order.md`](../.claude/rules/frontend-script-load-order.md))
-   is a maintainability tax that grows with the codebase, not a user-facing bug.
-
-**Recommendation.** For **milestone one (single instance): keep it as-is** — the
-constraints that make it fragile also make it dependency-free and easy to reason
-about, and it works. For **multi-tenant/public**: add the *smallest possible*
-build step whose only jobs are **content-hashed filenames (cache-busting)** and
-**minification** — e.g. `esbuild` as a one-command bundle, kept optional so local
-dev still runs with no build. This is a deliberate, scoped break of the
-"no build step" constraint, justified purely by cache-busting; it is **not** a
-license to adopt a framework.
-
-**Rejected: SPA framework rewrite (React/Vue/Svelte).** The single most expensive
-option on the table, and it buys nothing the current UI can't already do — the
-app is already a working client-side-routed SPA
-([`public/js/router.js`](../public/js/router.js)). Defer indefinitely; revisit
-only if the frontend's complexity outgrows the shared-scope pattern, which is a
-*code-quality* trigger, not a *going-live* one.
-
-### 2.3 Statefulness & scaling — **the real architectural blocker**
-
-**Current.** [`lib/store.js`](../lib/store.js) loads the entire dataset into one
-in-memory `data` object **once at require-time** (L36) and rewrites the **whole
-file** on every mutation via atomic temp-file+rename (`saveData()`, L40–44).
-This is elegant for one process on a LAN and is the single source of truth the
-whole backend mutates in place.
-
-**Gap — this does not survive going public:**
-- **Single process only.** Two server processes (horizontal scaling, or even a
-  rolling deploy with overlap) each hold their own copy of `data`; whoever saves
-  last wins and silently clobbers the other — the exact failure mode already
-  documented for *external* edits in
-  [`.claude/rules/data-json-external-edits.md`](../.claude/rules/data-json-external-edits.md),
-  now caused by a second app instance.
-- **No concurrency control.** Mutations are last-write-wins over the whole file;
-  concurrent writers can lose updates.
-- **Rewrite-whole-file cost** grows with total data — fine for one group, wrong
-  shape for many tenants.
-- **Restarts** are safe (atomic write) but there's no point-in-time recovery.
-
-**Recommendation.** This is resolved by the **data-persistence move to a real
-database** (§3), which also makes the backend **stateless** (any number of
-processes behind a load balancer, safe rolling deploys). Until the DB lands, the
-app **must run as exactly one process** — treat that as a hard operational
-constraint of milestone one.
-
-**Rejected: keep the JSON file + a file lock / single-writer queue.** Possible
-for a single instance, but it's engineering effort spent propping up a design
-you're going to replace anyway, and it still can't scale horizontally.
+Was the real architectural blocker: `lib/store.js` held the whole dataset in
+one in-memory object, unsafe the moment more than one process touched it
+(rolling deploys, horizontal scaling). **Resolved by the Postgres backend**
+(§3, shipped #127) — the app is stateless once `DATABASE_URL` + `S3_BUCKET`
+are set, so any number of processes can run behind a load balancer with safe
+rolling deploys. Running more than one process isn't done yet (not needed at
+current traffic) — see the rate-limit-store caveat in §7 item 5 (#215) before
+it is.
 
 ### 2.4 Delivery: web, PWA, and native iOS/Android apps
 
-**The stated goal is a hosted website *and* an app** ([`CLAUDE.md`](../CLAUDE.md):
-"bring this live as a hosted **website and app**"). "App" here means real
-**native iOS/Android apps in the App Store and Play Store**, not just a
-phone-friendly website — so how the UI is *delivered* is a first-class
-architectural question, not an afterthought.
+The stated goal is a hosted website **and** native store apps, not just
+responsive web — so delivery is a first-class question. The backend is
+API-first (every operation a JSON call under `/api/*`), the hard prerequisite
+for any native client; no backend rewrite is needed to go native.
 
-**Current.** One delivery channel: a server-rendered app shell + client-side-
-routed SPA served by Express ([`lib/app.js`](../lib/app.js) SPA fallback,
-[`public/js/router.js`](../public/js/router.js)). No manifest, no service worker,
-no native packaging. It's a website, full stop.
+**Status:**
+- **PWA — shipped** (#142, see
+  [`.claude/rules/pwa-service-worker.md`](../.claude/rules/pwa-service-worker.md)):
+  manifest + service worker, installable, offline app shell, reusing 100% of
+  the existing UI. Not itself an App Store / Play Store listing (Android
+  installs it well; iOS support is partial).
+- **Capacitor wrapper → App Store + Play Store — not started, still the
+  recommended path.** Wrap the *existing web frontend* in a native shell (one
+  thin native project per platform loading the same HTML/JS/CSS); unlocks push
+  (APNs/FCM) and camera/barcode scanning; ships real `.ipa`/`.aab` bundles.
+  Lowest-effort route to the stores given what's built.
+- **Native/cross-platform rewrite (React Native/Flutter) — rejected,** as
+  planned: a second full frontend codebase to build and maintain forever, not
+  warranted for this UX.
 
-**The one thing already right: the backend is API-first.** Every data operation
-is a JSON call under `/api/*` ([`lib/app.js`](../lib/app.js) L21–28), cleanly
-separated from the frontend. That is *the* hard prerequisite for native apps —
-any client (web, PWA, native shell) talks to the same API. The app does **not**
-need a backend rewrite to go native.
-
-**Three delivery options (not mutually exclusive):**
-
-1. **PWA — installable web app.** Add a web app manifest + service worker so the
-   existing SPA installs to the home screen and works offline. *Cheapest by far*
-   and reuses 100% of the current UI. **Limit:** it is **not** an App Store /
-   Play Store listing — Android installs it well, iOS support is partial (limited
-   push, no store presence). Good as a first step and a fallback, but it does
-   **not** by itself satisfy "an app in the stores."
-2. **Capacitor wrapper — RECOMMENDED path to the stores.** Wrap the *existing web
-   frontend* in a native shell ([Capacitor](https://capacitorjs.com/)): one thin
-   native project per platform loads the same HTML/JS/CSS, and you ship real
-   `.ipa`/`.aab` bundles to both stores. Reuses essentially the whole current UI,
-   unlocks native APIs (push via APNs/FCM, and **camera/barcode scanning** to add
-   games by scanning a box — a feature the competitor
-   [Boardy](https://www.boardyboard.com/) already has), and keeps a single UI
-   codebase. This is the lowest-effort route from "website" to "store apps" given
-   what's already built. Pairs naturally with the thin frontend build in §2.2.
-3. **Native / cross-platform rewrite (React Native / Flutter).** Best-in-class
-   native UX and performance, but a **second full frontend codebase** to build
-   and maintain forever, throwing away the working vanilla SPA. **Rejected**
-   unless the UX bar demands truly native feel — which a game-night collection
-   manager almost certainly does not.
-
-**Recommendation:** **API-first backend (already true) → PWA (installable, offline)
-→ Capacitor wrapper for App Store + Play Store**, in that order. Defer any
-RN/Flutter rewrite indefinitely.
-
-**What going native cascades into (carried through the rest of this doc):**
-- **Auth (§5):** native apps can't rely on browser cookies the same way — they
-  need **token-based auth** (OAuth 2.0 + PKCE, refresh tokens in the platform
-  **Keychain/Keystore**). Build the account model token-first so web and native
-  share it.
-- **Legal & store compliance (§9):** each store adds its own gate on top of DSGVO
-  — **Apple App Review** + **Google Play** policies, **privacy nutrition labels /
-  Data Safety** declarations, an age rating, a public **privacy-policy URL**, and
-  Apple's requirement that **any app offering account creation must offer in-app
-  account deletion** (which the API can already do — see the clean delete in
-  [`routes/games.js`](../routes/games.js)). Apple/Google become additional
-  distributors/processors.
-- **Ops/release (§8):** paid developer accounts (**Apple Developer ~$99/yr**,
-  **Google Play ~$25 one-time**), app signing, and mobile build/release CI —
-  distinct from the web deploy pipeline.
-- **Push infrastructure** (APNs/FCM) if notifications are wanted — new, optional.
-
-**Blocker note:** native apps are **not** a launch blocker for the *website*, but
-they **depend on** the same spine (auth, API, hosting) — so building that spine
-token-first (§5) avoids rework when the apps come. Sequenced in Phase 2/3.
+**What going native still cascades into, when picked up (Phase 3):**
+- Auth is already token-first (#135), so web and native can share it without
+  rework.
+- Store compliance: Apple App Review + Google Play policies, privacy nutrition
+  labels/Data Safety, an age rating, a public privacy-policy URL, and (per
+  Apple) in-app account deletion — the API already supports a clean delete.
+- Paid developer accounts (Apple ~$99/yr, Google ~$25 one-time), app signing,
+  mobile release CI — a pipeline separate from the web deploy.
+- Push infrastructure (APNs/FCM), if wanted — new, optional.
 
 ---
 
-## 3. Data persistence
+## 3. Data persistence — shipped
 
-**Current.** `data/data.json` (a JSON tree of rounds → members/games/sessions/
-activities) plus cover images as files under `data/uploads/`, with only the path
-stored in the JSON ([`lib/store.js`](../lib/store.js),
-[`lib/upload.js`](../lib/upload.js)). No schema, no migrations by design
-(`CLAUDE.md`), rating averages derived on demand from session votes (not
-denormalized).
+**Decision executed:** managed **PostgreSQL** (#127) is the production
+backend, selected via `DATABASE_URL`; the default JSON-file backend
+(`data/data.json`) remains for local/self-hosted use, and both satisfy the
+same contract (see
+[`.claude/rules/data-access-layer.md`](../.claude/rules/data-access-layer.md),
+[`.claude/rules/postgres-backend.md`](../.claude/rules/postgres-backend.md)).
+Cover images moved to S3-compatible object storage (#128, see
+[`.claude/rules/cover-image-storage-backend.md`](../.claude/rules/cover-image-storage-backend.md))
+so the app tier is stateless. A one-off migration script
+(`scripts/migrate-json-to-postgres.js`) preserves ids; managed Postgres gives
+automated backups + point-in-time recovery for free.
 
-**Gap.** Everything in §2.3, plus: no backups beyond copying a file, no
-concurrent-write safety, no query layer, and uploaded images live on local disk
-(lost if the host is ephemeral).
-
-**Recommendation — managed PostgreSQL.**
-- **Why Postgres:** relational data with clear entities and relationships (a
-  round *has many* games/sessions; a session *has many* votes) maps naturally to
-  tables; it's the boring, universally-hosted, strongly-consistent default;
-  `JSONB` columns let the messier bits (votes maps, activity payloads) stay
-  document-shaped where that's genuinely simpler, so the migration need not
-  fully normalize on day one.
-- **Schema sketch (multi-tenant):** `tenants` → `users` (accounts) →
-  `memberships`; then `rounds (tenant_id)` → `round_members`, `games`,
-  `sessions` → `session_votes`, `activities`. Every top-level row carries a
-  `tenant_id`; **every query filters on it** (the isolation boundary — see §5/§6).
-  Note that today's `members` are *just names* (`{ id, name }`,
-  [`routes/rounds.js`](../routes/rounds.js) L60) — decoupled from any account.
-  That's actually convenient: "member" (a seat at a round) stays a lightweight
-  record and can be *optionally linked* to a real `user` account, so not every
-  player needs to sign up.
-- **Images:** move `data/uploads/` to **object storage** (S3-compatible) so the
-  app tier is stateless; keep the DB storing only the URL/key, exactly as it
-  stores the path today.
-- **Migration from file data:** a one-off script reads the existing
-  `data.json`, inserts rows under a first tenant, and uploads the cover files to
-  object storage. This is a genuine one-time migration — consistent with the repo
-  stance of migrating once rather than shipping permanent migration code
-  (`CLAUDE.md`). Follow
-  [`.claude/rules/data-json-external-edits.md`](../.claude/rules/data-json-external-edits.md):
-  **stop the server first**, back up the file (it's gitignored).
-- **Backups:** managed Postgres gives automated daily backups + PITR out of the
-  box — one of the main reasons to pay for managed over self-hosted.
-
-**Rejected alternatives.**
-- **SQLite** (e.g. via Litestream) — tempting for a single instance and would be
-  a fine *milestone-one* choice, but it doesn't take you to multi-tenant
-  horizontal scaling; choosing Postgres once avoids a second migration.
-- **A document DB (Mongo)** — the data is relational (votes reference games
-  reference rounds); a document store re-creates joins in app code and weakens
-  the tenant-isolation guarantees a relational `tenant_id` FK gives you.
-- **Keep JSON files** — ruled out in §2.3.
+**Why Postgres, over the rejected alternatives — still the right call:**
+relational data (round → games/sessions → votes) maps naturally to tables,
+with `JSONB` for the messier bits (votes maps, activity payloads), so the
+migration didn't need to fully normalize on day one. **SQLite** would have
+been fine for a single instance but not multi-tenant horizontal scaling,
+forcing a second migration later; a **document DB (Mongo)** would have
+re-created joins in app code and weakened the tenant-isolation guarantees a
+relational `tenant_id` FK gives for free.
 
 ---
 
-## 4. Security
+## 4. Security — hard blockers shipped, hardening ongoing
 
-This is the section the "trusted LAN" assumption has been hiding. **Every item
-below is currently absent**, because the threat model is "people I trust, on my
-network."
+**Shipped:** authentication + authorization on every route (shared-password
+gate #129; token-first accounts #135; tenant-scoped authorization #136, see
+[`.claude/rules/tenancy-rls.md`](../.claude/rules/tenancy-rls.md)); TLS
+(terminated at Railway's edge, #156); `helmet` security headers +
+`express-rate-limit` (#130, see
+[`.claude/rules/security-middleware.md`](../.claude/rules/security-middleware.md));
+hardened uploads — content-sniff/re-encode, safe extension derived from the
+detected type, not `originalname` (#133).
 
-**Current state (grounded).**
-- **No authentication, no authorization — anywhere.** [`lib/app.js`](../lib/app.js)
-  mounts routers with no auth middleware; every route is open. Anyone who can
-  reach the port can create/delete rounds
-  ([`routes/rounds.js`](../routes/rounds.js) `DELETE /:rid`), delete sessions
-  ([`routes/sessions.js`](../routes/sessions.js) `DELETE /:sid`), delete activity
-  entries, edit members, etc. On a LAN that's the whole point; on the internet
-  it's an open database.
-- **No transport security.** `server.js` serves plain HTTP.
-- **Input validation is per-route and ad hoc.** It exists and is reasonable
-  (e.g. [`routes/games.js`](../routes/games.js) validates title/players/duration;
-  [`routes/rounds.js`](../routes/rounds.js) validates name/members), but there's
-  no shared schema layer, and error messages are English-only server-side by
-  design (`CLAUDE.md`).
-- **File upload** ([`lib/upload.js`](../lib/upload.js)): 10 MB limit and a
-  `mimetype.startsWith('image/')` filter — but MIME is client-supplied and
-  **spoofable**, and the stored extension comes from `originalname`. Files are
-  saved under `data/uploads/` and served via `express.static`
-  ([`lib/app.js`](../lib/app.js) L18). No content sniffing / re-encoding.
-- **SSRF is already handled well** for the one place it matters: cover-image
-  downloads go through a **host allowlist** (`isAllowedImageUrl` /
-  `imageHostAllowed`, [`routes/games.js`](../routes/games.js) `downloadCover`,
-  L35–55; see
-  [`.claude/rules/add-game-lookup-provider.md`](../.claude/rules/add-game-lookup-provider.md)).
-  This is a real strength — keep it and extend the same discipline anywhere a
-  user-supplied URL is fetched.
-- **Secrets management** is already sane: `ANTHROPIC_API_KEY` and provider
-  locales live in `.env` (gitignored), documented in
-  [`.env.example`](../.env.example), never committed
-  ([`.claude/rules/no-reading-env-files.md`](../.claude/rules/no-reading-env-files.md)).
-- **Supply-chain posture is good:** Dependabot for npm + Actions
-  ([`.github/dependabot.yml`](../.github/dependabot.yml)), CI/Lint on every PR.
-  The dependency count has grown with the app's needs (`express`, `helmet`,
-  `express-rate-limit`, `argon2`, `multer`, `pg`, `@aws-sdk/client-s3`,
-  `compression` as of this writing) — that growth is **correct, not a
-  regression**: each one replaced code this app would otherwise have had to
-  hand-roll and keep secure itself (password hashing, security headers, rate
-  limiting, S3 access). **Minimizing dependency *count* is no longer the goal;
-  minimizing *hand-rolled, security-or-correctness-critical* code is** — see
-  the mindset note in [`CLAUDE.md`](../CLAUDE.md) and the shortlist below (§7).
-- **No rate limiting.** The outbound Claude call
-  ([`routes/recommendations.js`](../routes/recommendations.js)) is a real
-  cost/abuse vector once public (it spends real money per call).
+**Already strong, kept:** the cover-image download SSRF allowlist (see
+[`.claude/rules/add-game-lookup-provider.md`](../.claude/rules/add-game-lookup-provider.md))
+and `.env`-only secrets management (see
+[`.claude/rules/no-reading-env-files.md`](../.claude/rules/no-reading-env-files.md))
+— extend the same discipline to any new user-supplied-URL fetch.
 
-**Gap → what "removing the trusted-LAN assumption" requires:**
-1. **AuthN + AuthZ on every route** (§5). Authz must be enforced centrally, not
-   sprinkled per-route.
-2. **TLS everywhere** (terminate at the host/proxy; HSTS).
-3. **`helmet`** for security headers (CSP, `X-Content-Type-Options`, frame
-   options, etc.).
-4. **Rate limiting** — global, and *stricter* on the money-spending
-   recommendations endpoint and any future auth endpoints (brute-force).
-5. **Harden uploads** — verify real image content (magic-byte sniff or re-encode
-   via `sharp`), derive extension from the detected type not `originalname`,
-   consider serving user uploads from a separate origin/object storage to blunt
-   any stored-XSS-via-file vector.
-6. **Tenant isolation** as an authorization concern: every query scoped to the
-   caller's tenant; a missing filter is a data-leak-between-groups bug (§6).
-7. **Centralized input validation** — adopt a schema validator (e.g. `zod`) at
-   the router boundary so validation is uniform and total, not per-handler.
-8. **Structured request logging** without logging secrets or full personal data.
-
-**Recommendation.** Treat 1–4 as **launch blockers** (no public exposure
-without them), 5–8 as **fast-follow hardening**. None of this argues for a
-rewrite — it's middleware and discipline layered onto the existing clean router
-structure.
-
-**Rejected: "put it behind a VPN / Tailscale and call it hosted."** That's just
-a nicer LAN — legitimate for *milestone one's* single instance if the group is
-fine with it, but it is explicitly **not** a public product and doesn't advance
-the roadmap.
+**Still open (fast-follow hardening, not launch blockers — tracked in §7):**
+- **Centralized request validation** — routes still hand-roll
+  `typeof`/`Array.isArray` checks per handler; a schema validator (`zod`) at
+  the router boundary is scoped as **#213**.
+- **Structured logging / real error tracking** — the current logger +
+  webhook-forward is hand-rolled and dependency-free by design (pre-launch
+  trade-off); swapping to `pino`/`pino-http` is scoped as **#212**; a real
+  error-tracking provider (e.g. Sentry) is a later, separate decision
+  (cost/DPA implications, §9).
+- **Rate-limit store** — `express-rate-limit`'s in-memory store only works
+  correctly for one process; fine today (single Railway instance), tracked as
+  a prerequisite for horizontal scaling as **#215**.
 
 ---
 
-## 5. User registration & authorization
+## 5. User registration & authorization — shipped
 
-**Current.** No accounts, no login, no sessions, no roles. "Members" are plain
-name strings attached to a round ([`routes/rounds.js`](../routes/rounds.js)
-L60) — they identify *a seat at the table*, not *a person who can log in*. This
-is the deepest change going public requires.
+**Both milestone-one (single shared gate) and the full account model
+shipped.** `AUTH_PASSWORD` gates a single shared login (#129); the
+token-first account model — email + password (Argon2id), email verification,
+access/refresh tokens, password reset (#135, see
+[`.claude/rules/user-accounts.md`](../.claude/rules/user-accounts.md)) — runs
+alongside it behind `ACCOUNTS_ENABLED`, staged for opening public registration
+(see [`.claude/rules/accounts-mode-gate.md`](../.claude/rules/accounts-mode-gate.md)).
+"Member" stayed decoupled from "user" as recommended — a name-only seat at a
+round, optionally nothing more — which is what let a single-owner tenant
+launch without building roles or invitations first (see §6, Phase 4).
 
-**Recommendation.**
-- **Milestone one (single instance):** the smallest real auth — a single shared
-  login (or a tiny fixed user list) gating the whole app. Session cookies
-  (`httpOnly`, `Secure`, `SameSite`), server-side sessions or signed JWTs. This
-  alone converts "open database on the internet" into "our group's private
-  instance."
-- **Multi-tenant:** full account model — `users` with email + password
-  (Argon2/bcrypt hashing), email verification, password reset, session
-  management, and **roles per round/tenant** (owner/editor/viewer). Map roles to
-  the mutating routes that are currently open: who may delete a round
-  ([`routes/rounds.js`](../routes/rounds.js)), delete/finish a session
-  ([`routes/sessions.js`](../routes/sessions.js)), edit members, spend money on
-  recommendations.
-- **Strongly consider offloading identity to an IdP / OAuth** (Sign in with
-  Google/Apple, or a managed auth provider). Rationale: password reset, email
-  verification, MFA, breach monitoring, and "don't store password hashes
-  yourself" are exactly the parts that are easy to get dangerously wrong, and
-  this app has no reason to differentiate on auth. The trade-off is a third-party
-  dependency and (for hosted IdPs) cost + a data-processing relationship.
-- **Keep "member" decoupled from "user."** Not every player at a game night wants
-  an account; the existing name-only member record is the right primitive — allow
-  *optionally* linking a member to a user account (for people who log in) while
-  letting the rest stay nameless seats. This preserves current UX and eases
-  migration.
-
-**Rejected alternatives.**
-- **Roll-your-own full password stack** — feasible but concentrates the highest-
-  risk security surface in-house for no product benefit; prefer an IdP or a
-  vetted library, never hand-rolled crypto.
-- **Magic-link-only (passwordless)** — attractive (no password storage) and worth
-  considering, but it hard-depends on reliable transactional email and adds
-  friction; keep as an option, not the default recommendation.
+**Rejected, as planned:** a full home-grown password stack beyond the hashing
+itself (would concentrate high-risk surface for no product benefit) and
+passwordless-only login (hard-depends on reliable transactional email).
+Offloading identity to an IdP/OAuth was considered and **deferred, not
+rejected** — revisit if maintaining the hand-rolled token issuance
+(`lib/accounts.js`) becomes a burden; tracked as **#214** (§7).
 
 ---
 
-## 6. Multi-tenancy & data isolation
+## 6. Multi-tenancy & data isolation — shipped
 
-*(Split out from §5 because it's the SaaS-specific risk.)*
+**`tenant_id` on every top-level entity, enforced centrally.** The tenant
+middleware ([`lib/tenant.js`](../lib/tenant.js)) resolves the caller's tenant
+and scopes the repo (`req.repo`) to it on every request — the single
+enforcement point recommended here, not per-handler `WHERE` clauses. Postgres
+**Row-Level Security** backs it as defense-in-depth (#136, see
+[`.claude/rules/tenancy-rls.md`](../.claude/rules/tenancy-rls.md)).
+**Rejected, as planned:** database-per-tenant — operationally heavy at this
+scale (migrations × N databases) for no real isolation gain over `tenant_id` +
+RLS.
 
-**Current.** No tenancy — one dataset, one group.
-
-**Gap.** In multi-tenant SaaS, the **number-one catastrophic bug class is
-cross-tenant data leakage**: group A seeing group B's rounds. Today's routers
-fetch by id with no ownership check (`findRound(rid)` returns any round —
-[`lib/store.js`](../lib/store.js) L48), which is correct now and a vulnerability
-the moment there's more than one tenant.
-
-**Recommendation.**
-- Add `tenant_id` to every top-level entity; **enforce the filter in one place**
-  (a data-access layer or middleware that injects the caller's tenant into every
-  query), not per-handler where one forgotten `WHERE` leaks data.
-- Consider Postgres **Row-Level Security (RLS)** as defense-in-depth so the
-  database itself refuses cross-tenant reads even if app code slips.
-- Add tenant-scoped **quotas/limits** (rounds, uploads, recommendation spend) to
-  bound abuse and cost.
-
-**Rejected: database-per-tenant.** Strong isolation, but operationally heavy
-(migrations × N databases, connection sprawl) at this scale; a single database
-with `tenant_id` + RLS is the right weight.
+**Still open:** per-tenant quotas (rounds, uploads, recommendation spend) to
+bound abuse/cost — **#139**, a blocker for opening public sign-up (§12).
 
 ---
 
 ## 7. Code quality & maintainability
 
 **Current — genuinely good for the size:**
-- **Tests:** 19 spec files ([`test/`](../test)) driving the app in-process via
+- **Tests:** 19+ spec files ([`test/`](../test)) driving the app in-process via
   `supertest`, each in an isolated temp `DATA_DIR`
   ([`.claude/rules/automated-tests.md`](../.claude/rules/automated-tests.md)),
-  including i18n key-parity enforcement
-  ([`test/i18n-parity.test.js`](../test/i18n-parity.test.js)) and provider
-  parsers tested against sample HTML with no network.
-- **CI/CD:** `CI` (test matrix Node 18–26 + a coverage-threshold job) + `Lint`
-  (eslint + syntax) on every push/PR ([`.github/workflows/`](../.github/workflows));
-  Dependabot weekly.
-- **Coverage:** measured via Node's built-in `--experimental-test-coverage`
-  (`npm run coverage`); CI's `coverage:ci` job enforces line/function/branch
-  floors so gaps — esp. around future auth/tenant code — fail the build.
+  including i18n key-parity enforcement and provider parsers tested against
+  sample HTML with no network.
+- **CI/CD:** `CI` (test matrix + coverage-threshold job) + `Lint` (eslint +
+  syntax) on every push/PR; Dependabot weekly.
+- **Coverage:** measured via Node's built-in `--experimental-test-coverage`;
+  CI's `coverage:ci` job enforces line/function/branch floors.
 - **Codified learnings:** a strong [`.claude/rules/`](../.claude/rules) culture
-  captures the non-obvious traps — this is a real maintainability asset.
+  captures the non-obvious traps — a real maintainability asset.
 
-**Gap for production — status 2026-07-19, mostly shipped but hand-rolled.**
-- ~~No CD~~ — **shipped**: Railway auto-deploys on push to `main`
-  ([`docs/deploy-railway.md`](./deploy-railway.md), #131).
-- ~~Observability is absent~~ — **baseline shipped** (#132,
-  [`lib/observability.js`](../lib/observability.js)): `/healthz`, structured
-  JSON request logs, and a central Express error handler all exist. But it's
-  deliberately **hand-rolled and dependency-free** ("no Sentry bundle" per the
-  file's own doc-comment) — real error tracking is a webhook forward with no
-  symbolication, breadcrumbs, or alerting policy, and logging is a bespoke
-  JSON-line writer. That trade-off made sense pre-launch; it doesn't anymore
-  now that real users hit this — see the shortlist below.
-- ~~Error handling is per-route~~ — **shipped**: `errorHandler` in
-  `lib/observability.js` is mounted last in `lib/app.js` and catches
-  unexpected throws/rejections.
-- **Frontend fragility** (§2.2) is the main remaining structural debt;
-  contained today by the rules files but real.
+**Gap for production — mostly shipped but hand-rolled.** Observability
+baseline (#132, [`lib/observability.js`](../lib/observability.js)) — `/healthz`,
+structured JSON request logs, a central error handler — all shipped, but
+deliberately **hand-rolled and dependency-free** ("no Sentry bundle" per the
+file's own doc-comment). That trade-off made sense pre-launch; it doesn't
+anymore now that real users hit this — see the shortlist below.
 
-**Battle-tested-dependency candidates (production-readiness lens, not "keep
-it minimal").** The mindset shift in [`CLAUDE.md`](../CLAUDE.md) applies most
-directly here: several of the app's hand-rolled, security-or-correctness-
-critical pieces now have a stronger case for a mature library than for
-growing the homegrown version further. Filed as #211–#215 (2026-07-19).
+**Battle-tested-dependency candidates (production-readiness lens, not "keep it
+minimal").** The mindset shift in [`CLAUDE.md`](../CLAUDE.md) applies most
+directly here: several hand-rolled, security-or-correctness-critical pieces
+now have a stronger case for a mature library than for growing the homegrown
+version further. Filed as #211–#215 (2026-07-19).
 
 1. **Postgres schema migrations, and re-open "no ORM"** —
    [`lib/repo/postgres.js`](../lib/repo/postgres.js) evolves the schema via
-   `CREATE TABLE`/`ALTER TABLE ... IF NOT EXISTS` run on every `init()`,
-   tracked only by code comments, with no migrations table and no rollback.
-   This already caused a real incident (`init()` needed a hand-written
-   advisory lock to survive concurrent boots — see
+   `CREATE TABLE`/`ALTER TABLE ... IF NOT EXISTS` on every `init()`, tracked
+   only by code comments, no migrations table, no rollback. This already
+   caused a real incident (`init()` needed a hand-written advisory lock to
+   survive concurrent boots — see
    [`.claude/rules/postgres-backend.md`](../.claude/rules/postgres-backend.md)).
-   It also hand-writes every parameterized SQL string, with its own documented
-   footguns (the `JSON.stringify` + `::jsonb`-cast dance, arrays silently
-   becoming Postgres array literals instead of JSON if you forget it — same
-   rule file). Both are now running against a **live production database**,
-   and both are exactly the class of hand-rolled, correctness-critical code
-   the mindset shift in [`CLAUDE.md`](../CLAUDE.md) argues against defaulting
-   to — so **the codebase's "no ORM" stance is reopened, not settled.**
-   Two honest options, not one obvious answer:
-   - **Migrations only** (`node-pg-migrate`, Umzug, or Flyway) — the narrower,
-     more surgical fix; leaves the raw-SQL/JSONB footguns as-is.
-   - **A query builder that also ships migrations** (**Knex** is the pragmatic
-     fit — mature, CommonJS-native like this codebase, keeps a raw-SQL escape
-     hatch for the tenant-scoped `tx`/`qt` transactions and RLS
-     `SET_CONFIG`/`FOR UPDATE` calls that a heavier ORM would fight) — fixes
-     both problems with one dependency, at the cost of rewriting
-     `lib/repo/postgres.js`'s ~30 methods.
-   A **full ORM (Prisma-style) is still not recommended**: RLS and the
-   tenant-scoped transaction pattern (`tx(tenant, fn)` setting
-   `app.tenant_id` per-transaction) don't retrofit cleanly into one, and the
-   dual JSON/Postgres backend contract (`test/support/repo-contract.js`)
-   would gain nothing from it. **Highest-priority candidate.** **Decided
-   2026-07-19: Knex** (query builder + migrations combined, one issue) —
-   filed as **#211**.
+   It also hand-writes every parameterized SQL string, with documented
+   footguns (the `JSON.stringify` + `::jsonb`-cast dance; arrays silently
+   becoming Postgres array literals if you forget it — same rule file). Both
+   now run against a **live production database** — exactly the class of
+   hand-rolled, correctness-critical code the mindset shift argues against
+   defaulting to, so **"no ORM" is reopened, not settled.** **Decided
+   2026-07-19: Knex** (query builder + migrations combined, one dependency;
+   keeps a raw-SQL escape hatch for the tenant-scoped `tx`/`qt` transactions
+   and RLS `set_config`/`FOR UPDATE` calls a heavier ORM would fight). A full
+   ORM (Prisma-style) is still not recommended — RLS and the tenant-scoped
+   transaction pattern don't retrofit cleanly into one. **Highest-priority
+   candidate.** Filed as **#211**.
 2. **Structured logging + error tracking** — swap the hand-rolled logger for
    `pino`/`pino-http`, and the webhook-forward stand-in for a real error
    tracker (e.g. Sentry) now that production traffic makes alerting/
    symbolication actually valuable. **Decided 2026-07-19: scope the logging
    half only** (`pino`/`pino-http`); leave the error-tracking provider open
-   for a later decision (cost/DPA implications, §9) — filed as **#212**.
+   for a later decision (cost/DPA implications, §9). Filed as **#212**.
 3. **Request validation** — mutating routes each hand-roll their own
-   `typeof`/`Array.isArray` checks (`routes/games.js`, `routes/sessions.js`,
-   `routes/rounds.js`, `routes/account.js`). A schema validator (`zod`) at the
-   router boundary would make validation uniform and total instead of
-   per-handler, and is cheap to retrofit incrementally. Filed as **#213**.
+   `typeof`/`Array.isArray` checks. A schema validator (`zod`) at the router
+   boundary would make validation uniform and total instead of per-handler,
+   and is cheap to retrofit incrementally. Filed as **#213**.
 4. **Identity/token issuance** — [`lib/accounts.js`](../lib/accounts.js) is a
    well-built hand-rolled HMAC access-token + rotating-refresh-token scheme,
-   but it's about to gate real users' accounts. Revisit §5's existing
-   recommendation to **strongly consider an IdP/OAuth** (or at minimum
-   `jsonwebtoken`/`jose` for the token primitives) now that the account system
-   is live rather than hypothetical. **Decided 2026-07-19: scope as a
-   code-only swap to `jsonwebtoken`/`jose`**, not an IdP migration — the IdP
-   question is a separate, later build-vs-buy decision — filed as **#214**.
+   but it's about to gate real users' accounts. **Decided 2026-07-19: scope as
+   a code-only swap to `jsonwebtoken`/`jose`**, not an IdP migration — the IdP
+   question is a separate, later build-vs-buy decision. Filed as **#214**.
 5. **Rate-limit store** — `express-rate-limit`'s default in-memory store only
    works correctly for exactly one process. Fine today (single Railway
    instance); becomes wrong the moment horizontal scaling (§12 Phase 3) adds a
@@ -562,108 +319,81 @@ fast-follow hardening, sequenced by how much production traffic has grown.
 
 ---
 
-## 8. Hosting & operations
+## 8. Hosting & operations — shipped
 
-**Current.** `npm start` → `node server.js` on `:3000`, plain HTTP, local disk
-for data + uploads ([`server.js`](../server.js)). No container, no deploy
-pipeline, no TLS, no monitoring.
+**Railway** builds the repo's `Dockerfile` and auto-deploys on push to `main`,
+health-checked at `/healthz` (#131); paired with **managed PostgreSQL** (§3)
+and **Cloudflare R2** for uploads. TLS terminates at Railway's edge (#156).
+Full step-by-step, including the checklist of account/credential steps only a
+human can do: [`docs/deploy-railway.md`](./deploy-railway.md).
 
-**Recommendation.**
-- **Containerize** (a small `Dockerfile`, `node:22-slim`) so the runtime is
-  reproducible and host-agnostic. This also formalizes config-via-env, which the
-  app already leans on (`PORT`, `DATA_DIR`, `ANTHROPIC_API_KEY`,
-  [`.env.example`](../.env.example)).
-- **Host:** a managed container/app platform (Fly.io, Render, Railway) or a small
-  VPS + reverse proxy (Caddy/Traefik for automatic TLS). Pair with **managed
-  Postgres** (§3) and **object storage** for uploads so the app tier is stateless.
-- **TLS:** terminate at the platform/proxy; enable HSTS.
-- **Deploy pipeline:** extend the existing GitHub Actions — on merge to `main`,
-  build the image and deploy. CI already gates merges, so CD is an add-on, not a
-  rebuild.
-- **Backups/monitoring:** managed Postgres backups + PITR; uptime check on
-  `/healthz`; error tracking (§7); log aggregation.
-- **Cost envelope (rough, EUR/month):** small managed Postgres ~€15–25, app
-  hosting ~€5–20, object storage ~€1–5, domain ~€1, error tracking free tier →
-  **on the order of €25–50/month** for a low-traffic launch, before any
-  Anthropic API usage (which is pay-per-use and user-triggered). This is a
-  hobby-scale bill, not a blocker.
-
-**Rejected: self-hosting Postgres / rolling your own TLS / a Kubernetes setup.**
-All add operational burden with no benefit at this scale; managed services are
-strictly the better trade here.
+**Rejected, as planned:** self-hosting Postgres, rolling your own TLS, or a
+Kubernetes setup — all add operational burden managed services remove at this
+scale. Cost envelope stayed hobby-scale (~€25–50/month before any
+pay-per-use Anthropic API usage).
 
 ---
 
 ## 9. Legal & compliance (DE/EU)
 
 > **Research, not legal advice.** German/EU rules are fact-specific; a lawyer
-> must confirm before launch. The point here is to separate the clear **musts**
-> from the **nice-to-haves** and flag where professional review is required.
+> must confirm before launch. The point here is to separate the clear
+> **musts** from the **nice-to-haves** and flag where professional review is
+> required.
 
 Assume German UI, German/EU users, and (for the SaaS end-state) that you host
-**strangers'** personal data — which is the line that turns most of this from
-optional to mandatory.
+**strangers'** personal data — the line that turns most of this from optional
+to mandatory.
 
-### 9.1 Impressum — **legal must (once non-private)**
+### 9.1 Impressum — legal must (once non-private) — open, blocked externally (#134)
 
 - The Impressum obligation moved from **§ 5 TMG to § 5 DDG** (Digitale-Dienste-
   Gesetz) effective **14 May 2025** — any Impressum/legal text must reference
   **DDG**, not TMG.
-- A **purely private** site for friends/family generally needs no Impressum — so
-  *milestone one* (your own group, gated) may fall under the private exception.
-- The moment the service is **public / offered to others** (multi-tenant
+- A **purely private** site for friends/family generally needs no Impressum —
+  today's shared-password-gated instance may fall under that exception. The
+  moment the service is **public / offered to others** (multi-tenant
   sign-up), it is no longer "purely private" and an Impressum is **required**;
   omitting or mislabeling it is an *Ordnungswidrigkeit* with fines cited up to
   €50,000 in the worst case.
-- **Confirm with a lawyer:** whether the specific launch shape counts as private,
-  and exactly what the Impressum must contain (note: a *private individual*
-  publishing an Impressum then exposes their **home address**, which is itself a
-  reason many hobby projects incorporate or use a service address — a real
-  decision, not a formality).
+- **Confirm with a lawyer:** whether the specific launch shape counts as
+  private, and exactly what the Impressum must contain (a *private individual*
+  publishing an Impressum exposes their **home address** — a real reason many
+  hobby projects incorporate or use a service address).
 
-### 9.2 GDPR/DSGVO — **legal must (once hosting real users' data)**
+### 9.2 GDPR/DSGVO — legal must (once hosting real users' data) — open (#140)
 
-- The app stores **personal data**: member names (real names are personal data),
-  ratings/opinions tied to people, and — once accounts exist — emails. Server
-  logs will contain **IP addresses** (personal data). This triggers the full
-  GDPR stack: a **privacy policy (Datenschutzerklärung)**, a **lawful basis** for
-  each processing purpose, **data-subject rights** (access/export/deletion —
-  note the app already deletes cleanly: retired-game deletion scrubs sessions and
-  activities, [`routes/games.js`](../routes/games.js) `DELETE`), **data
-  minimization**, and **retention** limits.
-- **Third-party processors** need **Data Processing Agreements**:
-  - **Your host + managed DB + object storage** (each a processor).
-  - **Anthropic** — the buy-next feature makes an **outbound call to the Claude
-    API** ([`routes/recommendations.js`](../routes/recommendations.js)). The
-    payload is deliberately an **aggregated, member-anonymous taste profile**
-    (the route's own doc-comment and design,
-    [`docs/recommendations-analysis.md`](./recommendations-analysis.md)), which
-    materially lowers exposure — but it is still a **US transfer** and must be
-    covered by Anthropic's DPA/SCCs and disclosed in the privacy policy. **Keep
-    the anonymization**; it's a privacy feature, not just a nicety.
-- **Confirm with a lawyer/DPO:** lawful basis (consent vs. legitimate interest vs.
-  contract) per purpose, retention periods, whether a **DPIA** is needed, and the
-  international-transfer basis for the Anthropic call.
+- The app stores **personal data**: member names, ratings/opinions tied to
+  people, and (with accounts) emails; server logs contain **IP addresses**.
+  This triggers the full GDPR stack: a **privacy policy**, a **lawful basis**
+  per processing purpose, **data-subject rights** (access/export/deletion —
+  the app already deletes cleanly), **data minimization**, and **retention**
+  limits.
+- **Third-party processors** need **Data Processing Agreements**: the host +
+  managed DB + object storage, and **Anthropic** — the buy-next feature makes
+  an outbound call to the Claude API with a deliberately aggregated,
+  member-anonymous taste profile (see
+  [`.claude/rules/buy-next-recommendations.md`](../.claude/rules/buy-next-recommendations.md)),
+  which lowers exposure but is still a **US transfer** needing DPA/SCC
+  coverage and privacy-policy disclosure. **Keep the anonymization.**
+- **Confirm with a lawyer/DPO:** lawful basis per purpose, retention periods,
+  whether a DPIA is needed, and the international-transfer basis for the
+  Anthropic call.
 
-### 9.3 Cookie / consent banner — **probably NOT required today (verify)**
+### 9.3 Cookie / consent banner — probably not required today (verify)
 
-- German cookie/consent law lives in **§ 25 TDDDG** (the renamed TTDSG). It
-  requires consent for storing/reading information on the user's device **unless
-  strictly necessary** for a service the user requested.
-- **The app currently sets no cookies and uses `localStorage` only** — e.g. the
-  locale preference ([`public/js/i18n.js`](../public/js/i18n.js)) and lookup
-  state. `localStorage` used for **strictly necessary** app function (remembering
-  the chosen language, an auth session token) generally falls under the
-  necessity exception, so **a consent banner is likely not required** as things
-  stand — a real advantage of the current no-tracking design. Fonts are
-  self-hosted (§2.2), so there's no Google-Fonts consent issue either.
-- **This changes** if you add **analytics, ad, or other non-essential tracking**,
-  or if the auth solution sets non-essential cookies — then a compliant consent
-  mechanism becomes a **must**.
-- **Confirm with a lawyer:** that the Anthropic call and any auth cookies qualify
-  as "strictly necessary," and re-check the moment analytics is considered.
+- German cookie/consent law lives in **§ 25 TDDDG** (renamed TTDSG): consent
+  is required for storing/reading device information **unless strictly
+  necessary** for a requested service.
+- **The app sets no cookies and uses `localStorage` only** for strictly
+  necessary function (locale preference, auth session token) — likely falls
+  under the necessity exception, so a consent banner is likely **not
+  required**. Fonts are self-hosted, so no Google-Fonts consent issue either.
+- **This changes** the moment analytics, ads, or other non-essential tracking
+  is added. **Confirm with a lawyer** that the Anthropic call and any auth
+  cookies qualify as "strictly necessary."
 
-### 9.4 Terms of Service — **nice-to-have → must for SaaS**
+### 9.4 Terms of Service — nice-to-have → must for SaaS — open (#140)
 
 A single private instance can skip ToS; a public multi-tenant service offering
 accounts to strangers should have **Terms of Service / AGB** (acceptable use,
@@ -671,81 +401,68 @@ liability limits, account termination). Lawyer-drafted for launch.
 
 ---
 
-## 10. Branding, name & domain
+## 10. Branding, name & domain — open, undecided
 
 > Availability is a **snapshot** (checked via authoritative RDAP: Verisign for
 > `.com`, DENIC for `.de`, registry bootstrap via `rdap.org` for `.app`) and is
-> **not a trademark clearance**. A DPMA (German) + EUIPO (EU) register search in
-> the relevant Nice classes, by an attorney, is required before committing.
+> **not a trademark clearance**. A DPMA (German) + EUIPO (EU) register search
+> in the relevant Nice classes, by an attorney, is required before committing.
+> No rebrand has happened — "Spieleabend" remains `app.title`/`<title>` as of
+> this writing.
 
-**Current brand.** "Spieleabend" (`app.title`, `<title>`) is **generic German
-for "game night."** As a trademark it is **descriptive → not distinctive →
-effectively unregistrable and unenforceable**, and the space is crowded (e.g.
-the AI game-night organizer [Boardy](https://www.boardyboard.com/) is a direct
-adjacent product). It's a fine *internal* name; it is a weak *brand*. Note
-`CLAUDE.md` already treats "Spieleabend" as the product name and the entity as
-"Session," so a rebrand touches `app.title`/`<title>` and marketing copy, not the
-domain model.
+**Current brand.** "Spieleabend" is **generic German for "game night."** As a
+trademark it is descriptive → not distinctive → effectively unregistrable and
+unenforceable, and the space is crowded (e.g. the AI game-night organizer
+[Boardy](https://www.boardyboard.com/)). Fine as an *internal*/product name;
+weak as a *brand*. `CLAUDE.md` already treats "Spieleabend" as the product
+name and the entity as "Session," so a rebrand would touch `app.title`/
+`<title>` and marketing copy, not the domain model.
 
-**What makes a good pick here:** a **coined / distinctive** word (inherently
-registrable), short, pronounceable in German *and* English (the app is DE-first
-but EN-parity), with `.com` **and** `.de` **and** `.app` free.
+**What makes a good pick:** a **coined / distinctive** word, short,
+pronounceable in German *and* English, with `.com` **and** `.de` **and**
+`.app` free.
 
-**Shortlist (RDAP snapshot — all three TLDs shown; `avail` = not registered):**
+**Shortlist (RDAP snapshot, all `avail` as of the original check):**
 
-| Candidate | Meaning / angle | `.com` | `.app` | `.de` | Notes |
-|---|---|---|---|---|---|
-| **`rundenwahl`** | DE "the round's choice" — ties to the app's core "Runde" + voting | avail | avail | avail | **Top pick.** On-brand for a German-first product, distinctive, all TLDs free. Slightly descriptive in German → get an attorney read on distinctiveness. |
-| **`ludopick`** | "ludo" (play) + "pick" — international, coined | avail | avail | avail | **Top pick.** Language-neutral, clearly coined (strong mark), all TLDs free. |
-| `ludoround` | "ludo" + "round" | avail | avail | avail | Solid backup; a touch generic. |
-| `spielwahl` | DE "game choice" | avail | avail | avail | Descriptive in German (weaker mark), like `rundenwahl` but less tied to the app's "Runde" identity. |
-| ~~`meeplevote`~~ | meeple + vote | avail | avail | avail | **Avoid.** Domains are free but **"meeple" is a registered EU/DE trademark** (Hans im Glück / Carcassonne) — real conflict risk for a DE/EU product. Good example of *why domain-free ≠ safe*. |
+| Candidate | Angle | Notes |
+|---|---|---|
+| **`rundenwahl`** | DE "the round's choice" | **Top pick.** On-brand, distinctive, all TLDs free. Slightly descriptive in German → get an attorney read on distinctiveness. |
+| **`ludopick`** | "ludo" (play) + "pick" | **Top pick.** Language-neutral, clearly coined, all TLDs free. |
+| `ludoround` | "ludo" + "round" | Solid backup; a touch generic. |
+| `spielwahl` | DE "game choice" | Descriptive in German (weaker mark). |
+| ~~`meeplevote`~~ | meeple + vote | **Avoid** — "meeple" is a registered EU/DE trademark (Hans im Glück / Carcassonne), real conflict risk despite the domain being free. |
 
-**Recommendation.** Lead with **`rundenwahl`** (fits the German-first, round-
-centric product) or **`ludopick`** (if a language-neutral, more obviously
-"coined" mark is preferred for international reach and stronger trademark
-footing). Both are free on `.com`/`.app`/`.de` right now. **Register the domain
-set early** (they go fast) but **do the attorney trademark clearance
-(DPMA + EUIPO, classes 9 software / 41 entertainment / 42 SaaS) before spending
-on brand assets.**
-
-**Rejected: keep "Spieleabend" as the public brand.** Unregistrable, undifferen-
-tiated, and SEO-invisible against the generic term. Fine to keep as a friendly
-subtitle; not the brand to build on.
+**Recommendation, still open.** Lead with **`rundenwahl`** or **`ludopick`**.
+**Register the domain set early** (they go fast) but **get the attorney
+trademark clearance (DPMA + EUIPO) before spending on brand assets.**
+**Rejected: keep "Spieleabend" as the public brand** — unregistrable,
+undifferentiated, SEO-invisible against the generic term; fine as a friendly
+subtitle, not the brand to build on.
 
 ---
 
 ## 11. Internationalization & product readiness
 
-**Current.** Solid i18n foundation: DE/EN with enforced key parity
-([`public/js/lang/`](../public/js/lang), tested by
-[`test/i18n-parity.test.js`](../test/i18n-parity.test.js)); locale follows system
-language, overridable, persisted in `localStorage`
-([`public/js/i18n.js`](../public/js/i18n.js)). This is *ahead* of most hobby
-projects and a real launch asset.
+**Current.** Solid i18n foundation: DE/EN with enforced key parity, locale
+follows system language, overridable, persisted in `localStorage` — ahead of
+most hobby projects and a real launch asset.
 
-**Gap for a public launch (product, not i18n plumbing):**
-- **Onboarding / empty states** — the app assumes you already have a round; a
-  public first-run needs a sign-up → create-first-round flow. *Shipped as #138*
-  (sign-up → create-round → empty states; no invite step — see below).
+**Status of the product-readiness gaps this section originally flagged:**
+- **Onboarding / empty states — shipped** (#138): sign-up → create-round →
+  empty states. No invite step (see below).
 - **Invitations** — a way to invite a *second account* into a tenant so it's a
-  genuine co-member rather than a name-only seat. **Deferred to Phase 4 (#207)**,
-  not a launch requirement: a public first-run already works end-to-end with a
-  single owner account adding name-only members, exactly as the app does today.
-- **Accessibility** — no evidence of an a11y pass (focus management, ARIA,
-  contrast — the theme system is color-mix-derived per
+  genuine co-member rather than a name-only seat. **Deferred to Phase 4
+  (#207)**, not a launch requirement: a public first-run already works
+  end-to-end with a single owner account adding name-only members.
+- **Accessibility — still open.** No evidence of an a11y pass (focus
+  management, ARIA, contrast — the color-mix-derived theme system, see
   [`.claude/rules/theme-derived-colors.md`](../.claude/rules/theme-derived-colors.md),
-  which helps but isn't a guarantee). A public product should run an a11y audit.
-- **Mobile web** — verify the responsive story holds for a public audience on
-  phones (the app is used on a couch; mobile is likely the primary device). This
-  is *separate from* the **native iOS/Android apps** the product also targets —
-  the delivery strategy for those (PWA → Capacitor) is covered in **§2.4**.
-- **Legal surfaces in-product** — Impressum/privacy links in the footer (§9).
-
-**Recommendation.** None of these block *milestone one* (your group already knows
-how to use it). They are **multi-tenant launch** requirements: build onboarding +
-invitations alongside the account model (§5), and run a11y + mobile audits before
-public sign-up opens.
+  helps but isn't a guarantee). Run an audit before public sign-up.
+- **Mobile web — still open, verify.** The app is used on a couch; mobile is
+  likely the primary device. Separate from the **native apps** covered in
+  §2.4.
+- **Legal surfaces in-product — still open,** pending §9 (Impressum/privacy
+  footer links).
 
 ---
 
@@ -757,12 +474,12 @@ Risk = chance of getting it subtly wrong / blast radius.
 ### Phase 0 — Decide & prepare (no user impact)
 | Item | Effort | Risk | Notes |
 |---|---|---|---|
-| Confirm end-state (multi-tenant SaaS) & this roadmap | S | Low | The decision this doc recommends. |
+| Confirm end-state (multi-tenant SaaS) & this roadmap | S | Low | Decided (§1). |
 | Attorney: trademark clearance for chosen name | S (external) | Med | **Blocker for brand spend**, not for code. |
 | Register domain set (`.com`/`.app`/`.de`) | S | Low | Do early; cheap; reversible-ish. |
 
 ### Phase 1 — Milestone one: single authenticated instance 🔒 *(the going-live spine)*
-**Status 2026-07-19: shipped and live** — see [`docs/deploy-railway.md`](./deploy-railway.md).
+**Status: shipped and live** — see [`docs/deploy-railway.md`](./deploy-railway.md).
 
 | Item | Effort | Risk | Blocker? |
 |---|---|---|---|
@@ -771,66 +488,63 @@ Risk = chance of getting it subtly wrong / blast radius.
 | **Auth gate** (single shared/small-user login, session cookies) | M | High | HARD BLOCKER (§5) — **shipped** (#129) |
 | **TLS + `helmet` + rate limiting** | S–M | Med | HARD BLOCKER (§4) — **shipped** (#130, #156) |
 | **Containerize + deploy pipeline + managed host** | M | Med | HARD BLOCKER (§8) — **shipped** (#131) |
-| Central error handler, `/healthz`, structured logging, error tracking | M | Low | Strongly recommended before public — **shipped** (#132); see §7 for the follow-up (real error tracking, not the webhook stand-in) |
-| Harden file uploads (content sniff/re-encode, safe extension) | S–M | Med | Fast-follow — **shipped** (#133) |
-| Impressum + privacy policy (lawyer-reviewed) | S (+external) | Med | Required if not "purely private" (§9) — **open, blocked externally** (#134, waiting on an Impressum-service confirmation) |
+| Central error handler, `/healthz`, structured logging, error tracking | M | Low | **shipped** (#132); see §7 for the follow-up (real error tracking, not the webhook stand-in) |
+| Harden file uploads (content sniff/re-encode, safe extension) | S–M | Med | **shipped** (#133) |
+| Impressum + privacy policy (lawyer-reviewed) | S (+external) | Med | Required if not "purely private" (§9) — **open, blocked externally** (#134, waiting on an Impressum-service provider confirmation) |
 
 *Exit (reached):* the group's data runs in the cloud, gated, on TLS, on a real
 DB, with backups and monitoring. Public multi-tenant sign-up is still gated on
-the rest of §12 (Impressum #134, quotas #139, legal pack #140) and a deliberate
-decision to flip `ACCOUNTS_ENABLED` in production.
+the rest of §12 (Impressum #134, quotas #139, legal pack #140) and a
+deliberate decision to flip `ACCOUNTS_ENABLED` in production.
 
 ### Phase 1.5 — Harden the spine: prefer battle-tested deps over hand-rolled
-Added 2026-07-19. Not go-live blockers (Phase 1 is already live) — this is
-closing the gap between "shipped" and "production-battle-tested" now that the
-priority has shifted (see the mindset note in [`CLAUDE.md`](../CLAUDE.md) and
-the shortlist in §7).
+Not go-live blockers (Phase 1 is already live) — closing the gap between
+"shipped" and "production-battle-tested" now that the priority has shifted
+(see the mindset note in [`CLAUDE.md`](../CLAUDE.md) and §7).
 
-| Item | Effort | Risk | Notes | Issue |
-|---|---|---|---|---|
-| **Postgres schema migrations** + adopt **Knex** (query builder + migrations combined, replacing hand-written SQL and the `IF NOT EXISTS` DDL) | L | Med | Highest priority — already caused one concurrency incident (§7) | #211 |
-| **Structured logging** — `pino`/`pino-http` instead of the hand-rolled logger (error-tracking provider left open) | S–M | Low | `lib/observability.js` | #212 |
-| **Centralized request validation** — `zod` schemas at the router boundary instead of per-route ad hoc checks | M | Low | Incremental; can land route-by-route | #213 |
-| **Identity/token issuance** — `jsonwebtoken`/`jose` for the primitives in `lib/accounts.js` (code-only swap; IdP/OAuth deliberately deferred as a separate decision) | M | Med | Revisit now that accounts gate real users, not a hypothetical | #214 |
-| **Rate-limit shared store** (`rate-limit-redis` or similar) | S | Low | Only needed once horizontal scaling (Phase 3) adds a second process | #215 |
+| Item | Effort | Risk | Issue |
+|---|---|---|---|
+| **Postgres schema migrations** + adopt **Knex** | L | Med | #211 |
+| **Structured logging** — `pino`/`pino-http` | S–M | Low | #212 |
+| **Centralized request validation** — `zod` at the router boundary | M | Low | #213 |
+| **Identity/token issuance** — `jsonwebtoken`/`jose` | M | Med | #214 |
+| **Rate-limit shared store** (`rate-limit-redis` or similar) | S | Low | #215 |
+
+See §7 for the reasoning behind each.
 
 ### Phase 2 — Multi-tenant SaaS
 | Item | Effort | Risk | Blocker? |
 |---|---|---|---|
-| Account model (users, email verify, password reset **or IdP/OAuth**) — build **token-first** so native apps share it (§2.4/§5) | **L** | **High** | Blocker for public sign-up (§5) — **shipped** (#135) |
+| Account model (users, email verify, password reset) — built **token-first** so native apps share it (§2.4/§5) | **L** | **High** | Blocker for public sign-up (§5) — **shipped** (#135) |
 | **Tenant model + isolation** (`tenant_id` everywhere, central enforcement, RLS) | **L** | **Very High** | Blocker — cross-tenant leak is catastrophic (§6) — **shipped** (#136) |
 | Onboarding / first-run flow + empty states | M | Med | Blocker for usable sign-up (§11) — **shipped** (#138) |
-| Per-tenant quotas (esp. recommendation spend) | S–M | Med | Cost/abuse control |
-| Terms of Service / AGB, DPAs (host, DB, Anthropic), transfer basis | S (+external) | Med | Legal must for SaaS (§9) |
+| Per-tenant quotas (esp. recommendation spend) | S–M | Med | Cost/abuse control — **open** (#139) |
+| Terms of Service / AGB, DPAs (host, DB, Anthropic), transfer basis | S (+external) | Med | Legal must for SaaS (§9) — **open** (#140) |
 | Consent mechanism **iff** non-essential tracking is added | S | Low | Conditional (§9.3) |
 
-**2026-07-19 — Roles/permissions and invitations/tenant-sharing removed from this
-phase (see Phase 4).** They were originally listed here as blockers, but "member"
-is already decoupled from "user" (a name-only seat the tenant owner adds, per
-[`routes/rounds.js`](../routes/rounds.js)) — so a single-owner tenant whose
-members are all name-only is a **complete, launchable product** with no
-cross-tenant sharing and no role model needed (the owner is the only account and
-implicitly does everything). Multi-user sharing of one tenant is real product
-value, but it's an enhancement layered on a working single-owner launch, not a
-prerequisite for one — see #207.
+**Roles/permissions and invitations/tenant-sharing live in Phase 4, not here:**
+"member" is already decoupled from "user" (a name-only seat the tenant owner
+adds), so a single-owner tenant whose members are all name-only is a
+**complete, launchable product** with no cross-tenant sharing and no role
+model needed. Multi-user sharing of one tenant is real product value, but an
+enhancement layered on a working single-owner launch — see #207.
 
 ### Phase 3 — Native apps, scale & polish (as needed)
 | Item | Effort | Risk |
 |---|---|---|
-| Thin frontend build (content-hash cache-busting + minify, `esbuild`) | S–M | Low |
-| **PWA** — manifest + service worker, installable + offline (§2.4) | M | Low |
+| Thin frontend build (content-hash cache-busting + minify) | S–M | Low | **shipped** (#141) |
+| **PWA** — manifest + service worker, installable + offline (§2.4) | M | Low | **shipped** (#142) |
 | **Capacitor wrapper** → App Store + Play Store apps; push + barcode scan (§2.4) | **L** | Med |
 | **App-store compliance & mobile release pipeline** — dev accounts, signing, privacy labels, in-app account deletion, mobile CI (§2.4/§9) | M | Med |
 | Horizontal scaling (multi-process behind LB — enabled by stateless tier) | M | Med |
 | Accessibility audit + mobile-web responsiveness pass | M | Low |
-| Coverage reporting + broaden tests around auth/tenant code | M | Low |
 | Localize server-side error messages if user-facing surfaces grow | S | Low |
 
 ### Phase 4 — Post-launch collaboration features (not go-live blockers)
-Added 2026-07-19. A single-owner tenant with name-only members (today's model,
-unchanged) is a complete public product on its own — nothing below is required
-to open public sign-up. These are enhancements for groups that want more than
-one of their members to hold their own login.
+A single-owner tenant with name-only members (today's model, unchanged) is a
+complete public product on its own — nothing below is required to open public
+sign-up. These are enhancements for groups that want more than one of their
+members to hold their own login.
 
 | Item | Effort | Risk |
 |---|---|---|
@@ -838,113 +552,33 @@ one of their members to hold their own login.
 | **Roles & permissions** — owner/editor/viewer once a tenant has multiple accounts (#137) | M | Med |
 | **Per-device voting** — a registered co-member votes from their own phone/browser in a running session, instead of one shared device (#209) | M | Low |
 
-**Hard blockers, consolidated — all shipped as of 2026-07-19:** real database +
-stateless tier (§3/§2.3), authentication (§5), TLS + security headers + rate
-limiting (§4), production hosting + deploy (§8); **and for public multi-tenant
-specifically**, tenant isolation (§6) and accounts (§5). What's left before
-**public** sign-up: the legal pack (Impressum #134, blocked externally; ToS/DPAs
-#140) and per-tenant quotas (#139) — plus the Phase 1.5 hardening above is
-recommended, not blocking. Tenant *sharing* (multiple accounts in one tenant),
-roles, and per-device voting are **not** in this list — see Phase 4.
+**Hard blockers, consolidated — all shipped:** real database + stateless tier
+(§3/§2.3), authentication (§5), TLS + security headers + rate limiting (§4),
+production hosting + deploy (§8), tenant isolation (§6), accounts (§5).
+**What's left before public sign-up:** the legal pack (Impressum #134, blocked
+externally; ToS/DPAs #140) and per-tenant quotas (#139) — plus the Phase 1.5
+hardening above is recommended, not blocking. Tenant *sharing*, roles, and
+per-device voting are **not** in this list — see Phase 4.
 
 ---
 
-## 13. Proposed follow-up execution issues (not filed)
+## 13. Summary
 
-Per the issue's deliverable — a directly actionable backlog. Titles + one-line
-scope; **not filed as part of #40.**
-
-**Phase 1 — going-live spine** *(all shipped 2026-07-18, see §12)*
-1. **Migrate persistence from `data.json` to PostgreSQL** — schema, data-access
-   layer, one-off file→DB migration script, backups. *(depends on nothing; blocks
-   everything)* *Shipped as #127.*
-2. **Move cover uploads to object storage** — S3-compatible; store key not path;
-   make the app tier stateless. *Shipped as #128.*
-3. **Add an authentication gate (single-instance)** — login, session cookies,
-   protect all routes; foundation for accounts later. *Shipped as #129.*
-4. **Add TLS, `helmet`, and rate limiting** — security headers, HSTS, global +
-   per-endpoint limits (esp. recommendations). *Shipped as #130 (TLS: #156).*
-5. **Containerize + CD pipeline** — `Dockerfile`, env config, deploy-on-merge via
-   Actions, managed host + managed Postgres. *Shipped as #131.*
-6. **Add observability baseline** — central Express error handler, `/healthz`,
-   structured request logging, error tracking. *Shipped as #132 — but see the
-   Phase 1.5 hardening candidates (§7, §12) to replace the hand-rolled logger/
-   webhook with battle-tested equivalents now that it's carrying real traffic.*
-7. **Harden image uploads** — content-sniff/re-encode, derive extension from
-   detected type, isolate served origin. *Shipped as #133.*
-8. **Publish Impressum + privacy policy** — DDG-compliant Impressum, DSGVO
-   privacy policy, in-product footer links (lawyer-reviewed). *Open, blocked
-   externally (#134) — waiting on an Impressum-service provider confirmation,
-   not on engineering work.*
-
-**Phase 2 — multi-tenant SaaS**
-9. **User account model** — registration, email verification, password reset (or
-   integrate an IdP/OAuth). *Shipped as #135.*
-10. **Tenant model + isolation** — `tenant_id` on all entities, central query
-    scoping, Postgres RLS as defense-in-depth. *Shipped as #136.*
-11. ~~**Roles & permissions**~~ — moved to Phase 4 (item 22, #137): meaningless
-    until a tenant can hold more than one account, which is itself Phase 4.
-12. **Onboarding** — first-run sign-up → create-round flow, empty states.
-    *Shipped as #138.* (The invite-a-second-account part originally bundled here
-    is now item 23/#207 in Phase 4.)
-13. **Per-tenant quotas & abuse controls** — bound rounds/uploads/recommendation
-    spend per tenant. (#139)
-14. **SaaS legal pack** — ToS/AGB, DPAs (host, DB, Anthropic), international-
-    transfer basis, retention policy (lawyer-reviewed). (#140)
-
-**Phase 3 — native apps, scale & polish**
-15. **Thin frontend build for cache-busting** — `esbuild` bundle with
-    content-hashed filenames + minification; keep build optional for local dev.
-16. **PWA: installable, offline-capable web app** — web app manifest + service
-    worker so the SPA installs to the home screen and works offline (§2.4).
-17. **Native iOS/Android apps via Capacitor** — wrap the existing web UI in a
-    native shell, ship to App Store + Play Store; unlock push (APNs/FCM) and
-    camera/barcode scanning (§2.4).
-18. **App-store compliance & mobile release pipeline** — Apple/Google developer
-    accounts, app signing, privacy nutrition labels / Data Safety, in-app account
-    deletion, mobile build/release CI (§2.4/§9).
-19. **Accessibility & mobile-web audit** — a11y pass (focus/ARIA/contrast) and
-    mobile-web responsiveness verification.
-20. **Test coverage reporting** — add coverage, close gaps around auth/tenant
-    code.
-21. **Trademark clearance & rebrand** — attorney DPMA/EUIPO search for the chosen
-    name (`rundenwahl` / `ludopick`), then swap `app.title`/`<title>` + marketing
-    copy.
-
-**Phase 4 — post-launch collaboration features** *(added 2026-07-19; not go-live
-blockers — see the Phase 4 note in §12)*
-22. **Invitations & tenant-sharing** — let a second account join an existing
-    tenant as a co-member; invite tokens + delivery (link/e-mail), accept flow.
-    (#207)
-23. **Roles & permissions** — owner/editor/viewer mapped to mutating routes, once
-    a tenant can hold more than one account. (#137)
-24. **Per-device voting** — a registered co-member casts their own vote from
-    their own device in a running session, instead of everyone using the round
-    owner's screen. Depends on #207. (#209)
-
----
-
-## 14. Summary
-
-The codebase is **well-built for what it is** — clean router split, isolated
-tests, a deliberately vetted dependency set, self-hosted fonts, a real SSRF
-allowlist, secrets in `.env`, enforced i18n parity, and a strong
-`.claude/rules/` knowledge base. None of that needs throwing away, and **no
-rewrite is warranted**. Going public was not an architecture problem; it was an
-**operations, security, and data-model** problem, concentrated in four hard
-blockers: **a real database + stateless tier, authentication, transport/edge
-security, and production hosting** — **all shipped as of 2026-07-18** (§12
-Phase 1). The remaining work to open **public multi-tenant** sign-up is the
-legal pack and quotas (§12), plus the **Phase 1.5 hardening** pass — replacing
-what's currently hand-rolled-but-working (schema migrations, logging/error
-tracking, request validation, token issuance) with battle-tested dependencies
-now that production traffic makes that trade-off worth it. The product
-also targets **native iOS/Android apps**, not just a website — and the backend's
-API-first shape already makes that cheap: reach the stores by **wrapping the
-existing web UI with Capacitor** (after a PWA step), not a native rewrite, and
-build auth **token-first** so web and native share it. The legal
-work (Impressum under DDG, DSGVO privacy policy) is a real must once strangers'
-data is hosted, but the app's no-tracking, self-hosted-fonts, `localStorage`-only
-design means it likely **needs no cookie banner** — a head start most projects
-don't have. Pick a distinctive brand (**`rundenwahl`** or **`ludopick`**, domains
-free today) and get an attorney's trademark clearance before spending on it.
+The codebase was well-built for what it was, and none of it needed throwing
+away — no rewrite happened or is planned (§1, §2). Going public was never an
+architecture problem; it was an **operations, security, and data-model**
+problem, concentrated in four hard blockers — a real database + stateless
+tier, authentication, transport/edge security, and production hosting — **all
+shipped**. What's left to open **public multi-tenant** sign-up is the legal
+pack and quotas (§9, §6, §12), plus the **Phase 1.5 hardening** pass (§7) —
+replacing what's currently hand-rolled-but-working (schema migrations,
+logging/error tracking, request validation, token issuance) with
+battle-tested dependencies now that production traffic makes that trade-off
+worth it. The product also targets **native iOS/Android apps**: the PWA step
+shipped, and reaching the stores is Capacitor wrapping the existing web UI
+(§2.4), not a native rewrite. Legal work (Impressum under DDG, DSGVO privacy
+policy) is a real must once strangers' data is hosted (§9), but the app's
+no-tracking, self-hosted-fonts, `localStorage`-only design likely **needs no
+cookie banner**. Branding (§10) remains the one open, undecided item with no
+code dependency — pick a distinctive name and get trademark clearance before
+spending on it.

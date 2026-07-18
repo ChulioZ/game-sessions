@@ -240,6 +240,8 @@ public/
   fonts/             self-hosted fonts + Tabler icon set
   icons/             PWA / home-screen app icons (192, 512, apple-touch)
   js/
+    login.js         login.html's own script — an IIFE, not part of the
+                     shared global scope below (only loaded by login.html)
     i18n.js          translation engine (t(), locale detection)
     lang/en.js       English strings
     lang/de.js       German strings
@@ -247,6 +249,7 @@ public/
     account.js       onboarding + auth UI (login/register/verify/reset), token wiring
     ranking.js       tie-aware podium places ("1, 2, 2, 4")
     buynext.js       local "play these again" recommender (Layer A)
+    lookup-group.js  collapses same-title provider hits into one multi-badge row
     views-home.js    lobby + new round
     views-round.js        round hub (Start/Regal/Chronik/Pokale dock) + Start tab
     views-round-tabs.js   Regal, Chronik, Pokale tabs + retired games
@@ -266,9 +269,12 @@ data/                all user data (git-ignored)
   data.json          created on first run
   uploads/           cover images
 dist/                optional build output (git-ignored; npm run build)
-Dockerfile           production container image (node:22-slim, non-root, /data volume)
+Dockerfile           production container image (node:22-slim, non-root,
+                     writes to DATA_DIR=/data; no VOLUME instruction — Railway's
+                     builder rejects it, see .claude/rules/)
 .dockerignore        keeps secrets + user data out of the build context
 docker-compose.yml   one-command run with a persistent /data volume
+railway.json         Railway build/deploy config (see docs/deploy-railway.md)
 .github/workflows/   CI: tests, lint, secret scan, Docker image build + publish
 ```
 

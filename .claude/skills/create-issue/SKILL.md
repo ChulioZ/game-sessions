@@ -48,7 +48,8 @@ Read `CLAUDE.md` and the relevant `.claude/rules/`, and locate the affected area
 - Does it touch data shape (`lib/store.js`)? User-facing text (needs i18n keys in
   **both** `lang/en.js` and `lang/de.js`)? A route? A view (`views-*.js`)?
 - Is there an existing pattern to follow or a rule that constrains it (retire
-  concept, "Session" naming, theme-derived colors, no auth, no build step)?
+  concept, "Session" naming, theme-derived colors, no frontend framework, no
+  third persistence backend, tenant isolation)?
 
 This is what lets the issue say "add a route under `routes/sessions.js` and a key
 `session.export` to both lang files" instead of "add an export feature".
@@ -71,9 +72,13 @@ only ask what genuinely changes what gets built. Typical gaps to close:
   multi-session effects; does it change stored data (and thus need a one-time
   migration rather than migration code)?
 - **Non-goals / constraints** — anything the user does *not* want changed;
-  reconfirm the standing constraints still hold for *this* issue (still
-  local-only / no auth unless the issue is explicitly roadmap work toward going
-  live as a hosted website and app; no new deps unless wanted).
+  reconfirm the standing architecture constraints still hold for *this* issue
+  (no frontend framework/build step beyond the sanctioned cache-busting build,
+  no third persistence backend, tenant isolation preserved for anything
+  round-scoped — see `CLAUDE.md`; no new deps unless wanted; note the
+  mindset shift toward production-readiness in `CLAUDE.md` — a mature
+  dependency replacing hand-rolled, correctness-critical code is no longer
+  itself a constraint violation).
 
 Prefer proposing a sensible default and asking the user to confirm or correct it
 over asking open-ended questions — it's faster and surfaces disagreements.

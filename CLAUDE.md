@@ -89,11 +89,14 @@ an open question, not a settled one — see the Architecture section below.
   - `routes/*.js` are Express routers, one per resource, mounted under
     `/api/rounds/...`. Nested routers use `{ mergeParams: true }` for `:rid`.
 - **Frontend:** `public/js/*.js` are plain classic `<script>`s sharing one global
-  scope. They are loaded in a fixed order (see `public/index.html`):
-  `i18n.js` → `lang/en.js` → `lang/de.js` → `core.js` → `views-home.js` →
-  `views-round.js` → `views-session.js` → `main.js`. i18n + languages load first
-  (so `t()` is available everywhere), `core.js` holds shared helpers/state, and
-  `main.js` calls `initLocale()`/`showHome()` last.
+  scope. They are loaded in a fixed order (the authoritative list is the
+  `<script>` tags in `public/index.html` — don't let this summary drift from
+  it): `i18n.js` → `lang/en.js` → `lang/de.js` → `core.js` → `account.js` →
+  `ranking.js` → `lookup-group.js` → `buynext.js` → the `views-*.js` files →
+  `router.js` → `main.js` → `pwa.js`. i18n + languages load first (so `t()` is
+  available everywhere), `core.js` holds shared helpers/state, and `main.js`
+  calls `initLocale()`/`showHome()` last. (`public/js/login.js` is a separate
+  IIFE loaded only by `login.html`, outside this shared scope.)
   - **Load-order trap:** a top-level statement in an earlier file must not
     reference a function/`const` defined in a later file at *load time* (it isn't
     defined yet). Defer such references (e.g. wrap in an arrow that runs on
