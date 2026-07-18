@@ -5,7 +5,6 @@
    Mounted under /api/rounds/:rid/games (mergeParams for rid). */
 
 const express = require('express');
-const repo = require('../lib/repo');
 const storage = require('../lib/storage');
 const { upload, saveUploadedImage } = require('../lib/upload');
 const { getProvider, isAllowedImageUrl } = require('../lib/providers');
@@ -66,7 +65,7 @@ function buildSource(body) {
 }
 
 router.post('/', upload.single('image'), async (req, res) => {
-  const round = await repo.getRound(req.params.rid);
+  const round = await req.repo.getRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   const title = String(req.body.title || '').trim();
@@ -97,7 +96,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     image = await downloadCover(req.body.imageUrl);
   }
 
-  const game = await repo.createGame(req.params.rid, {
+  const game = await req.repo.createGame(req.params.rid, {
     title,
     platform,
     type,
@@ -118,7 +117,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 // the game linked to a provider (sourceProvider/…) — this is what "link an
 // existing game to a provider" (issue #74) uses.
 router.patch('/:gid', upload.single('image'), async (req, res) => {
-  const round = await repo.getRound(req.params.rid);
+  const round = await req.repo.getRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
   const game = round.games.find((g) => g.id === req.params.gid);
   if (!game) return res.status(404).json({ error: 'Game not found' });
@@ -189,9 +188,9 @@ router.patch('/:gid', upload.single('image'), async (req, res) => {
 
   // No activity entry: with inline editing, small tweaks are frequent and would
   // just clutter the feed. Retire/restore/add/delete remain the noteworthy events.
-  const updated = await repo.updateGame(req.params.rid, req.params.gid, patch);
+  const updated = await req.repo.updateGame(req.params.rid, req.params.gid, patch);
   if (!updated) return res.status(404).json({ error: 'Game not found' });
-  if (oldImage && oldImage !== newImage && !(await repo.isImageReferenced(oldImage))) {
+  if (oldImage && oldImage !== newImage && !(await req.repo.isImageReferenced(oldImage))) {
     await storage.remove(oldImage);
   }
   res.json(updated);
@@ -200,11 +199,11 @@ router.patch('/:gid', upload.single('image'), async (req, res) => {
 // Retire a game (or take it back into the collection). The game is kept, only
 // flagged as retired with a timestamp.
 router.post('/:gid/retire', async (req, res) => {
-  const round = await repo.getRound(req.params.rid);
+  const round = await req.repo.getRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   const retired = req.body.retired !== false; // default: true
-  const game = await repo.retireGame(req.params.rid, req.params.gid, retired);
+  const game = await req.repo.retireGame(req.params.rid, req.params.gid, retired);
   if (!game) return res.status(404).json({ error: 'Game not found' });
   res.json(game);
 });
@@ -213,19 +212,19 @@ router.post('/:gid/retire', async (req, res) => {
 // every trace of it from past sessions and the activity feed. Rating averages
 // are derived from session votes, so they adjust automatically.
 router.delete('/:gid', async (req, res) => {
-  const round = await repo.getRound(req.params.rid);
+  const round = await req.repo.getRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   // The data layer removes the game and scrubs it from sessions + the feed,
   // returning the deleted game's cover path so the file can be cleaned up.
-  const result = await repo.deleteGame(req.params.rid, req.params.gid);
+  const result = await req.repo.deleteGame(req.params.rid, req.params.gid);
   if (result === null) return res.status(404).json({ error: 'Game not found' });
   if (result === 'not_retired')
     return res.status(400).json({ error: 'Only retired games can be deleted' });
 
   // Remove the cover image unless another game (e.g. in an imported round) still
   // uses the same one. Best effort; the store no longer references it.
-  if (result.image && !(await repo.isImageReferenced(result.image))) {
+  if (result.image && !(await req.repo.isImageReferenced(result.image))) {
     await storage.remove(result.image);
   }
 

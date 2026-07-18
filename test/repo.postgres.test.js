@@ -40,4 +40,77 @@ if (!process.env.DATABASE_URL) {
   });
 
   require('./support/repo-contract')(repo);
+
+  // Row-Level Security is fail-closed (#136): a NON-SUPERUSER connection that
+  // has NOT set the app.tenant_id transaction setting must see ZERO rows in the
+  // round tables even though rows exist — the defense-in-depth backstop behind
+  // the repo's explicit tenant filters. Note superusers BYPASS RLS entirely
+  // (FORCE only binds non-superuser owners), which is why this probe creates a
+  // dedicated plain role instead of reusing the test connection's superuser —
+  // and why production should run the app as a non-superuser
+  // (docs/deploy-railway.md).
+  test('RLS is enforced (fail-closed) for a non-superuser without a tenant setting', async () => {
+    const assert = require('node:assert/strict');
+    const round = await repo.createRound('rls-probe', { name: 'Hidden', members: ['M'] });
+    assert.ok(await repo.getRound('rls-probe', round.id)); // visible through the repo
+
+    const admin = new Client({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    await admin.connect();
+    try {
+      // RLS is enabled AND forced on every round table (catalog-level check —
+      // holds regardless of which role the app connects as).
+      const flags = await admin.query(
+        `SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class
+         WHERE relname = ANY($1)`,
+        [['rounds', 'members', 'games', 'sessions', 'activities']]
+      );
+      assert.equal(flags.rows.length, 5);
+      for (const row of flags.rows) {
+        assert.equal(row.relrowsecurity, true, `${row.relname} has RLS enabled`);
+        assert.equal(row.relforcerowsecurity, true, `${row.relname} has RLS forced`);
+      }
+
+      // Behavior probe through a plain role (dropped again below).
+      await admin.query("DROP ROLE IF EXISTS gs_rls_probe");
+      await admin.query("CREATE ROLE gs_rls_probe LOGIN PASSWORD 'probe'");
+      await admin.query('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gs_rls_probe');
+      await admin.query('GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO gs_rls_probe');
+
+      const url = new URL(process.env.DATABASE_URL);
+      url.username = 'gs_rls_probe';
+      url.password = 'probe';
+      const probe = new Client({
+        connectionString: url.toString(),
+        ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+      });
+      await probe.connect();
+      try {
+        for (const table of ['rounds', 'members', 'games', 'sessions', 'activities']) {
+          const r = await probe.query(`SELECT count(*)::int AS n FROM ${table}`);
+          assert.equal(r.rows[0].n, 0, `${table} must be invisible without app.tenant_id`);
+        }
+        // An un-scoped INSERT is refused outright (WITH CHECK)…
+        await assert.rejects(
+          () => probe.query("INSERT INTO rounds(id, tenant_id, name) VALUES ('rls_x', 'rls-probe', 'X')"),
+          /row-level security/
+        );
+        // …while a transaction that sets the tenant sees exactly that tenant.
+        await probe.query('BEGIN');
+        await probe.query("SELECT set_config('app.tenant_id', 'rls-probe', true)");
+        const scoped = await probe.query('SELECT id FROM rounds');
+        await probe.query('COMMIT');
+        assert.deepEqual(scoped.rows.map((r) => r.id), [round.id]);
+      } finally {
+        await probe.end();
+      }
+    } finally {
+      await admin.query('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM gs_rls_probe').catch(() => {});
+      await admin.query('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM gs_rls_probe').catch(() => {});
+      await admin.query('DROP ROLE IF EXISTS gs_rls_probe').catch(() => {});
+      await admin.end();
+    }
+  });
 }

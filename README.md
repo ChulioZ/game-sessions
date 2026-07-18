@@ -125,7 +125,11 @@ code and documentation are in English.
   backends: by default a single `data/data.json` file (loaded into memory, written
   atomically on every change — zero-dependency, right for local/home use), or
   **PostgreSQL** when `DATABASE_URL` is set (the stateless path for a hosted
-  deployment; the app ensures its schema on startup). Cover images go through a
+  deployment; the app ensures its schema on startup). All round data is
+  **tenant-scoped** (issue #136): every request resolves to a tenant (the single
+  `default` tenant unless user accounts are enabled) and the data layer only
+  ever sees that tenant's rounds — on Postgres additionally enforced by
+  row-level security in the database itself. Cover images go through a
   matching storage seam (`lib/storage/`): files under `data/uploads/` by default,
   or **S3-compatible object storage** when `S3_BUCKET` is set (so uploads survive
   an ephemeral/scaled host). Only the `/uploads/<key>` path is persisted either
@@ -180,6 +184,7 @@ lib/
     index.js         picks the backend (DATABASE_URL ? postgres : json)
     json.js          default backend — the data/data.json store below
     postgres.js      PostgreSQL backend (schema + SQL), used when DATABASE_URL set
+  tenant.js          resolves each request's tenant and scopes the repo to it
   store.js           the JSON backend's engine: in-memory data + atomic
                      load/save to the data/ folder, id/activity helpers
   storage/           cover-image storage: one seam, two backends

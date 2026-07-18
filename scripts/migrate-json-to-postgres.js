@@ -63,14 +63,17 @@ function counts({ rounds, users }) {
 // repo lifecycle (init side-effects aside, it does not close the pool).
 async function migrate(repo, { rounds, users }) {
   await repo.init();
-  const existing = await repo.listRounds();
+  // Pre-tenancy data belongs to the single 'default' tenant (#136) — the one
+  // the shared-password gate protects. All repo round methods are tenant-first.
+  const TENANT = 'default';
+  const existing = await repo.listRounds(TENANT);
   if (existing.length > 0) {
     throw new Error(
       `target database already has ${existing.length} round(s); refusing to import into a non-empty database ` +
       '(truncate it first if you really mean to re-migrate)'
     );
   }
-  await repo.importRounds(rounds);
+  await repo.importRounds(TENANT, rounds);
   await repo.importUsers(users);
   return counts({ rounds, users });
 }

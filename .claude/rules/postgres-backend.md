@@ -74,7 +74,9 @@ migration folds the pre-#115 legacy `recommendations` object into
 (§3) explicitly allows JSONB for the messy bits (votes maps, activity payloads),
 and the app never queries sessions/votes by field in SQL — routes fetch a whole
 round and filter in JS. So each entity is a row with a `data jsonb` (plus promoted
-columns only for FKs/ordering/`tenant_id`). `tenant_id` (default `'default'`) is a
-forward hook for multi-tenancy (#136); this backend does **not** filter on it yet.
+columns only for FKs/ordering/`tenant_id`). Since #136 every round table carries
+`tenant_id`, every round-scoped method is tenant-first, and the tables sit under
+forced Row-Level Security — the gotchas (superuser bypass, the tx/qt tenant
+plumbing, the `TRUNCATE` exemption) live in `.claude/rules/tenancy-rls.md`.
 Fuller normalization (a `session_votes` table, real `users`/`tenants`) is later
 roadmap work, not a gap to fix here.

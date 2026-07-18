@@ -50,6 +50,29 @@ Everything is configured with the same env vars documented in
    with the server **stopped**, ids preserved: `DATABASE_URL=… npm run
    migrate:postgres` (see `scripts/migrate-json-to-postgres.js`). Skip it for a
    fresh start.
+5. *(Optional hardening, #136)* the round tables are protected by **Row-Level
+   Security**, but Postgres **superusers bypass RLS entirely** — and Railway's
+   default `postgres` user is one. The app's own queries are tenant-filtered
+   either way; for the database-level backstop to actually bind, run the app as
+   a dedicated **non-superuser role that owns the tables** (`FORCE ROW LEVEL
+   SECURITY` binds owners, and ownership lets `repo.init()` keep managing the
+   schema/policies on boot), then point `DATABASE_URL` at it:
+
+   ```sql
+   CREATE ROLE spieleabend_app LOGIN PASSWORD '<generate one>';
+   GRANT CONNECT ON DATABASE railway TO spieleabend_app;
+   GRANT USAGE, CREATE ON SCHEMA public TO spieleabend_app;
+   ALTER TABLE rounds     OWNER TO spieleabend_app;
+   ALTER TABLE members    OWNER TO spieleabend_app;
+   ALTER TABLE games      OWNER TO spieleabend_app;
+   ALTER TABLE sessions   OWNER TO spieleabend_app;
+   ALTER TABLE activities OWNER TO spieleabend_app;
+   ALTER TABLE users      OWNER TO spieleabend_app;
+   ```
+
+   (On a fresh database the `ALTER TABLE … OWNER` lines are unnecessary — the
+   app role creates the tables itself on first boot and owns them from the
+   start.)
 
 ### 3. Add object storage (Cloudflare R2)
 

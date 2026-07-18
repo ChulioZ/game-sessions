@@ -17,6 +17,7 @@
  * that consume these links arrive with #138.
  */
 
+const crypto = require('crypto');
 const express = require('express');
 const repo = require('../lib/repo');
 const accounts = require('../lib/accounts');
@@ -67,6 +68,9 @@ router.post('/register', async (req, res) => {
   const user = await repo.createUser({
     email,
     createdAt: iso(Date.now()),
+    // Each new account starts as its own tenant (#136) — the id every round it
+    // creates is scoped to. Sharing a tenant (invites) is #138's onboarding.
+    tenantId: crypto.randomBytes(8).toString('hex'),
     emailVerified: false,
     identities: [{ type: 'password', hash: await accounts.hashPassword(password) }],
     verification: { tokenHash: accounts.hashToken(verifyRaw), expiresAt: iso(Date.now() + accounts.VERIFY_TTL_MS) },
