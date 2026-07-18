@@ -243,6 +243,7 @@ public/
     lang/en.js       English strings
     lang/de.js       German strings
     core.js          DOM/API helpers, stats, design, language picker  (loads first)
+    account.js       onboarding + auth UI (login/register/verify/reset), token wiring
     ranking.js       tie-aware podium places ("1, 2, 2, 4")
     buynext.js       local "play these again" recommender (Layer A)
     views-home.js    lobby + new round
@@ -323,15 +324,23 @@ the app stays open, as the local-only MVP runs today. Tune the login brute-force
 limit with `AUTH_RATE_LIMIT_MAX` (attempts per 15 min, default 20). The session is
 a signed, httpOnly cookie (marked `Secure` automatically behind a TLS proxy).
 
-User accounts (preview, issue #135): the token-first account model — register with
+User accounts (issue #135): the token-first account model — register with
 e-mail + password (Argon2id-hashed), e-mail verification, login issuing short-lived
 access tokens + rotating refresh tokens, and password reset — lives under
 `/api/account`. It is **off by default**: set `ACCOUNTS_ENABLED=true` *and* a
 strong `SESSION_SECRET` to expose it. Verification/reset mails go out via Brevo
 (`BREVO_API_KEY`, `MAIL_FROM`, links built from `APP_BASE_URL`); without a key
-they are logged instead of sent. The account UI, tenancy, and roles are follow-up
-work (#136–#138) — until then the shared-password gate above keeps protecting the
-instance, so leave accounts off in production.
+they are logged instead of sent.
+
+When accounts are enabled the app runs in **accounts mode** (issue #138): the SPA
+shows an in-app onboarding flow — register → confirm e-mail → log in, plus password
+reset and a first-run empty state — and the `/api` data routes require a valid
+account token (there is no anonymous access, and each account sees only its own
+tenant's rounds, #136). With accounts **off** (the default, and today's
+production) the shared-password gate above is unchanged. Enabling accounts in
+production is a deliberate step (it replaces the shared gate and starts sending
+mail); *inviting other people into a shared tenant is still follow-up work (#207),
+as are roles (#137)*.
 
 Observability: logs go to stdout as structured JSON; set `LOG_LEVEL`
 (`silent`/`error`/`warn`/`info`, default `info`) to tune verbosity, and

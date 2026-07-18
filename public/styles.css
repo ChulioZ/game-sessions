@@ -982,6 +982,56 @@ h1, h2, h3 { font-family: var(--font-display); }
 
 .toolbar { display: flex; gap: 10px; flex-wrap: wrap; }
 
+/* ---- Onboarding / account auth (issue #138) ---- */
+/* Auth screens take over the view; the top bar keeps only the language picker. */
+body.auth-screen .topbar__home,
+body.auth-screen .crumbs { display: none; }
+
+.auth {
+  min-height: calc(100vh - 180px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 0;
+}
+.auth__card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 30px 28px;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, 0.08);
+}
+.auth__logo { font-size: 34px; line-height: 1; color: var(--brand); text-align: center; }
+.auth__title { font-family: var(--font-display); font-size: 24px; margin: 10px 0 4px; text-align: center; }
+.auth__sub { text-align: center; margin: 0 0 22px; }
+.auth__error { color: var(--danger); font-size: 14px; margin: -8px 0 12px; }
+.auth__links { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+.auth__links .link-btn { font-size: 15px; }
+
+.topbar__acct {
+  flex: none;
+  font-size: 18px;
+  color: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 9px;
+  cursor: pointer;
+}
+.topbar__acct:hover { color: var(--brand); border-color: var(--brand-edge); }
+
+/* Account menu header (e-mail) above the logout item in the shared popover. */
+.popover__head {
+  font-size: 13px;
+  color: var(--ink-soft);
+  padding: 2px 10px 8px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  word-break: break-all;
+}
+
 
 /* ---- Session game (voting) ---- */
 .vote {

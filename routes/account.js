@@ -85,7 +85,9 @@ router.post('/register', async (req, res) => {
     return res.json({ ok: true });
   }
 
-  const link = `${baseUrl()}/api/account/verify-email?uid=${user.id}&token=${verifyRaw}`;
+  // Land on the in-app onboarding page (#138), which POSTs the token and then
+  // routes to login — not the bare JSON GET endpoint (still served for clients).
+  const link = `${baseUrl()}/verify-email?uid=${user.id}&token=${verifyRaw}`;
   await sendSafe({
     to: email,
     subject: 'Spieleabend: E-Mail-Adresse bestätigen / Confirm your e-mail',
@@ -156,7 +158,11 @@ router.post('/login', async (req, res) => {
   // Only revealed after the correct password, so it leaks nothing to outsiders.
   if (!user.emailVerified) return res.status(403).json({ error: 'email_not_verified' });
 
-  res.json({ ok: true, ...(await issueTokens(user)), user: { id: user.id, email: user.email } });
+  const tokens = await issueTokens(user);
+  // Mirror the access token into a cookie so browser-native /uploads GETs (cover
+  // images) authenticate; fetch/XHR still use the Bearer token (see lib/app.js).
+  accounts.setAccessCookie(res, req, tokens.accessToken);
+  res.json({ ok: true, ...tokens, user: { id: user.id, email: user.email } });
 });
 
 /* ------------------------------ refresh / logout ---------------------------- */
@@ -170,7 +176,9 @@ router.post('/refresh', async (req, res) => {
   }
   // Rotate: the presented token is spent; issueTokens persists the replacement.
   user.refreshTokens = user.refreshTokens.filter((t) => t !== entry);
-  res.json({ ok: true, ...(await issueTokens(user)) });
+  const tokens = await issueTokens(user);
+  accounts.setAccessCookie(res, req, tokens.accessToken); // keep the cover-image cookie fresh
+  res.json({ ok: true, ...tokens });
 });
 
 router.post('/logout', async (req, res) => {
@@ -184,6 +192,7 @@ router.post('/logout', async (req, res) => {
       }
     }
   }
+  accounts.clearAccessCookie(res, req); // drop the cover-image cookie too
   res.json({ ok: true }); // best-effort: logout never errors
 });
 

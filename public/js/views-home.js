@@ -20,9 +20,12 @@ async function showHome() {
   );
 
   if (rounds.length === 0) {
+    // A logged-in account with no rounds yet gets a first-run welcome (#138);
+    // the shared-password / legacy world keeps the neutral empty state.
+    const onboard = accountsActive() && isLoggedIn();
     app.appendChild(
-      h(`<div class="empty"><p>${esc(t('home.empty.title'))}</p>
-           <p class="muted">${esc(t('home.empty.sub'))}</p></div>`)
+      h(`<div class="empty"><p>${esc(t(onboard ? 'home.onboard.title' : 'home.empty.title'))}</p>
+           <p class="muted">${esc(t(onboard ? 'home.onboard.sub' : 'home.empty.sub'))}</p></div>`)
     );
   }
 

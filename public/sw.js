@@ -22,7 +22,7 @@
  * deploy). See .claude/rules/frontend-build-cache-busting.md.
  */
 
-const CACHE = 'spieleabend-shell-v4';
+const CACHE = 'spieleabend-shell-v5';
 
 // Everything the app needs to boot offline. Kept in sync with the <script>/<link>
 // order in index.html; each entry must be a real, servable path or install fails
@@ -37,6 +37,7 @@ const SHELL = [
   '/js/lang/en.js',
   '/js/lang/de.js',
   '/js/core.js',
+  '/js/account.js',
   '/js/ranking.js',
   '/js/lookup-group.js',
   '/js/buynext.js',
