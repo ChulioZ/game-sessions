@@ -390,6 +390,40 @@ function shuffled(arr) {
 // Inline "<icon> label" markup for buttons/badges/tags; the label is escaped.
 const iconText = (icon, text) => `<i class="ti ${icon}" aria-hidden="true"></i> ${esc(text)}`;
 
+// Lazy cover loading (#198). Covers render as CSS background-image, which the
+// browser can't natively lazy-load — so a long list (Regal grid, Chronik,
+// archive) would fire every cover request on its first paint. Each list render
+// creates ONE loader; registered elements get their image only as they
+// approach the viewport. The observer is scoped to the render (not shared
+// globally) so it is GC'd together with the view's discarded nodes.
+// `loadCover(watchEl, url, targetEl)`: observe `watchEl`, set the image on
+// `targetEl` (defaults to `watchEl`). Watch the OUTER card when the card uses
+// `content-visibility: auto` — skipped content has no layout boxes, so a
+// descendant would never report a real intersection.
+function createCoverLoader() {
+  const apply = (el, url) => { el.style.backgroundImage = `url('${url}')`; };
+  if (!('IntersectionObserver' in window))
+    return (watchEl, url, targetEl) => apply(targetEl || watchEl, url);
+  const pending = new WeakMap();
+  const io = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const p = pending.get(entry.target);
+        if (p) apply(p.target, p.url);
+        io.unobserve(entry.target);
+      });
+    },
+    // Start fetching one viewport-height early so scrolling rarely catches an
+    // empty frame, while a first paint still skips everything far below.
+    { rootMargin: '100% 0px' }
+  );
+  return (watchEl, url, targetEl) => {
+    pending.set(watchEl, { url, target: targetEl || watchEl });
+    io.observe(watchEl);
+  };
+}
+
 // Turn an element into a link to a game's detail page: click or keyboard
 // (Enter/Space) opens `showGameDetail(rid, gid)`, with a focusable button
 // affordance (the `.game-link` class carries cursor/hover/focus styling).

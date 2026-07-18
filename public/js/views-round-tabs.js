@@ -99,9 +99,11 @@ function renderRegalTab(round, activeGames) {
 
     // Build the cards once and remember them by game id. When re-sorting we only
     // reorder these existing nodes – no page rebuild that would reset the scroll.
+    // Covers load lazily as cards scroll into view (#198); watch the card, not
+    // the __img — the card's `content-visibility: auto` skips descendant layout.
+    const loadCover = createCoverLoader();
     const cardById = {};
     activeGames.forEach((g) => {
-      const imgStyle = g.image ? `style="background-image:url('${g.image}')"` : '';
       const fallback = g.image
         ? ''
         : `<i class="ti ${typeIcon(g.type)}" aria-hidden="true"></i>`;
@@ -111,13 +113,14 @@ function renderRegalTab(round, activeGames) {
           ? `<span class="score-pill" style="background:${avgColor(avg)}">Ø ${avg.toFixed(1)}</span>`
           : `<span class="score-pill score-pill--none">${esc(t('games.scoreNew'))}</span>`;
       const gc = h(`<div class="game-card game-card--clickable">
-           <div class="game-card__img" ${imgStyle}>${fallback}
+           <div class="game-card__img">${fallback}
              <div class="game-card__badges">${scorePill}${typeBadge(g.type)}${durationBadge(g.duration)}</div>
            </div>
            <div class="game-card__body">
              <div class="game-card__title">${esc(g.title)}</div>
            </div>
          </div>`);
+      if (g.image) loadCover(gc, g.image, gc.querySelector('.game-card__img'));
       gc.addEventListener('click', () => showGameDetail(rid, g.id));
       cardById[g.id] = gc;
     });
@@ -181,6 +184,7 @@ function renderRegalTab(round, activeGames) {
 // --- Chronik tab: one timeline of sessions and shelf changes.
 function renderChronikTab(round) {
   const rid = round.id;
+  const loadCover = createCoverLoader(); // lazy session thumbs (#198)
 
   // Collect all entries: done sessions as cards, game activities as quiet rows.
   const entries = [];
@@ -230,7 +234,6 @@ function renderChronikTab(round) {
       .filter(Boolean);
 
     // Thumbnail: the chosen game's cover, or an icon for the session's state.
-    const thumbStyle = chosen && chosen.image ? `style="background-image:url('${chosen.image}')"` : '';
     const thumbIcon = chosen
       ? chosen.image ? '' : `<i class="ti ${typeIcon(chosen.type)}" aria-hidden="true"></i>`
       : `<i class="ti ${s.cancelled ? 'ti-x' : 'ti-cards'}" aria-hidden="true"></i>`;
@@ -251,12 +254,13 @@ function renderChronikTab(round) {
     parts.push(esc(t('sessions.rated', { n: s.gameIds.length })));
 
     const card = h(`<button class="session-card">
-         <div class="session-card__img" ${thumbStyle}>${thumbIcon}</div>
+         <div class="session-card__img">${thumbIcon}</div>
          <div class="session-card__body">
            <div class="session-card__title">${title}${pill}</div>
            <div class="session-card__meta">${parts.join(' · ')}</div>
          </div>
        </button>`);
+    if (chosen && chosen.image) loadCover(card.querySelector('.session-card__img'), chosen.image);
     card.addEventListener('click', () => showResults(round, s));
     return card;
   }
@@ -567,14 +571,14 @@ async function showRetired(rid) {
     app.appendChild(h(`<div class="empty"><p>${esc(t('retired.empty'))}</p></div>`));
   } else {
     const list = h('<div class="archive-list"></div>');
+    const loadCover = createCoverLoader(); // lazy archive thumbs (#198)
     games.forEach((g) => {
-      const imgStyle = g.image ? ` style="background-image:url('${g.image}')"` : '';
       const fallback = g.image
         ? ''
         : `<i class="ti ${typeIcon(g.type)}" aria-hidden="true"></i>`;
       const when = g.retiredAt ? fmtDateTime(g.retiredAt) : '?';
       const row = h(`<div class="archive-row">
-           <div class="archive-row__img"${imgStyle}>${fallback}</div>
+           <div class="archive-row__img">${fallback}</div>
            <div class="archive-row__body">
              <div class="archive-row__title">${esc(g.title)} ${typeTag(g.type)} ${durationTag(g.duration)}</div>
              <div class="muted archive-row__meta"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('retired.at', { when }))}</div>
@@ -584,6 +588,7 @@ async function showRetired(rid) {
              <button class="btn btn--danger" data-act="delete"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('retired.delete'))}</button>
            </div>
          </div>`);
+      if (g.image) loadCover(row.querySelector('.archive-row__img'), g.image);
       row.querySelector('[data-act="restore"]').addEventListener('click', async () => {
         try {
           await api('POST', `/api/rounds/${rid}/games/${g.id}/retire`, { retired: false });

@@ -37,6 +37,7 @@ const frontendGlobals = {
   themeAccent: 'readonly',
   activePopover: 'writable', closePopover: 'readonly', openPopover: 'readonly',
   readClipboardImage: 'readonly', shuffled: 'readonly', iconText: 'readonly',
+  createCoverLoader: 'readonly',
   makeGameLink: 'readonly', makeMemberLink: 'readonly',
   typeIcon: 'readonly', typeTag: 'readonly',
   durationTag: 'readonly', playersTag: 'readonly', playersText: 'readonly', typeBadge: 'readonly',

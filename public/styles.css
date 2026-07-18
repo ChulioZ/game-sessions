@@ -779,6 +779,14 @@ h1, h2, h3 { font-family: var(--font-display); }
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  /* Skip layout+paint for off-screen cards (#198): each card paints its cover
+     twice (once through the blurred ::before), so a big Regal grid is
+     expensive. The intrinsic size approximates a card (4/3 cover + body) to
+     keep the scrollbar stable; `auto` remembers the real size once rendered.
+     Lazy cover loading watches the card, not __img — skipped content has no
+     layout boxes (see createCoverLoader in core.js). */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px auto 230px;
 }
 .game-card__img {
   position: relative;
