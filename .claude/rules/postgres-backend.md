@@ -46,6 +46,19 @@ Non-obvious things that cost effort — keep them:
   Postgres (and `postgres.js` isn't loaded there, so it isn't coverage-gated — the
   dedicated `postgres` CI job with a service container is what exercises it).
 
+- **`init()` holds a transaction-scoped advisory lock, and the two PG test
+  files must run serially.** Two lessons from one flake (#202): (1) concurrent
+  `init()` calls on an empty catalog (overlapping deploy instances, parallel
+  local runs) can crash with a `pg_class` unique_violation — `CREATE … IF NOT
+  EXISTS` does *not* prevent that known Postgres race, so `init()` wraps the
+  schema DDL in `pg_advisory_xact_lock` (self-releasing; don't "simplify" it
+  away). (2) `test/repo.postgres.test.js` and `test/migrate.postgres.test.js`
+  share the one `DATABASE_URL` database and the migrate spec TRUNCATEs it, so
+  they are only correct run **serially** — CI uses `--test-concurrency=1`
+  (see ci.yml); do the same for local runs of both files together. A parallel
+  run now fails on data assertions (rounds vanishing mid-test) instead of
+  catalog errors — that's the harness misuse, not an app bug.
+
 **Migrating data.json -> Postgres preserves ids.** The one-off tool
 `scripts/migrate-json-to-postgres.js` (`npm run migrate:postgres`, server stopped,
 empty target) reads `data.json` and calls **`repo.importRounds(rounds)`** — a
