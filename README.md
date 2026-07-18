@@ -9,12 +9,13 @@ and digital games, decide what to play in a session, and track how much everyone
 liked each game. The user interface is available in **German and English**; the
 code and documentation are in English.
 
-> ℹ️ **Status: local-only MVP.** Today this runs **local-only, with no
-> authentication** — a deliberate starting point, not the destination. The goal
-> is to bring it live as a hosted **website and app**; accounts, auth and a
-> hosting story are the next phase. **For now, run it only on a trusted home
-> network and don't expose it to the public internet** — there is no access
-> control yet.
+> ℹ️ **Status: live in production, heading toward public multi-tenant SaaS.**
+> The maintainer's instance runs hosted (managed PostgreSQL, object storage,
+> TLS, an auth gate, and a token-first account model — see "Environment
+> variables" below); public sign-up isn't open yet. **Self-hosting still
+> defaults to local-only with no authentication** unless you set the env vars
+> below — if you run it that way, keep it on a trusted network you control,
+> since there's no access control until you configure one.
 
 ## Features
 
@@ -319,8 +320,9 @@ and `RECS_RATE_LIMIT_MAX` (buy-next generations, per hour).
 
 Require a login: set `AUTH_PASSWORD=…` (and optionally `SESSION_SECRET=…`) to gate
 the whole app behind a single shared password — an unauthenticated visitor gets a
-login page and the API returns `401`. Leave `AUTH_PASSWORD` unset (the default) and
-the app stays open, as the local-only MVP runs today. Tune the login brute-force
+login page and the API returns `401`. Leave `AUTH_PASSWORD` unset and the app
+stays open with no access control (the default for a bare local checkout — the
+maintainer's hosted instance sets it). Tune the login brute-force
 limit with `AUTH_RATE_LIMIT_MAX` (attempts per 15 min, default 20). The session is
 a signed, httpOnly cookie (marked `Secure` automatically behind a TLS proxy).
 
@@ -438,10 +440,11 @@ must be signed off under the Developer Certificate of Origin (`git commit -s`).
 
 ### Before you start
 
-- Read `CLAUDE.md` — it states the current constraints (local-only MVP, no auth
-  yet, no build step, no framework, no database; German UI, English code), the
-  architecture you must work within, and the roadmap intent (going live as a
-  hosted website and app).
+- Read `CLAUDE.md` — it states the current stage (live in production, heading
+  toward public multi-tenant SaaS — see `docs/production-readiness.md`), the
+  architecture you must work within (no frontend build step, no framework, no
+  ORM; German UI, English code), and the production-readiness mindset that now
+  applies to new work.
 - Skim `.claude/rules/` — one short file per hard-won gotcha (frontend script
   load order, the shared-global-scope lint setup, theme-derived colours, why you
   must never read the production `data/` folder, …). When you touch an area a

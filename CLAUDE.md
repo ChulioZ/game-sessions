@@ -4,18 +4,32 @@ Guidance for Claude Code (and other AI assistants) working in this repository.
 
 ## What this is
 
-A small self-hosted web app for any group or gaming round to
+A self-hosted web app for any group or gaming round to
 manage their games, run "what should we play?" voting sessions, and track ratings. UI language is
 **German**; code, comments here, and docs are **English**.
 
-**Current stage — local-only MVP.** Today the app runs **local-only**, with
-intentionally **no authentication**, for a trusted home network. That is the
-*current MVP scope*, not the end goal: the intent is to bring this live as a
-hosted **website and app** (which will eventually need accounts, auth, and a
-hosting/storage story). So treat local-only / no-auth as *where we are now*, not
-a permanent principle — but don't build auth, accounts, or cloud services
-**ad-hoc or unprompted**. Those are staged roadmap work to do deliberately when
-asked, not to bolt onto an unrelated change as a side effect.
+**Current stage — live production, heading toward public multi-tenant SaaS.**
+The app started as a local-only, no-auth MVP for a trusted home network; that
+stage is over. It now runs in production on Railway (managed PostgreSQL, R2
+object storage, TLS — see `docs/deploy-railway.md`), and the token-first
+account model, tenant isolation, and onboarding UI (issues #135/#136/#138) are
+shipped, staged behind `ACCOUNTS_ENABLED` for opening public registration (see
+`.claude/rules/accounts-mode-gate.md`). Full status and remaining launch work:
+`docs/production-readiness.md`.
+
+**What this changes about how to work here.** Priority has shifted from
+*staying minimal* to *production-ready*: correctness under concurrent/
+multi-tenant load, security, observability, and long-term maintainability now
+outweigh keeping the dependency count low for its own sake. Where a mature,
+widely-used dependency solves a problem this codebase currently hand-rolls
+(schema migrations, structured logging/error tracking, request validation —
+see `docs/production-readiness.md` for the current shortlist), prefer adopting
+it over growing the homegrown version further. This does **not** relax
+discipline elsewhere: still build roadmap work deliberately when asked, not as
+a side effect of an unrelated change, and the specific, already-considered
+architecture calls below (no build step for frontend dev, no ORM, no third
+persistence backend ad hoc) remain deliberate choices, not a blanket
+"avoid dependencies" stance.
 
 ## Architecture (read before changing things)
 
@@ -90,7 +104,12 @@ asked, not to bolt onto an unrelated change as a side effect.
   `data.json` is fully up to date. For a future schema change, migrate the data
   once (with the server stopped, see `.claude/rules/`) rather than keeping
   migration code around permanently.
-- Data is small (one group). Prefer simple, readable code over optimization.
+- The default JSON backend (`lib/repo/json.js`) still assumes one small dataset
+  and favors simple, readable code over optimization — that's fine for
+  local/self-hosted use. **Production runs the Postgres backend instead**
+  (`lib/repo/postgres.js`, tenant-scoped, RLS-enforced), which now holds many
+  tenants' data — don't assume "small, one group" when touching anything
+  tenant-scoped or Postgres-specific.
 - Keep the `data/` folder out of git (already in `.gitignore`).
 - **Never read the production `data/` directory** (`data/data.json`,
   `data/uploads/`) — it is private user data. Reference the schema from code

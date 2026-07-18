@@ -10,11 +10,15 @@ the shared-password gate. Things that will bite if you forget them:
   tokens are HMAC-signed with SESSION_SECRET, and unlike lib/auth.js it must
   NOT fall back to AUTH_PASSWORD — the shared password is known to the whole
   group, so falling back would let any group member forge any user's tokens.
-  **Keep accounts off in production** until onboarding (#138) lands: tenancy
-  (#136) is in — each registration mints a personal `tenantId` and the tenant
-  middleware scopes /api data to it — but without the onboarding/invite flow
-  there is no UI that sends the Bearer token, so open registration would only
-  burn Brevo quota.
+  Enabling accounts in production is still a deliberate ops step (not
+  automatic just because the code supports it — see accounts-mode-gate.md),
+  but the earlier reason to hold off is gone: onboarding (#138) shipped
+  2026-07-19, so there's now a real UI that sends the Bearer token, and
+  tenancy (#136) scopes /api data per registration. Tenant-*sharing*
+  (invites/#207) is **not** a prerequisite for opening registration — a
+  single-owner tenant with name-only members (today's model) is a complete
+  product on its own; see the 2026-07-19 note on #207 and
+  docs/production-readiness.md §12 Phase 4.
 
 - **Coexistence, not replacement (yet).** lib/auth.js (shared gate) still
   protects the instance's data; /api/account mounts *before* the gate (like

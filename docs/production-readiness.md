@@ -28,7 +28,10 @@
 - **The three hard blockers**, in order: (1) **no authentication or
   authorization** on any route; (2) the **process-local in-memory store** with no
   concurrency safety; (3) **no transport security / production hosting**. Nothing
-  public can happen until all three are addressed.
+  public can happen until all three are addressed. **Status 2026-07-19: all
+  three are shipped** (#127–#133, live on Railway — see §12 Phase 1). What
+  remains before opening **public** sign-up is the legal pack (Impressum #134,
+  blocked externally; DPAs/ToS #140) and per-tenant quotas (#139) — see §12.
 - **Keep the stack, don't rewrite.** Node/Express is fine for production. The
   no-build vanilla frontend is fine for a single instance and *acceptable* for
   multi-tenant with a thin build added later — a framework rewrite is **not** a
@@ -344,10 +347,16 @@ network."
   locales live in `.env` (gitignored), documented in
   [`.env.example`](../.env.example), never committed
   ([`.claude/rules/no-reading-env-files.md`](../.claude/rules/no-reading-env-files.md)).
-- **Supply-chain posture is good:** tiny dependency surface (two runtime deps),
-  Dependabot for npm + Actions ([`.github/dependabot.yml`](../.github/dependabot.yml)),
-  CI/Lint on every PR. This is *better* than most hobby projects and should be
-  preserved.
+- **Supply-chain posture is good:** Dependabot for npm + Actions
+  ([`.github/dependabot.yml`](../.github/dependabot.yml)), CI/Lint on every PR.
+  The dependency count has grown with the app's needs (`express`, `helmet`,
+  `express-rate-limit`, `argon2`, `multer`, `pg`, `@aws-sdk/client-s3`,
+  `compression` as of this writing) — that growth is **correct, not a
+  regression**: each one replaced code this app would otherwise have had to
+  hand-roll and keep secure itself (password hashing, security headers, rate
+  limiting, S3 access). **Minimizing dependency *count* is no longer the goal;
+  minimizing *hand-rolled, security-or-correctness-critical* code is** — see
+  the mindset note in [`CLAUDE.md`](../CLAUDE.md) and the shortlist below (§7).
 - **No rate limiting.** The outbound Claude call
   ([`routes/recommendations.js`](../routes/recommendations.js)) is a real
   cost/abuse vector once public (it spends real money per call).
@@ -469,22 +478,62 @@ with `tenant_id` + RLS is the right weight.
 - **Codified learnings:** a strong [`.claude/rules/`](../.claude/rules) culture
   captures the non-obvious traps — this is a real maintainability asset.
 
-**Gap for production.**
-- **No CD.** CI validates but nothing deploys; going live needs a deploy pipeline
-  (§8).
-- **Observability is absent.** No structured logging, no error tracking (e.g.
-  Sentry), no health/readiness endpoint, no metrics. A public service needs at
-  minimum: a `/healthz` endpoint, structured request logs, and error alerting.
-- **Error handling is per-route** and mostly returns JSON `{ error }` with a
-  status; there's no central Express error handler or 500 catch-all — add one so
-  unexpected throws don't leak stack traces and are logged/alerted.
-- **Frontend fragility** (§2.2) is the main structural debt; contained today by
-  the rules files but real.
+**Gap for production — status 2026-07-19, mostly shipped but hand-rolled.**
+- ~~No CD~~ — **shipped**: Railway auto-deploys on push to `main`
+  ([`docs/deploy-railway.md`](./deploy-railway.md), #131).
+- ~~Observability is absent~~ — **baseline shipped** (#132,
+  [`lib/observability.js`](../lib/observability.js)): `/healthz`, structured
+  JSON request logs, and a central Express error handler all exist. But it's
+  deliberately **hand-rolled and dependency-free** ("no Sentry bundle" per the
+  file's own doc-comment) — real error tracking is a webhook forward with no
+  symbolication, breadcrumbs, or alerting policy, and logging is a bespoke
+  JSON-line writer. That trade-off made sense pre-launch; it doesn't anymore
+  now that real users hit this — see the shortlist below.
+- ~~Error handling is per-route~~ — **shipped**: `errorHandler` in
+  `lib/observability.js` is mounted last in `lib/app.js` and catches
+  unexpected throws/rejections.
+- **Frontend fragility** (§2.2) is the main remaining structural debt;
+  contained today by the rules files but real.
 
-**Recommendation.** With coverage reporting now in place, add a central error
-handler, a health endpoint, structured logging, and an error-tracking
-integration. These are small, independently shippable, and become load-bearing
-the moment real users hit the app.
+**Battle-tested-dependency candidates (production-readiness lens, not "keep
+it minimal").** The mindset shift in [`CLAUDE.md`](../CLAUDE.md) applies most
+directly here: several of the app's hand-rolled, security-or-correctness-
+critical pieces now have a stronger case for a mature library than for
+growing the homegrown version further. Not filed as issues yet — see §13.
+
+1. **Postgres schema migrations** — [`lib/repo/postgres.js`](../lib/repo/postgres.js)
+   evolves the schema via `CREATE TABLE`/`ALTER TABLE ... IF NOT EXISTS` run on
+   every `init()`, tracked only by code comments, with no migrations table and
+   no rollback. This already caused a real incident (`init()` needed a hand-
+   written advisory lock to survive concurrent boots — see
+   [`.claude/rules/postgres-backend.md`](../.claude/rules/postgres-backend.md)).
+   This is now running against a **live production database**. A tool built
+   for exactly this (`node-pg-migrate`, Umzug, or Flyway) replaces it with
+   versioned, tracked, lockable migrations. **Highest-priority candidate.**
+2. **Structured logging + error tracking** — swap the hand-rolled logger for
+   `pino`/`pino-http`, and the webhook-forward stand-in for a real error
+   tracker (e.g. Sentry) now that production traffic makes alerting/
+   symbolication actually valuable.
+3. **Request validation** — mutating routes each hand-roll their own
+   `typeof`/`Array.isArray` checks (`routes/games.js`, `routes/sessions.js`,
+   `routes/rounds.js`, `routes/account.js`). A schema validator (`zod`) at the
+   router boundary would make validation uniform and total instead of
+   per-handler, and is cheap to retrofit incrementally.
+4. **Identity/token issuance** — [`lib/accounts.js`](../lib/accounts.js) is a
+   well-built hand-rolled HMAC access-token + rotating-refresh-token scheme,
+   but it's about to gate real users' accounts. Revisit §5's existing
+   recommendation to **strongly consider an IdP/OAuth** (or at minimum
+   `jsonwebtoken`/`jose` for the token primitives) now that the account system
+   is live rather than hypothetical.
+5. **Rate-limit store** — `express-rate-limit`'s default in-memory store only
+   works correctly for exactly one process. Fine today (single Railway
+   instance); becomes wrong the moment horizontal scaling (§12 Phase 3) adds a
+   second process. Track `rate-limit-redis` (or similar) as a prerequisite for
+   scaling out, not an immediate fix.
+
+**Recommendation.** Treat #1 (migrations) as worth its own issue soon — it's
+the one place a real production incident risk already exists. The rest are
+fast-follow hardening, sequenced by how much production traffic has grown.
 
 ---
 
@@ -652,9 +701,12 @@ projects and a real launch asset.
 
 **Gap for a public launch (product, not i18n plumbing):**
 - **Onboarding / empty states** — the app assumes you already have a round; a
-  public first-run needs a sign-up → create-first-round → invite flow.
-- **Invitations** — multi-tenant needs a way to invite people to a round
-  (email/link), which doesn't exist (members are added as names).
+  public first-run needs a sign-up → create-first-round flow. *Shipped as #138*
+  (sign-up → create-round → empty states; no invite step — see below).
+- **Invitations** — a way to invite a *second account* into a tenant so it's a
+  genuine co-member rather than a name-only seat. **Deferred to Phase 4 (#207)**,
+  not a launch requirement: a public first-run already works end-to-end with a
+  single owner account adding name-only members, exactly as the app does today.
 - **Accessibility** — no evidence of an a11y pass (focus management, ARIA,
   contrast — the theme system is color-mix-derived per
   [`.claude/rules/theme-derived-colors.md`](../.claude/rules/theme-derived-colors.md),
@@ -685,30 +737,57 @@ Risk = chance of getting it subtly wrong / blast radius.
 | Register domain set (`.com`/`.app`/`.de`) | S | Low | Do early; cheap; reversible-ish. |
 
 ### Phase 1 — Milestone one: single authenticated instance 🔒 *(the going-live spine)*
+**Status 2026-07-19: shipped and live** — see [`docs/deploy-railway.md`](./deploy-railway.md).
+
 | Item | Effort | Risk | Blocker? |
 |---|---|---|---|
-| **Move to PostgreSQL** + object storage for uploads; one-time file→DB migration | **L** | **High** | **HARD BLOCKER** (§3, §2.3) |
-| Make backend **stateless / single-writer-safe** (falls out of DB move) | M | High | HARD BLOCKER |
-| **Auth gate** (single shared/small-user login, session cookies) | M | High | **HARD BLOCKER** (§5) |
-| **TLS + `helmet` + rate limiting** | S–M | Med | **HARD BLOCKER** (§4) |
-| **Containerize + deploy pipeline + managed host** | M | Med | **HARD BLOCKER** (§8) |
-| Central error handler, `/healthz`, structured logging, error tracking | M | Low | Strongly recommended before public |
-| Harden file uploads (content sniff/re-encode, safe extension) | S–M | Med | Fast-follow |
-| Impressum + privacy policy (lawyer-reviewed) | S (+external) | Med | Required if not "purely private" (§9) |
+| **Move to PostgreSQL** + object storage for uploads; one-time file→DB migration | **L** | **High** | HARD BLOCKER (§3, §2.3) — **shipped** (#127, #128) |
+| Make backend **stateless / single-writer-safe** (falls out of DB move) | M | High | HARD BLOCKER — **shipped** (#127) |
+| **Auth gate** (single shared/small-user login, session cookies) | M | High | HARD BLOCKER (§5) — **shipped** (#129) |
+| **TLS + `helmet` + rate limiting** | S–M | Med | HARD BLOCKER (§4) — **shipped** (#130, #156) |
+| **Containerize + deploy pipeline + managed host** | M | Med | HARD BLOCKER (§8) — **shipped** (#131) |
+| Central error handler, `/healthz`, structured logging, error tracking | M | Low | Strongly recommended before public — **shipped** (#132); see §7 for the follow-up (real error tracking, not the webhook stand-in) |
+| Harden file uploads (content sniff/re-encode, safe extension) | S–M | Med | Fast-follow — **shipped** (#133) |
+| Impressum + privacy policy (lawyer-reviewed) | S (+external) | Med | Required if not "purely private" (§9) — **open, blocked externally** (#134, waiting on an Impressum-service confirmation) |
 
-*Exit:* your group's data runs in the cloud, gated, on TLS, on a real DB, with
-backups and monitoring — nothing public yet.
+*Exit (reached):* the group's data runs in the cloud, gated, on TLS, on a real
+DB, with backups and monitoring. Public multi-tenant sign-up is still gated on
+the rest of §12 (Impressum #134, quotas #139, legal pack #140) and a deliberate
+decision to flip `ACCOUNTS_ENABLED` in production.
+
+### Phase 1.5 — Harden the spine: prefer battle-tested deps over hand-rolled
+Added 2026-07-19. Not go-live blockers (Phase 1 is already live) — this is
+closing the gap between "shipped" and "production-battle-tested" now that the
+priority has shifted (see the mindset note in [`CLAUDE.md`](../CLAUDE.md) and
+the shortlist in §7).
+
+| Item | Effort | Risk | Notes |
+|---|---|---|---|
+| **Postgres schema migrations** — adopt a real migration tool (`node-pg-migrate`/Umzug/Flyway) instead of the `IF NOT EXISTS` DDL in `lib/repo/postgres.js` | M | Med | Highest priority — already caused one concurrency incident (§7) |
+| **Structured logging + real error tracking** — `pino`/`pino-http` + Sentry (or similar) instead of the hand-rolled logger + webhook stand-in | S–M | Low | `lib/observability.js` |
+| **Centralized request validation** — `zod` schemas at the router boundary instead of per-route ad hoc checks | M | Low | Incremental; can land route-by-route |
+| **Reconsider identity/token issuance** — IdP/OAuth, or at least `jsonwebtoken`/`jose` for the primitives in `lib/accounts.js` | M–L | Med | Revisit now that accounts gate real users, not a hypothetical |
+| **Rate-limit shared store** (`rate-limit-redis` or similar) | S | Low | Only needed once horizontal scaling (Phase 3) adds a second process |
 
 ### Phase 2 — Multi-tenant SaaS
 | Item | Effort | Risk | Blocker? |
 |---|---|---|---|
-| Account model (users, email verify, password reset **or IdP/OAuth**) — build **token-first** so native apps share it (§2.4/§5) | **L** | **High** | Blocker for public sign-up (§5) |
-| **Tenant model + isolation** (`tenant_id` everywhere, central enforcement, RLS) | **L** | **Very High** | Blocker — cross-tenant leak is catastrophic (§6) |
-| Roles/permissions mapped to mutating routes | M | Med | Blocker |
-| Invitations (link/email) + onboarding / empty states | M–L | Med | Blocker for usable sign-up (§11) |
+| Account model (users, email verify, password reset **or IdP/OAuth**) — build **token-first** so native apps share it (§2.4/§5) | **L** | **High** | Blocker for public sign-up (§5) — **shipped** (#135) |
+| **Tenant model + isolation** (`tenant_id` everywhere, central enforcement, RLS) | **L** | **Very High** | Blocker — cross-tenant leak is catastrophic (§6) — **shipped** (#136) |
+| Onboarding / first-run flow + empty states | M | Med | Blocker for usable sign-up (§11) — **shipped** (#138) |
 | Per-tenant quotas (esp. recommendation spend) | S–M | Med | Cost/abuse control |
 | Terms of Service / AGB, DPAs (host, DB, Anthropic), transfer basis | S (+external) | Med | Legal must for SaaS (§9) |
 | Consent mechanism **iff** non-essential tracking is added | S | Low | Conditional (§9.3) |
+
+**2026-07-19 — Roles/permissions and invitations/tenant-sharing removed from this
+phase (see Phase 4).** They were originally listed here as blockers, but "member"
+is already decoupled from "user" (a name-only seat the tenant owner adds, per
+[`routes/rounds.js`](../routes/rounds.js)) — so a single-owner tenant whose
+members are all name-only is a **complete, launchable product** with no
+cross-tenant sharing and no role model needed (the owner is the only account and
+implicitly does everything). Multi-user sharing of one tenant is real product
+value, but it's an enhancement layered on a working single-owner launch, not a
+prerequisite for one — see #207.
 
 ### Phase 3 — Native apps, scale & polish (as needed)
 | Item | Effort | Risk |
@@ -722,10 +801,26 @@ backups and monitoring — nothing public yet.
 | Coverage reporting + broaden tests around auth/tenant code | M | Low |
 | Localize server-side error messages if user-facing surfaces grow | S | Low |
 
-**Hard blockers, consolidated (nothing public until all are done):** real
-database + stateless tier (§3/§2.3), authentication (§5), TLS + security headers
-+ rate limiting (§4), production hosting + deploy (§8); **and for public
-multi-tenant specifically**, tenant isolation (§6) and accounts (§5).
+### Phase 4 — Post-launch collaboration features (not go-live blockers)
+Added 2026-07-19. A single-owner tenant with name-only members (today's model,
+unchanged) is a complete public product on its own — nothing below is required
+to open public sign-up. These are enhancements for groups that want more than
+one of their members to hold their own login.
+
+| Item | Effort | Risk |
+|---|---|---|
+| **Invitations & tenant-sharing** — let a second account join an existing tenant as a co-member (#207) | M–L | Med |
+| **Roles & permissions** — owner/editor/viewer once a tenant has multiple accounts (#137) | M | Med |
+| **Per-device voting** — a registered co-member votes from their own phone/browser in a running session, instead of one shared device (#209) | M | Low |
+
+**Hard blockers, consolidated — all shipped as of 2026-07-19:** real database +
+stateless tier (§3/§2.3), authentication (§5), TLS + security headers + rate
+limiting (§4), production hosting + deploy (§8); **and for public multi-tenant
+specifically**, tenant isolation (§6) and accounts (§5). What's left before
+**public** sign-up: the legal pack (Impressum #134, blocked externally; ToS/DPAs
+#140) and per-tenant quotas (#139) — plus the Phase 1.5 hardening above is
+recommended, not blocking. Tenant *sharing* (multiple accounts in one tenant),
+roles, and per-device voting are **not** in this list — see Phase 4.
 
 ---
 
@@ -734,37 +829,43 @@ multi-tenant specifically**, tenant isolation (§6) and accounts (§5).
 Per the issue's deliverable — a directly actionable backlog. Titles + one-line
 scope; **not filed as part of #40.**
 
-**Phase 1 — going-live spine**
+**Phase 1 — going-live spine** *(all shipped 2026-07-18, see §12)*
 1. **Migrate persistence from `data.json` to PostgreSQL** — schema, data-access
    layer, one-off file→DB migration script, backups. *(depends on nothing; blocks
-   everything)*
+   everything)* *Shipped as #127.*
 2. **Move cover uploads to object storage** — S3-compatible; store key not path;
-   make the app tier stateless.
+   make the app tier stateless. *Shipped as #128.*
 3. **Add an authentication gate (single-instance)** — login, session cookies,
-   protect all routes; foundation for accounts later.
+   protect all routes; foundation for accounts later. *Shipped as #129.*
 4. **Add TLS, `helmet`, and rate limiting** — security headers, HSTS, global +
-   per-endpoint limits (esp. recommendations).
+   per-endpoint limits (esp. recommendations). *Shipped as #130 (TLS: #156).*
 5. **Containerize + CD pipeline** — `Dockerfile`, env config, deploy-on-merge via
-   Actions, managed host + managed Postgres.
+   Actions, managed host + managed Postgres. *Shipped as #131.*
 6. **Add observability baseline** — central Express error handler, `/healthz`,
-   structured request logging, error tracking.
+   structured request logging, error tracking. *Shipped as #132 — but see the
+   Phase 1.5 hardening candidates (§7, §12) to replace the hand-rolled logger/
+   webhook with battle-tested equivalents now that it's carrying real traffic.*
 7. **Harden image uploads** — content-sniff/re-encode, derive extension from
-   detected type, isolate served origin.
+   detected type, isolate served origin. *Shipped as #133.*
 8. **Publish Impressum + privacy policy** — DDG-compliant Impressum, DSGVO
-   privacy policy, in-product footer links (lawyer-reviewed).
+   privacy policy, in-product footer links (lawyer-reviewed). *Open, blocked
+   externally (#134) — waiting on an Impressum-service provider confirmation,
+   not on engineering work.*
 
 **Phase 2 — multi-tenant SaaS**
 9. **User account model** — registration, email verification, password reset (or
-   integrate an IdP/OAuth).
+   integrate an IdP/OAuth). *Shipped as #135.*
 10. **Tenant model + isolation** — `tenant_id` on all entities, central query
-    scoping, Postgres RLS as defense-in-depth.
-11. **Roles & permissions** — owner/editor/viewer mapped to mutating routes.
-12. **Invitations & onboarding** — invite-by-link/email, first-run sign-up →
-    create-round → invite flow, empty states.
+    scoping, Postgres RLS as defense-in-depth. *Shipped as #136.*
+11. ~~**Roles & permissions**~~ — moved to Phase 4 (item 22, #137): meaningless
+    until a tenant can hold more than one account, which is itself Phase 4.
+12. **Onboarding** — first-run sign-up → create-round flow, empty states.
+    *Shipped as #138.* (The invite-a-second-account part originally bundled here
+    is now item 23/#207 in Phase 4.)
 13. **Per-tenant quotas & abuse controls** — bound rounds/uploads/recommendation
-    spend per tenant.
+    spend per tenant. (#139)
 14. **SaaS legal pack** — ToS/AGB, DPAs (host, DB, Anthropic), international-
-    transfer basis, retention policy (lawyer-reviewed).
+    transfer basis, retention policy (lawyer-reviewed). (#140)
 
 **Phase 3 — native apps, scale & polish**
 15. **Thin frontend build for cache-busting** — `esbuild` bundle with
@@ -785,19 +886,34 @@ scope; **not filed as part of #40.**
     name (`rundenwahl` / `ludopick`), then swap `app.title`/`<title>` + marketing
     copy.
 
+**Phase 4 — post-launch collaboration features** *(added 2026-07-19; not go-live
+blockers — see the Phase 4 note in §12)*
+22. **Invitations & tenant-sharing** — let a second account join an existing
+    tenant as a co-member; invite tokens + delivery (link/e-mail), accept flow.
+    (#207)
+23. **Roles & permissions** — owner/editor/viewer mapped to mutating routes, once
+    a tenant can hold more than one account. (#137)
+24. **Per-device voting** — a registered co-member casts their own vote from
+    their own device in a running session, instead of everyone using the round
+    owner's screen. Depends on #207. (#209)
+
 ---
 
 ## 14. Summary
 
 The codebase is **well-built for what it is** — clean router split, isolated
-tests, tiny dependency surface, self-hosted fonts, a real SSRF allowlist, secrets
-in `.env`, enforced i18n parity, and a strong `.claude/rules/` knowledge base.
-None of that needs throwing away, and **no rewrite is warranted**. Going public is
-not an architecture problem; it's an **operations, security, and data-model**
-problem, concentrated in four hard blockers: **a real database + stateless tier,
-authentication, transport/edge security, and production hosting**. Clear those as
-a **single authenticated instance** first, then layer **accounts + tenant
-isolation** to reach the recommended **multi-tenant SaaS** end-state. The product
+tests, a deliberately vetted dependency set, self-hosted fonts, a real SSRF
+allowlist, secrets in `.env`, enforced i18n parity, and a strong
+`.claude/rules/` knowledge base. None of that needs throwing away, and **no
+rewrite is warranted**. Going public was not an architecture problem; it was an
+**operations, security, and data-model** problem, concentrated in four hard
+blockers: **a real database + stateless tier, authentication, transport/edge
+security, and production hosting** — **all shipped as of 2026-07-18** (§12
+Phase 1). The remaining work to open **public multi-tenant** sign-up is the
+legal pack and quotas (§12), plus the **Phase 1.5 hardening** pass — replacing
+what's currently hand-rolled-but-working (schema migrations, logging/error
+tracking, request validation, token issuance) with battle-tested dependencies
+now that production traffic makes that trade-off worth it. The product
 also targets **native iOS/Android apps**, not just a website — and the backend's
 API-first shape already makes that cheap: reach the stores by **wrapping the
 existing web UI with Capacitor** (after a PWA step), not a native rewrite, and
