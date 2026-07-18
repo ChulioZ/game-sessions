@@ -145,6 +145,8 @@ code and documentation are in English.
   (CSP, `X-Content-Type-Options`, frame options, HSTS) and
   [express-rate-limit](https://express-rate-limit.mintlify.app/) caps requests —
   a generous global limit plus a stricter one on the billable buy-next endpoint.
+  Mutating request bodies are validated at the router boundary with
+  [zod](https://zod.dev/) schemas (via `lib/validate.js`).
   TLS is expected to terminate at a reverse proxy (`TRUST_PROXY` then forwards
   the real client IP); see the env vars below. Responses are gzip-compressed
   ([compression](https://github.com/expressjs/compression)), and content-hashed

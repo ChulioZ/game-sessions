@@ -3,8 +3,23 @@
 /* Routes for rounds: list, detail, create (optionally importing games), delete. */
 
 const express = require('express');
+const { z } = require('zod');
+const { validateBody } = require('../lib/validate');
 
 const router = express.Router();
+
+// Create-round body. `members` is normalized (each entry stringified, trimmed,
+// blanks dropped) before the non-empty check, mirroring the old hand-rolled
+// clean-then-validate. `importFromRoundId` is passed through untouched.
+const createRoundSchema = z.object({
+  name: z.preprocess((v) => String(v || '').trim(), z.string().min(1, 'Round name is missing')),
+  members: z
+    .preprocess(
+      (v) => (Array.isArray(v) ? v.map((m) => String(m || '').trim()).filter(Boolean) : []),
+      z.array(z.string()).min(1, 'At least one member is required')
+    ),
+  importFromRoundId: z.unknown().optional(),
+});
 
 // Compact list for the home screen: identity, live counts, the round's design
 // and a "last played" highlight so the lobby cards can tell each round's story.
@@ -54,20 +69,15 @@ router.get('/:rid', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const name = String(req.body.name || '').trim();
-  const members = Array.isArray(req.body.members) ? req.body.members : [];
-  const cleanMembers = members.map((m) => String(m || '').trim()).filter(Boolean);
-
-  if (!name) return res.status(400).json({ error: 'Round name is missing' });
-  if (cleanMembers.length === 0)
-    return res.status(400).json({ error: 'At least one member is required' });
+  const body = validateBody(createRoundSchema, req, res);
+  if (!body) return;
 
   // The data layer mints ids and (optionally) copies the games list
   // (title/type/image only) from an existing round.
   const round = await req.repo.createRound({
-    name,
-    members: cleanMembers,
-    importFromRoundId: req.body.importFromRoundId || null,
+    name: body.name,
+    members: body.members,
+    importFromRoundId: body.importFromRoundId || null,
   });
   res.status(201).json(round);
 });

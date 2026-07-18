@@ -5,8 +5,45 @@
    Mounted under /api/rounds/:rid/sessions (mergeParams for rid). */
 
 const express = require('express');
+const { z } = require('zod');
+const { validateBody } = require('../lib/validate');
 
 const router = express.Router({ mergeParams: true });
+
+const DURATIONS = ['short', 'medium', 'long'];
+
+// Start-session body. Every field is lenient (unknown -> default), exactly like
+// the old hand-rolled normalization: memberIds/durations are coerced to string
+// arrays (round-membership / duration filtering still happens in the handler,
+// which needs the round), filter defaults to 'all', count to NaN (the handler
+// floors it to 1). `gameId` (direct-pick) is passed through untouched. So this
+// schema never 400s — the real 400s (no members, no matching games) are
+// round-dependent and stay in the handler.
+const startSessionSchema = z.object({
+  filter: z.enum(['all', 'digital', 'analog']).catch('all'),
+  memberIds: z.preprocess((v) => (Array.isArray(v) ? v.map(String) : []), z.array(z.string())),
+  durations: z.preprocess(
+    (v) => (Array.isArray(v) ? v.filter((d) => DURATIONS.includes(d)) : []),
+    z.array(z.string())
+  ),
+  count: z.preprocess((v) => parseInt(v, 10), z.number().catch(NaN)),
+  gameId: z.unknown().optional(),
+});
+
+// Save-results body: votes must be a map object (votes[memberId][gameId] = …);
+// anything else (missing, array, primitive) falls back to {} like the old
+// `typeof === 'object'` guard. The nested shape isn't validated here — the data
+// layer is lenient about it.
+const saveResultsSchema = z.object({
+  votes: z.record(z.string(), z.unknown()).catch({}),
+});
+
+// Finish body: winnerIds coerced to a string array (filtered against the round's
+// members in the handler). `finished` is a tri-state default (true unless
+// explicitly false), read from req.body where that reads clearest.
+const finishSchema = z.object({
+  winnerIds: z.preprocess((v) => (Array.isArray(v) ? v.map(String) : []), z.array(z.string())),
+});
 
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
@@ -25,12 +62,13 @@ router.post('/', async (req, res) => {
   const round = await req.repo.getRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
+  const body = validateBody(startSessionSchema, req, res);
+  if (!body) return;
+
   // Members joining this session. Missing/empty means everyone (back-compat).
   // The joining count filters games by their player range below.
   const memberById = new Set(round.members.map((m) => m.id));
-  let memberIds = Array.isArray(req.body.memberIds)
-    ? req.body.memberIds.map(String).filter((mid) => memberById.has(mid))
-    : [];
+  let memberIds = body.memberIds.filter((mid) => memberById.has(mid));
   if (memberIds.length === 0) memberIds = round.members.map((m) => m.id);
   if (memberIds.length === 0)
     return res.status(400).json({ error: 'At least one member must join' });
@@ -38,8 +76,8 @@ router.post('/', async (req, res) => {
 
   // Direct-pick mode: the user explicitly chose one game, so there is no draw
   // and no voting. Ignore filter/durations/count and the player-range pool.
-  if (req.body.gameId != null) {
-    const game = round.games.find((g) => g.id === String(req.body.gameId));
+  if (body.gameId != null) {
+    const game = round.games.find((g) => g.id === String(body.gameId));
     if (!game) return res.status(400).json({ error: 'Game does not belong to this round' });
     if (game.retired) return res.status(400).json({ error: 'Game is retired' });
     const now = new Date().toISOString();
@@ -63,15 +101,12 @@ router.post('/', async (req, res) => {
     return res.status(201).json({ session, games: [game], members });
   }
 
-  const filter = ['all', 'digital', 'analog'].includes(req.body.filter) ? req.body.filter : 'all';
+  const filter = body.filter;
   // Duration filter: array of 'short'/'medium'/'long'. Missing, empty or the
   // full set means "no duration filter" (games without a duration included).
-  const DURATIONS = ['short', 'medium', 'long'];
-  let durations = Array.isArray(req.body.durations)
-    ? req.body.durations.filter((d) => DURATIONS.includes(d))
-    : [];
+  let durations = body.durations;
   if (durations.length === 0 || durations.length === DURATIONS.length) durations = null;
-  let count = parseInt(req.body.count, 10);
+  let count = body.count;
   if (!Number.isFinite(count) || count < 1) count = 1;
 
   const playerCount = memberIds.length;
@@ -118,8 +153,9 @@ router.post('/:sid/results', async (req, res) => {
   if (!findSession(round, req.params.sid))
     return res.status(404).json({ error: 'Session not found' });
 
-  const votes = req.body.votes && typeof req.body.votes === 'object' ? req.body.votes : {};
-  const session = await req.repo.saveSessionResults(req.params.rid, req.params.sid, votes);
+  const body = validateBody(saveResultsSchema, req, res);
+  if (!body) return;
+  const session = await req.repo.saveSessionResults(req.params.rid, req.params.sid, body.votes);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   res.json(session);
 });
@@ -149,14 +185,15 @@ router.post('/:sid/finish', async (req, res) => {
   const session = findSession(round, req.params.sid);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
+  const body = validateBody(finishSchema, req, res);
+  if (!body) return;
   const finished = req.body.finished !== false; // default: true
   let winnerIds = [];
   if (finished) {
     if (session.cancelled)
       return res.status(400).json({ error: 'Session is cancelled' });
-    const ids = Array.isArray(req.body.winnerIds) ? req.body.winnerIds.map(String) : [];
     const memberIds = new Set(round.members.map((m) => m.id));
-    winnerIds = ids.filter((mid) => memberIds.has(mid));
+    winnerIds = body.winnerIds.filter((mid) => memberIds.has(mid));
   }
   const updated = await req.repo.finishSession(req.params.rid, req.params.sid, { finished, winnerIds });
   if (!updated) return res.status(404).json({ error: 'Session not found' });

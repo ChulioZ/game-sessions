@@ -192,9 +192,13 @@ and `.env`-only secrets management (see
 — extend the same discipline to any new user-supplied-URL fetch.
 
 **Still open (fast-follow hardening, not launch blockers — tracked in §7):**
-- **Centralized request validation** — routes still hand-roll
-  `typeof`/`Array.isArray` checks per handler; a schema validator (`zod`) at
-  the router boundary is scoped as **#213**.
+- **Centralized request validation — shipped (#213).** The mutating routers
+  (`rounds`, `games`, `sessions`, `account`) now validate request bodies via
+  `zod` schemas through a shared `lib/validate.js` helper, replacing the
+  per-handler `typeof`/`Array.isArray` checks. (Genuinely stateful checks that
+  reconcile against stored data — the game-edit min/max range, session
+  round-membership filters — stay in the handlers by design; they aren't
+  body-shape validation.)
 - **Structured logging / real error tracking** — the current logger +
   webhook-forward is hand-rolled and dependency-free by design (pre-launch
   trade-off); swapping to `pino`/`pino-http` is scoped as **#212**; a real
@@ -298,10 +302,10 @@ version further. Filed as #211–#215 (2026-07-19).
    symbolication actually valuable. **Decided 2026-07-19: scope the logging
    half only** (`pino`/`pino-http`); leave the error-tracking provider open
    for a later decision (cost/DPA implications, §9). Filed as **#212**.
-3. **Request validation** — mutating routes each hand-roll their own
-   `typeof`/`Array.isArray` checks. A schema validator (`zod`) at the router
-   boundary would make validation uniform and total instead of per-handler,
-   and is cheap to retrofit incrementally. Filed as **#213**.
+3. **Request validation — shipped (#213).** Mutating routes used to hand-roll
+   their own `typeof`/`Array.isArray` checks. A `zod` schema per body shape,
+   run through the shared `lib/validate.js` helper, now makes body validation
+   uniform at the router boundary (`rounds`/`games`/`sessions`/`account`).
 4. **Identity/token issuance** — [`lib/accounts.js`](../lib/accounts.js) is a
    well-built hand-rolled HMAC access-token + rotating-refresh-token scheme,
    but it's about to gate real users' accounts. **Decided 2026-07-19: scope as
@@ -506,7 +510,7 @@ Not go-live blockers (Phase 1 is already live) — closing the gap between
 |---|---|---|---|
 | **Postgres schema migrations** + adopt **Knex** | L | Med | #211 |
 | **Structured logging** — `pino`/`pino-http` | S–M | Low | #212 |
-| **Centralized request validation** — `zod` at the router boundary | M | Low | #213 |
+| **Centralized request validation** — `zod` at the router boundary — **shipped** (#213) | M | Low | #213 |
 | **Identity/token issuance** — `jsonwebtoken`/`jose` | M | Med | #214 |
 | **Rate-limit shared store** (`rate-limit-redis` or similar) | S | Low | #215 |
 

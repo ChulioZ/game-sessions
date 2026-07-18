@@ -19,6 +19,7 @@
 
 const crypto = require('crypto');
 const express = require('express');
+const { z } = require('zod');
 const repo = require('../lib/repo');
 const accounts = require('../lib/accounts');
 const mail = require('../lib/mail');
@@ -28,19 +29,28 @@ const router = express.Router();
 
 // Deliberately backtracking-safe (CodeQL js/polynomial-redos): the domain
 // labels exclude '.', so no alternative can overlap the literal dots — the
-// match is linear even on hostile input (and validEmail length-guards first).
+// match is linear even on hostile input (and the schema length-guards first).
 const EMAIL_RE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
 const PASSWORD_MIN = 8;
 const PASSWORD_MAX = 200;
+
+// Field validators expressed as zod schemas (issue #213). Reused by the
+// register/login/reset/forgot handlers, whose anti-enumeration behavior differs
+// per route (register/reset 400 on a bad field; login/forgot deliberately do
+// NOT — they answer the same for known/unknown accounts), so these stay
+// field-level validators rather than one whole-body middleware. The email regex
+// is unchanged, so its linear-time (ReDoS-safe) property is preserved; the
+// `.max(254)` keeps the length guard.
+const emailSchema = z.string().max(254).regex(EMAIL_RE);
+const passwordSchema = z.string().min(PASSWORD_MIN).max(PASSWORD_MAX);
 
 const iso = (ms) => new Date(ms).toISOString();
 const baseUrl = () =>
   (process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
 
 const normalizeEmail = (raw) => String(raw || '').trim().toLowerCase();
-const validEmail = (email) => email.length <= 254 && EMAIL_RE.test(email);
-const validPassword = (pw) =>
-  typeof pw === 'string' && pw.length >= PASSWORD_MIN && pw.length <= PASSWORD_MAX;
+const validEmail = (email) => emailSchema.safeParse(email).success;
+const validPassword = (pw) => passwordSchema.safeParse(pw).success;
 
 // Mail failures must never fail the account flow (registration/reset still
 // succeed); they are logged for the operator instead.
