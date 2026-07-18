@@ -3,8 +3,10 @@
 /*
  * Tenancy end-to-end (issue #136): the tenant middleware (lib/tenant.js)
  * resolves every /api data request to a tenant and hands the routes a scoped
- * repo — so two accounts can never see each other's rounds, and the gate-only
- * caller (no Bearer token — today's production shape) stays on the 'default'
+ * repo — so two accounts can never see each other's rounds. Since #138 flipped
+ * the app to accounts, an accounts-on instance requires a valid token (no
+ * anonymous 'default' access); with accounts DISABLED the gate-only caller (no
+ * Bearer token — today's production shape) still resolves to the 'default'
  * tenant with unchanged behaviour. Uses the JSON backend via the shared test
  * app; the same isolation is contract-tested on both backends in
  * test/support/repo-contract.js, and Postgres RLS in test/repo.postgres.test.js.
@@ -80,22 +82,18 @@ test('tenant isolation across accounts and the default (gate-only) caller', asyn
     assert.equal(game.status, 404);
   });
 
-  await t.test('no token (and an invalid token) means the default tenant', async () => {
-    // Today's production callers send no Bearer token — they are tenant
-    // 'default' and A's round is invisible to them.
+  await t.test('in accounts mode an unauthenticated or forged request is refused (#138)', async () => {
+    // #138 flipped the gate: with accounts on there is no anonymous 'default'
+    // access — a missing or invalid token is 401 (auth_required), not a silent
+    // fall-through to the 'default' tenant. (When accounts are DISABLED the
+    // gate-only 'default' caller still works — see the second test below.)
     const anon = await request(app).get(`/api/rounds/${roundId}`);
-    assert.equal(anon.status, 404);
+    assert.equal(anon.status, 401);
     const forged = await request(app).get(`/api/rounds/${roundId}`).set('Authorization', 'Bearer a1.x.y.z');
-    assert.equal(forged.status, 404);
-
-    // …and a default-tenant round stays reachable exactly as before.
+    assert.equal(forged.status, 401);
+    // Creating a round without a token is refused too — no unauthenticated writes.
     const created = await request(app).post('/api/rounds').send({ name: 'Default-Runde', members: ['M'] });
-    assert.equal(created.status, 201);
-    const fetched = await request(app).get(`/api/rounds/${created.body.id}`);
-    assert.equal(fetched.status, 200);
-    // The account callers don't see the default tenant's rounds either.
-    const viaA = await request(app).get(`/api/rounds/${created.body.id}`).set('Authorization', `Bearer ${a.token}`);
-    assert.equal(viaA.status, 404);
+    assert.equal(created.status, 401);
   });
 
   await t.test('the round is still fully there for account A', async () => {

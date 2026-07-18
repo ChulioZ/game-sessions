@@ -35,8 +35,12 @@ function toast(msg) {
   toastTimer = setTimeout(() => (toastEl.hidden = true), 2200);
 }
 
-async function api(method, url, body) {
+async function api(method, url, body, _retried) {
   const opts = { method, headers: {} };
+  // Accounts mode (#138): attach the account access token. getAccessToken() is
+  // null in legacy/shared-password mode, so this is a no-op there.
+  const token = getAccessToken();
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
   if (body instanceof FormData) {
     opts.body = body;
   } else if (body !== undefined) {
@@ -48,10 +52,17 @@ async function api(method, url, body) {
     let msg = 'Error';
     let payload;
     try { payload = await res.json(); msg = payload.error || msg; } catch {}
-    // Session expired or missing while auth is on (issue #129): bounce to '/',
-    // which the server serves the login page for when locked.
+    // Session expired or missing while a gate is on. In accounts mode (#138) try
+    // a silent token refresh once and retry, then fall back to the login screen;
+    // in legacy shared-password mode (issue #129) bounce to '/', which the server
+    // serves the login page for when locked.
     if (res.status === 401 && payload && payload.error === 'auth_required') {
-      window.location.assign('/');
+      if (accountsActive()) {
+        if (!_retried && (await refreshAccessToken())) return api(method, url, body, true);
+        onSessionLost();
+      } else {
+        window.location.assign('/');
+      }
     }
     throw new Error(msg);
   }

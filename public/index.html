@@ -23,6 +23,9 @@
     <button id="homeBtn" class="topbar__home" type="button" aria-label="Home"><i class="ti ti-dice-3" aria-hidden="true"></i></button>
     <nav id="crumbs" class="crumbs"></nav>
     <select id="langPicker" class="lang-picker" aria-label="Language"></select>
+    <!-- Account menu (issue #138): hidden unless accounts are on and the user is
+         logged in; wired by js/account.js setupAccountUi(). -->
+    <button id="accountBtn" class="topbar__acct" type="button" hidden aria-label="Account"><i class="ti ti-user" aria-hidden="true"></i></button>
   </header>
 
   <main id="app" class="app">
@@ -37,6 +40,7 @@
   <script src="/js/lang/en.js"></script>
   <script src="/js/lang/de.js"></script>
   <script src="/js/core.js"></script>
+  <script src="/js/account.js"></script>
   <script src="/js/ranking.js"></script>
   <script src="/js/lookup-group.js"></script>
   <script src="/js/buynext.js"></script>

@@ -17,7 +17,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 
-const { app, createRound } = require('./helpers');
+const { app } = require('./helpers');
 const repo = require('../lib/repo');
 const accounts = require('../lib/accounts');
 const { outbox } = require('../lib/mail');
@@ -218,18 +218,30 @@ test('full account lifecycle', async (t) => {
 /* ------------------------------ member linking ------------------------------ */
 
 test('a member can be linked to a user and unlinked again', async () => {
-  const round = await createRound(request);
-  const mid = round.members[0].id;
-  const user = await repo.getUserByEmail(EMAIL);
+  // Accounts are on in this file (#138 gate), so the round is created and edited
+  // with an account's Bearer token, and the member is linked to that account.
+  const email = 'linkme@example.com';
+  await request(app).post('/api/account/register').send({ email, password: PASSWORD });
+  const { uid, token: vtok } = lastMailTokens();
+  await request(app).post('/api/account/verify-email').send({ uid, token: vtok });
+  const login = await request(app).post('/api/account/login').send({ email, password: PASSWORD });
+  const bearer = `Bearer ${login.body.accessToken}`;
+  const user = await repo.getUserByEmail(email);
 
-  const bogus = await request(app).patch(`/api/rounds/${round.id}/members/${mid}`).send({ userId: 'nope' });
+  const created = await request(app)
+    .post('/api/rounds').set('Authorization', bearer)
+    .send({ name: 'Test round', members: ['Alice', 'Bob'] });
+  const round = created.body;
+  const mid = round.members[0].id;
+
+  const bogus = await request(app).patch(`/api/rounds/${round.id}/members/${mid}`).set('Authorization', bearer).send({ userId: 'nope' });
   assert.equal(bogus.status, 400);
 
-  const linked = await request(app).patch(`/api/rounds/${round.id}/members/${mid}`).send({ userId: user.id });
+  const linked = await request(app).patch(`/api/rounds/${round.id}/members/${mid}`).set('Authorization', bearer).send({ userId: user.id });
   assert.equal(linked.status, 200);
   assert.equal(linked.body.userId, user.id);
 
-  const unlinked = await request(app).patch(`/api/rounds/${round.id}/members/${mid}`).send({ userId: null });
+  const unlinked = await request(app).patch(`/api/rounds/${round.id}/members/${mid}`).set('Authorization', bearer).send({ userId: null });
   assert.equal(unlinked.status, 200);
   assert.equal(unlinked.body.userId, null);
 });
