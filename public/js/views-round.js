@@ -27,7 +27,7 @@ async function showRound(rid, tab) {
     [round, activities] = await Promise.all([
       fetchRound(rid),
       activeTab === 'chronik'
-        ? api('GET', `/api/rounds/${rid}/activities`).catch(() => [])
+        ? fetchActivities(rid).catch(() => [])
         : [],
     ]);
   } catch { return showHome(); }

@@ -73,8 +73,10 @@ async function api(method, url, body) {
  * views-session.js intentionally bypass this and call api() directly. */
 const ROUND_CACHE_TTL_MS = 30 * 1000;
 let roundCache = { rid: null, round: null, at: 0 };
+let activityCache = { rid: null, activities: null, at: 0 };
 function invalidateRoundCache() {
   roundCache = { rid: null, round: null, at: 0 };
+  activityCache = { rid: null, activities: null, at: 0 };
 }
 async function fetchRound(rid) {
   const fresh = roundCache.rid === rid && Date.now() - roundCache.at < ROUND_CACHE_TTL_MS;
@@ -82,6 +84,15 @@ async function fetchRound(rid) {
   const round = await api('GET', '/api/rounds/' + rid);
   roundCache = { rid, round, at: Date.now() };
   return round;
+}
+// Same pattern for the activity feed, which lives on its own endpoint (#197)
+// and so misses the round cache — without this, every Chronik entry re-fetches.
+async function fetchActivities(rid) {
+  const fresh = activityCache.rid === rid && Date.now() - activityCache.at < ROUND_CACHE_TTL_MS;
+  if (fresh) return activityCache.activities;
+  const activities = await api('GET', '/api/rounds/' + rid + '/activities');
+  activityCache = { rid, activities, at: Date.now() };
+  return activities;
 }
 
 function setCrumbs(parts) {
