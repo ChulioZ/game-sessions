@@ -56,7 +56,7 @@ I18N.de = {
   'newRound.toast.createdImported': 'Runde erstellt – Spiele übernommen',
 
   'round.design': 'Design',
-  'round.startSession': 'Session starten',
+  'round.startSession': 'Session wirbeln',
   'round.startSessionDisabled': 'Erst Spiele hinzufügen',
   'round.addGame': 'Spiel hinzufügen',
   'round.deleteRound': 'Diese Runde löschen',
@@ -258,11 +258,11 @@ I18N.de = {
   'startSession.whichGames': 'Welche Spiele?',
   'startSession.durationLabel': 'Welche Spieldauer?',
   'startSession.durationNote': 'Alle ausgewählt = Spieldauer egal.',
-  'startSession.countLabel': 'Wie viele Spiele auslosen?',
+  'startSession.countLabel': 'Wie viele Spiele wirbeln?',
   'startSession.available': '{n} Spiele im Topf',
   'startSession.availableOne': '{n} Spiel im Topf',
-  'startSession.draw': 'Abstimmung starten',
-  'startSession.toast.noGames': 'Keine passenden Spiele vorhanden',
+  'startSession.draw': 'Loswirbeln',
+  'startSession.toast.noGames': 'Keine passenden Spiele zum Wirbeln',
   'startSession.toast.noMembers': 'Mindestens eine Person muss mitspielen',
 
   'directPlay.button': 'Jetzt spielen',
