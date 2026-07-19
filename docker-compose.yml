@@ -6,7 +6,7 @@ services:
   app:
     build: .
     # Or pull the image published by the Docker workflow instead of building:
-    # image: ghcr.io/chulioz/game-sessions:latest
+    # image: ghcr.io/chulioz/spielwirbel:latest
     ports:
       - "3000:3000"
     volumes:

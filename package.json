@@ -1,5 +1,5 @@
 {
-  "name": "game-sessions",
+  "name": "spielwirbel",
   "version": "1.0.0",
   "description": "Spielwirbel: a web app to manage games, run voting sessions and track ratings.",
   "type": "commonjs",
