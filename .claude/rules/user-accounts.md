@@ -50,5 +50,4 @@ the shared-password gate. Things that will bite if you forget them:
 - **`data.users` is top-level in data.json** (a sibling of `rounds`, defaulted
   by lib/store.js loadData) and a `users` table in Postgres with a UNIQUE
   expression index on `data->>'email'` — `createUser` maps error 23505 to
-  `'email_taken'`. The JSON→Postgres migration imports users via
-  `repo.importUsers` (id-preserving, both backends, contract-tested).
+  `'email_taken'`.

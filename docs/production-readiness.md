@@ -159,9 +159,8 @@ same contract (see
 [`.claude/rules/postgres-backend.md`](../.claude/rules/postgres-backend.md)).
 Cover images moved to S3-compatible object storage (#128, see
 [`.claude/rules/cover-image-storage-backend.md`](../.claude/rules/cover-image-storage-backend.md))
-so the app tier is stateless. A one-off migration script
-(`scripts/migrate-json-to-postgres.js`) preserves ids; managed Postgres gives
-automated backups + point-in-time recovery for free.
+so the app tier is stateless. Managed Postgres gives automated backups +
+point-in-time recovery for free.
 
 **Why Postgres, over the rejected alternatives — still the right call:**
 relational data (round → games/sessions → votes) maps naturally to tables,
