@@ -54,6 +54,7 @@ I18N.en = {
   'newRound.toast.needMember': 'Please add at least one member',
   'newRound.toast.created': 'Round created',
   'newRound.toast.createdImported': 'Round created – games copied',
+  'newRound.toast.quota': 'Round limit reached. Please delete a round first.',
 
   'round.design': 'Design',
   'round.startSession': 'Start session',
@@ -113,6 +114,7 @@ I18N.en = {
   'buynext.deleteRunFailed': 'Couldn’t delete the run.',
   'buynext.unavailable': 'Suggestion generation isn’t set up on this server.',
   'buynext.failed': 'Couldn’t generate suggestions right now.',
+  'buynext.quota': 'You’ve used your suggestion quota for this month.',
 
   'chronik.title': 'History',
   'chronik.filter.all': 'Everything',
@@ -221,6 +223,7 @@ I18N.en = {
   'addGame.toast.needPlayers': 'Please enter min and max players',
   'addGame.toast.playersRange': 'Max players must not be less than min players',
   'addGame.toast.saved': 'Game saved',
+  'addGame.toast.quota': 'Game limit for this round reached.',
   'addGame.toast.pasted': 'Image pasted',
   'addGame.toast.noImage': 'No image in the clipboard',
   'addGame.toast.pasteFail': 'Couldn’t paste – please use ⌘V',

@@ -10,6 +10,7 @@ const storage = require('../lib/storage');
 const { upload, saveUploadedImage } = require('../lib/upload');
 const { getProvider, isAllowedImageUrl } = require('../lib/providers');
 const { validateBody } = require('../lib/validate');
+const quota = require('../lib/quota');
 
 const router = express.Router({ mergeParams: true });
 
@@ -110,6 +111,14 @@ function buildSource(body) {
 router.post('/', upload.single('image'), async (req, res) => {
   const round = await req.repo.getRound(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
+
+  // Per-tenant games-per-round cap (#139): only in the public multi-tenant mode.
+  // Counts every game in the round (active + retired — both hold a row and a
+  // possible cover). multer has buffered any upload in memory but nothing is
+  // persisted yet, so refusing here leaves no orphan file.
+  if (quota.enforced() && (round.games || []).length >= quota.gamesPerRound()) {
+    return res.status(403).json({ error: 'quota_games', limit: quota.gamesPerRound() });
+  }
 
   const body = validateBody(createGameSchema, req, res);
   if (!body) return;

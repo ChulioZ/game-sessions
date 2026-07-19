@@ -320,6 +320,13 @@ Behind a TLS-terminating proxy: `TRUST_PROXY=1 npm start` (so rate limiting sees
 the real client IP). Tune the limits with `RATE_LIMIT_MAX` (global, per 15 min)
 and `RECS_RATE_LIMIT_MAX` (buy-next generations, per hour).
 
+Per-tenant quotas (issue #139): in the public multi-tenant mode (`ACCOUNTS_ENABLED=true`)
+each tenant is capped on rounds (`MAX_ROUNDS_PER_TENANT`, default 10), games per
+round (`MAX_GAMES_PER_ROUND`, default 1000), and successful buy-next generations
+per month (`RECS_TENANT_MONTHLY_MAX`, default 1 — bounds the billed Claude spend
+per tenant, on top of the per-IP `RECS_RATE_LIMIT_MAX`). With accounts off (the
+default, single-tenant deploy) these are inert. See the quotas block in `.env.example`.
+
 Require a login: set `AUTH_PASSWORD=…` (and optionally `SESSION_SECRET=…`) to gate
 the whole app behind a single shared password — an unauthenticated visitor gets a
 login page and the API returns `401`. Leave `AUTH_PASSWORD` unset and the app

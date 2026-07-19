@@ -5,6 +5,7 @@
 const express = require('express');
 const { z } = require('zod');
 const { validateBody } = require('../lib/validate');
+const quota = require('../lib/quota');
 
 const router = express.Router();
 
@@ -71,6 +72,17 @@ router.get('/:rid', async (req, res) => {
 router.post('/', async (req, res) => {
   const body = validateBody(createRoundSchema, req, res);
   if (!body) return;
+
+  // Per-tenant round cap (#139): only in the public multi-tenant mode, so
+  // today's single-tenant instance is unaffected. A state cap — count the
+  // tenant's current rounds; deleting one frees a slot.
+  if (quota.enforced()) {
+    const limit = quota.roundsPerTenant();
+    const rounds = await req.repo.listRounds();
+    if (rounds.length >= limit) {
+      return res.status(403).json({ error: 'quota_rounds', limit });
+    }
+  }
 
   // The data layer mints ids and (optionally) copies the games list
   // (title/type/image only) from an existing round.

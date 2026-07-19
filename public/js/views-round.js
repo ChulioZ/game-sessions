@@ -446,7 +446,10 @@ async function generateBuyNext(round, btn) {
     buyNextKeepOpen.add(round.id);
     showRound(round.id); // re-render the Start tab with the fresh run
   } catch (e) {
-    toast(e.message === 'not_configured' ? t('buynext.unavailable') : t('buynext.failed'));
+    const msg = e.message === 'not_configured' ? t('buynext.unavailable')
+      : e.message === 'quota_recommendations' ? t('buynext.quota')
+      : t('buynext.failed');
+    toast(msg);
     btn.disabled = false;
     btn.innerHTML = original;
   }

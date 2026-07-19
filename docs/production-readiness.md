@@ -30,7 +30,7 @@
   process-local in-memory store, (3) transport security + production hosting
   (#127–#133, live on Railway — §12 Phase 1). What remains before opening
   **public** sign-up is the legal pack (Impressum #134, blocked externally;
-  ToS/DPAs #140) and per-tenant quotas (#139) — see §12.
+  ToS/DPAs #140); per-tenant quotas (#139) shipped 2026-07-19 — see §12.
 - **Kept the stack, no rewrite.** Node/Express, the no-build vanilla frontend,
   and hand-rolled-but-tested logic all proved out in production — see §2.
 - **The goal is a website *and* native iOS/Android store apps**, not just
@@ -243,8 +243,10 @@ enforcement point recommended here, not per-handler `WHERE` clauses. Postgres
 scale (migrations × N databases) for no real isolation gain over `tenant_id` +
 RLS.
 
-**Still open:** per-tenant quotas (rounds, uploads, recommendation spend) to
-bound abuse/cost — **#139**, a blocker for opening public sign-up (§12).
+**Shipped (#139, 2026-07-19):** per-tenant quotas — a rounds-per-tenant cap, a
+games-per-round cap (which transitively bounds cover-image storage), and a
+per-tenant monthly cap on the billed buy-next call — enforced in accounts mode
+only, all env-tunable. Bounds abuse/cost before opening public sign-up (§12).
 
 ---
 
@@ -507,7 +509,7 @@ Risk = chance of getting it subtly wrong / blast radius.
 
 *Exit (reached):* the group's data runs in the cloud, gated, on TLS, on a real
 DB, with backups and monitoring. Public multi-tenant sign-up is still gated on
-the rest of §12 (Impressum #134, quotas #139, legal pack #140) and a
+the rest of §12 (Impressum #134, legal pack #140; quotas #139 shipped) and a
 deliberate decision to flip `ACCOUNTS_ENABLED` in production.
 
 ### Phase 1.5 — Harden the spine: prefer battle-tested deps over hand-rolled
@@ -531,7 +533,7 @@ See §7 for the reasoning behind each.
 | Account model (users, email verify, password reset) — built **token-first** so native apps share it (§2.4/§5) | **L** | **High** | Blocker for public sign-up (§5) — **shipped** (#135) |
 | **Tenant model + isolation** (`tenant_id` everywhere, central enforcement, RLS) | **L** | **Very High** | Blocker — cross-tenant leak is catastrophic (§6) — **shipped** (#136) |
 | Onboarding / first-run flow + empty states | M | Med | Blocker for usable sign-up (§11) — **shipped** (#138) |
-| Per-tenant quotas (esp. recommendation spend) | S–M | Med | Cost/abuse control — **open** (#139) |
+| Per-tenant quotas (esp. recommendation spend) | S–M | Med | Cost/abuse control — **shipped** (#139) |
 | Terms of Service / AGB, DPAs (host, DB, Anthropic), transfer basis | S (+external) | Med | Legal must for SaaS (§9) — **open** (#140) |
 | Consent mechanism **iff** non-essential tracking is added | S | Low | Conditional (§9.3) |
 
@@ -569,7 +571,7 @@ members to hold their own login.
 (§3/§2.3), authentication (§5), TLS + security headers + rate limiting (§4),
 production hosting + deploy (§8), tenant isolation (§6), accounts (§5).
 **What's left before public sign-up:** the legal pack (Impressum #134, blocked
-externally; ToS/DPAs #140) and per-tenant quotas (#139) — plus the Phase 1.5
+externally; ToS/DPAs #140) — per-tenant quotas (#139) shipped — plus the Phase 1.5
 hardening above is recommended, not blocking. Tenant *sharing*, roles, and
 per-device voting are **not** in this list — see Phase 4.
 

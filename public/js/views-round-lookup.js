@@ -572,7 +572,7 @@ function showAddGame(round) {
         closeSheet();
         showRound(round.id, 'regal');
       }
-    } catch (e) { toast(e.message); }
+    } catch (e) { toast(e.message === 'quota_games' ? t('addGame.toast.quota') : e.message); }
   }
   form.querySelector('#save').addEventListener('click', () => save(false));
   form.querySelector('#saveMore').addEventListener('click', () => save(true));

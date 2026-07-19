@@ -54,6 +54,7 @@ I18N.de = {
   'newRound.toast.needMember': 'Bitte mindestens ein Mitglied',
   'newRound.toast.created': 'Runde erstellt',
   'newRound.toast.createdImported': 'Runde erstellt – Spiele übernommen',
+  'newRound.toast.quota': 'Rundenlimit erreicht. Bitte lösche zuerst eine Runde.',
 
   'round.design': 'Design',
   'round.startSession': 'Session wirbeln',
@@ -113,6 +114,7 @@ I18N.de = {
   'buynext.deleteRunFailed': 'Vorschlag konnte nicht gelöscht werden.',
   'buynext.unavailable': 'Vorschläge-Generierung ist auf diesem Server nicht eingerichtet.',
   'buynext.failed': 'Vorschläge konnten gerade nicht generiert werden.',
+  'buynext.quota': 'Dein Vorschlags-Kontingent ist für diesen Monat aufgebraucht.',
 
   'chronik.title': 'Chronik',
   'chronik.filter.all': 'Alles',
@@ -221,6 +223,7 @@ I18N.de = {
   'addGame.toast.needPlayers': 'Bitte minimale und maximale Personenzahl angeben',
   'addGame.toast.playersRange': 'Die maximale Personenzahl darf nicht kleiner als die minimale sein',
   'addGame.toast.saved': 'Spiel gespeichert',
+  'addGame.toast.quota': 'Spiellimit für diese Runde erreicht.',
   'addGame.toast.pasted': 'Bild eingefügt',
   'addGame.toast.noImage': 'Kein Bild in der Zwischenablage',
   'addGame.toast.pasteFail': 'Einfügen nicht möglich – bitte ⌘V benutzen',
