@@ -26,6 +26,7 @@
 
 .ti-dice-3::before { content: "\f08d"; }
 .ti-tags::before { content: "\ef86"; }
+.ti-ban::before { content: "\ea2e"; }
 .ti-tornado::before { content: "\ece2"; }
 .ti-cards::before { content: "\f510"; }
 .ti-trophy::before { content: "\eb45"; }

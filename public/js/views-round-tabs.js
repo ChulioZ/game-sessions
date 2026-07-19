@@ -9,7 +9,7 @@ function renderRegalTab(round, activeGames) {
   // Filters (and sort) persist for the session but are scoped to one round —
   // opening a different round's Regal resets them to defaults.
   if (regalFiltersRid !== round.id) {
-    regalFilters = { type: 'all', durations: new Set(), tags: new Set(), query: '' };
+    regalFilters = { type: 'all', durations: new Set(), tags: new Map(), query: '' };
     gamesSort = 'avg';
     regalFiltersRid = round.id;
   }
@@ -95,20 +95,21 @@ function renderRegalTab(round, activeGames) {
         renderGames();
       });
     });
-    // Custom-tag chips (#238): one per round tag, all off by default; ON tags
-    // combine with AND. Ids of since-deleted tags are pruned from the
-    // persisted set so they can't invisibly filter everything out.
+    // Custom-tag chips (#238, tri-state #241): one per round tag, all ignored by
+    // default. Clicking cycles ignore -> include -> exclude; included tags
+    // combine with AND, excluded tags reject a game carrying any of them. Ids of
+    // since-deleted tags are pruned from the persisted map so they can't
+    // invisibly filter everything out.
     const roundTags = round.tags || [];
     const tagFilter = regalFilters.tags;
-    [...tagFilter].forEach((x) => { if (!roundTags.some((tg) => tg.id === x)) tagFilter.delete(x); });
+    [...tagFilter.keys()].forEach((x) => { if (!roundTags.some((tg) => tg.id === x)) tagFilter.delete(x); });
     if (roundTags.length) {
       chips.appendChild(h('<span class="filter-chips__sep"></span>'));
       roundTags.forEach((tg) => {
-        const chip = h(`<button class="chip${tagFilter.has(tg.id) ? ' is-on' : ''}"><i class="ti ti-tags" aria-hidden="true"></i>${esc(tg.name)}</button>`);
+        const chip = h('<button class="chip"></button>');
+        paintTagChip(chip, tg.name, tagFilter.get(tg.id));
         chip.addEventListener('click', () => {
-          if (tagFilter.has(tg.id)) tagFilter.delete(tg.id);
-          else tagFilter.add(tg.id);
-          chip.classList.toggle('is-on', tagFilter.has(tg.id));
+          paintTagChip(chip, tg.name, cycleTagState(tagFilter, tg.id));
           renderGames();
         });
         chips.appendChild(chip);
@@ -160,7 +161,7 @@ function renderRegalTab(round, activeGames) {
     function matchesFilters(g) {
       if (typeFilter !== 'all' && g.type !== typeFilter) return false;
       if (durFilter.size && !durFilter.has(g.duration)) return false;
-      if (tagFilter.size && ![...tagFilter].every((x) => (g.tagIds || []).includes(x))) return false;
+      if (!matchesTagFilter(tagFilter, g.tagIds)) return false;
       const q = query.trim().toLowerCase();
       if (q && !g.title.toLowerCase().includes(q)) return false;
       return true;

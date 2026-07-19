@@ -367,6 +367,9 @@ I18N.en = {
   'tags.toast.exists': 'This tag already exists',
   'tags.toast.deleted': 'Tag deleted',
   'tags.toast.quota': 'Tag limit for this round reached.',
+  'tags.filter.ignored': 'Tag “{name}”: not filtered. Click to only show games with it.',
+  'tags.filter.included': 'Tag “{name}”: only games with it. Click to exclude it instead.',
+  'tags.filter.excluded': 'Tag “{name}”: games with it are hidden. Click to stop filtering by it.',
 
   'home.onboard.title': 'Welcome to Spielwirbel!',
   'home.onboard.sub': 'Create your first round below and get everyone to the table.',

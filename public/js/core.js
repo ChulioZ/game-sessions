@@ -151,8 +151,46 @@ function setupLangPicker() {
 let gamesSort = 'avg';
 // Regal filter state – kept for the running session, scoped to one round.
 // Reset (along with gamesSort) when a different round's Regal is opened.
-let regalFilters = { type: 'all', durations: new Set(), tags: new Set(), query: '' };
+// `tags` is a tri-state Map<tagId, 'include'|'exclude'> (#241); absence = ignore.
+let regalFilters = { type: 'all', durations: new Set(), tags: new Map(), query: '' };
 let regalFiltersRid = null;
+
+// Tri-state custom-tag filter (#241), shared by the Regal and start-session tag
+// chips. State lives in a Map<tagId, 'include'|'exclude'> — a tag absent from the
+// map is ignored. Clicking a chip cycles ignore -> include -> exclude -> ignore.
+const TAG_STATES = [undefined, 'include', 'exclude'];
+// Advance one tag to its next state in the cycle, mutating the map, and return
+// the new state (undefined = back to ignore, so the entry is removed).
+function cycleTagState(map, id) {
+  const next = TAG_STATES[(TAG_STATES.indexOf(map.get(id)) + 1) % TAG_STATES.length];
+  if (next) map.set(id, next);
+  else map.delete(id);
+  return next;
+}
+// Reflect a tag chip's state on its element: the fill class, the glyph (a ban
+// icon for exclude), and an accessible label so include vs exclude is
+// distinguishable without relying on color alone (a11y).
+function paintTagChip(chip, name, state) {
+  chip.classList.toggle('is-on', state === 'include');
+  chip.classList.toggle('is-excluded', state === 'exclude');
+  const icon = state === 'exclude' ? 'ti-ban' : 'ti-tags';
+  const key =
+    state === 'include' ? 'tags.filter.included'
+    : state === 'exclude' ? 'tags.filter.excluded'
+    : 'tags.filter.ignored';
+  chip.setAttribute('aria-label', t(key, { name }));
+  chip.innerHTML = `<i class="ti ${icon}" aria-hidden="true"></i>${esc(name)}`;
+}
+// A game passes the tri-state tag filter iff it carries every included tag (AND)
+// and none of the excluded tags. `map` is Map<tagId, 'include'|'exclude'>.
+function matchesTagFilter(map, gameTagIds) {
+  const ids = gameTagIds || [];
+  for (const [id, state] of map) {
+    if (state === 'include' && !ids.includes(id)) return false;
+    if (state === 'exclude' && ids.includes(id)) return false;
+  }
+  return true;
+}
 // Remembered random order per round, so it stays the same when navigating back.
 const randomOrderCache = {};
 function randomOrderedGames(round, activeGames) {

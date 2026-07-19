@@ -59,9 +59,10 @@ function showStartSession(round) {
   let filter = 'all';
   // All durations selected by default = no duration filter.
   const durations = new Set(DURATIONS);
-  // Custom-tag filter (#238): all OFF by default = no tag filter; ON tags
-  // combine with AND (a game must carry every selected tag).
-  const selectedTags = new Set();
+  // Custom-tag filter (#238, tri-state #241): all ignored by default = no tag
+  // filter. Map<tagId, 'include'|'exclude'>; included tags combine with AND,
+  // excluded tags reject a game carrying any of them.
+  const selectedTags = new Map();
   // All members join by default; the number of joining members filters the
   // games by their player count.
   const joining = new Set(round.members.map((m) => m.id));
@@ -74,7 +75,7 @@ function showStartSession(round) {
       (g) =>
         (filter === 'all' || g.type === filter) &&
         (durations.size === DURATIONS.length || durations.has(g.duration)) &&
-        [...selectedTags].every((x) => (g.tagIds || []).includes(x)) &&
+        matchesTagFilter(selectedTags, g.tagIds) &&
         (typeof g.minPlayers !== 'number' || joining.size >= g.minPlayers) &&
         (typeof g.maxPlayers !== 'number' || joining.size <= g.maxPlayers)
     );
@@ -120,16 +121,16 @@ function showStartSession(round) {
       updateHint();
     });
   });
-  // Custom-tag chips (#238), appended after the duration chips.
+  // Custom-tag chips (#238, tri-state #241), appended after the duration chips.
+  // Clicking cycles ignore -> include -> exclude -> ignore.
   const roundTags = round.tags || [];
   if (roundTags.length) {
     chips.appendChild(h('<span class="filter-chips__sep"></span>'));
     roundTags.forEach((tg) => {
-      const chip = h(`<button type="button" class="chip"><i class="ti ti-tags" aria-hidden="true"></i>${esc(tg.name)}</button>`);
+      const chip = h('<button type="button" class="chip"></button>');
+      paintTagChip(chip, tg.name, selectedTags.get(tg.id));
       chip.addEventListener('click', () => {
-        if (selectedTags.has(tg.id)) selectedTags.delete(tg.id);
-        else selectedTags.add(tg.id);
-        chip.classList.toggle('is-on', selectedTags.has(tg.id));
+        paintTagChip(chip, tg.name, cycleTagState(selectedTags, tg.id));
         updateHint();
       });
       chips.appendChild(chip);
@@ -158,7 +159,8 @@ function showStartSession(round) {
         count,
         filter,
         durations: [...durations],
-        tagIds: [...selectedTags],
+        tagIds: [...selectedTags].filter(([, s]) => s === 'include').map(([id]) => id),
+        excludeTagIds: [...selectedTags].filter(([, s]) => s === 'exclude').map(([id]) => id),
         memberIds: [...joining],
       });
       // Straight into the first handover — the drawn games stay secret until

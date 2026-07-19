@@ -367,6 +367,9 @@ I18N.de = {
   'tags.toast.exists': 'Diesen Tag gibt es schon',
   'tags.toast.deleted': 'Tag gelöscht',
   'tags.toast.quota': 'Tag-Limit für diese Runde erreicht.',
+  'tags.filter.ignored': 'Tag „{name}“: kein Filter. Klicken, um nur Spiele damit zu zeigen.',
+  'tags.filter.included': 'Tag „{name}“: nur Spiele damit. Klicken, um sie stattdessen auszuschließen.',
+  'tags.filter.excluded': 'Tag „{name}“: Spiele damit sind ausgeblendet. Klicken, um den Filter aufzuheben.',
 
   'home.onboard.title': 'Willkommen bei Spielwirbel!',
   'home.onboard.sub': 'Erstelle unten deine erste Runde und hol alle an den Tisch.',

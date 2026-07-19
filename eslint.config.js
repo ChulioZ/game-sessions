@@ -26,6 +26,8 @@ const frontendGlobals = {
   fetchActivities: 'readonly', activityCache: 'writable',
   applyStaticTexts: 'readonly', setupLangPicker: 'readonly', gamesSort: 'writable',
   regalFilters: 'writable', regalFiltersRid: 'writable',
+  TAG_STATES: 'readonly', cycleTagState: 'readonly',
+  paintTagChip: 'readonly', matchesTagFilter: 'readonly',
   randomOrderCache: 'readonly', randomOrderedGames: 'readonly',
   gameStatsForSession: 'readonly', gameStats: 'readonly',
   retireRecommendations: 'readonly', minimizedRecs: 'readonly',

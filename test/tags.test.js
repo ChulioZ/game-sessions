@@ -4,7 +4,8 @@
  * Custom round tags (issue #238): the /api/rounds/:rid/tags routes (create with
  * case-insensitive dedupe, delete with unassign-everywhere), tagIds on the
  * games routes (create + edit, unknown ids -> 400), and the tag filter on the
- * session draw (AND semantics, unknown ids dropped). Runs in legacy mode
+ * session draw (AND include semantics + exclude rejection #241, unknown ids
+ * dropped). Runs in legacy mode
  * (accounts off), so the tags quota is inert here — test/quota.test.js covers
  * the enforced cap.
  */
@@ -149,5 +150,50 @@ test('session draw: tag filter restricts the pool with AND semantics', async (t)
       .send({ count: 10, tagIds: [tagC.id] });
     assert.equal(res.status, 400);
     assert.equal(res.body.error, 'No matching games in this round');
+  });
+});
+
+test('session draw: exclude tag filter rejects games carrying the tag (#241)', async (t) => {
+  const round = await createRound(request);
+  const tagA = (await request(app).post(`/api/rounds/${round.id}/tags`).send({ name: 'A' })).body;
+  const tagB = (await request(app).post(`/api/rounds/${round.id}/tags`).send({ name: 'B' })).body;
+  await addGame(round.id, 'Both', [tagA.id, tagB.id]);
+  await addGame(round.id, 'OnlyA', [tagA.id]);
+  await addGame(round.id, 'Untagged');
+
+  await t.test('one excluded tag drops every game carrying it', async () => {
+    const res = await request(app).post(`/api/rounds/${round.id}/sessions`)
+      .send({ count: 10, excludeTagIds: [tagA.id] });
+    assert.equal(res.status, 201);
+    assert.deepEqual(res.body.games.map((g) => g.title).sort(), ['Untagged']);
+    assert.deepEqual(res.body.session.excludeTagIds, [tagA.id]);
+  });
+
+  await t.test('include + exclude combine: has all included AND none excluded', async () => {
+    const res = await request(app).post(`/api/rounds/${round.id}/sessions`)
+      .send({ count: 10, tagIds: [tagA.id], excludeTagIds: [tagB.id] });
+    assert.equal(res.status, 201);
+    assert.deepEqual(res.body.games.map((g) => g.title).sort(), ['OnlyA']);
+  });
+
+  await t.test('a tag in both lists is treated as included (include wins)', async () => {
+    const res = await request(app).post(`/api/rounds/${round.id}/sessions`)
+      .send({ count: 10, tagIds: [tagA.id], excludeTagIds: [tagA.id] });
+    assert.equal(res.status, 201);
+    assert.deepEqual(res.body.games.map((g) => g.title).sort(), ['Both', 'OnlyA']);
+    assert.equal(res.body.session.excludeTagIds, null);
+  });
+
+  await t.test('empty / unknown exclude ids mean no exclude filter', async () => {
+    const empty = await request(app).post(`/api/rounds/${round.id}/sessions`)
+      .send({ count: 10, excludeTagIds: [] });
+    assert.equal(empty.status, 201);
+    assert.equal(empty.body.games.length, 3);
+    assert.equal(empty.body.session.excludeTagIds, null);
+
+    const unknown = await request(app).post(`/api/rounds/${round.id}/sessions`)
+      .send({ count: 10, excludeTagIds: ['nope'] });
+    assert.equal(unknown.status, 201);
+    assert.equal(unknown.body.games.length, 3);
   });
 });

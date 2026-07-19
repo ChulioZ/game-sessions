@@ -439,6 +439,13 @@ h1, h2, h3 { font-family: var(--font-display); }
 .chip .ti { font-size: 15px; }
 .chip:hover { border-color: var(--brand-edge); }
 .chip.is-on { background: var(--brand); border-color: var(--brand-dark); color: #fff; }
+/* Exclude state of a tri-state tag filter (#241): the semantic danger fill, so
+   "reject this tag" reads distinctly from the orange include state. */
+.chip.is-excluded {
+  background: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 70%, #000);
+  color: #fff;
+}
 .filter-chips__sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; flex: none; }
 
 /* ---- Buttons ----
