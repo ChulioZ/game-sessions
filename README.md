@@ -1,8 +1,8 @@
 # 🌀 Spielwirbel
 
-[![CI](https://github.com/ChulioZ/game-sessions/actions/workflows/ci.yml/badge.svg)](https://github.com/ChulioZ/game-sessions/actions/workflows/ci.yml)
-[![Lint](https://github.com/ChulioZ/game-sessions/actions/workflows/lint.yml/badge.svg)](https://github.com/ChulioZ/game-sessions/actions/workflows/lint.yml)
-[![Secret Scan](https://github.com/ChulioZ/game-sessions/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/ChulioZ/game-sessions/actions/workflows/secret-scan.yml)
+[![CI](https://github.com/ChulioZ/spielwirbel/actions/workflows/ci.yml/badge.svg)](https://github.com/ChulioZ/spielwirbel/actions/workflows/ci.yml)
+[![Lint](https://github.com/ChulioZ/spielwirbel/actions/workflows/lint.yml/badge.svg)](https://github.com/ChulioZ/spielwirbel/actions/workflows/lint.yml)
+[![Secret Scan](https://github.com/ChulioZ/spielwirbel/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/ChulioZ/spielwirbel/actions/workflows/secret-scan.yml)
 
 A self-hosted web app for any group or gaming round to manage their board
 and digital games, decide what to play in a session, and track how much everyone
@@ -324,6 +324,13 @@ Behind a TLS-terminating proxy: `TRUST_PROXY=1 npm start` (so rate limiting sees
 the real client IP). Tune the limits with `RATE_LIMIT_MAX` (global, per 15 min)
 and `RECS_RATE_LIMIT_MAX` (buy-next generations, per hour).
 
+Serving one deployment under several domains: `CANONICAL_HOST` + `REDIRECT_HOSTS`
+(issue #230) 301 the branded non-canonical domains onto a single canonical origin
+(default: `spielwirbel.de`/`.com` + `www` → `spielwirbel.app`). It's an
+allowlist, so it never touches the canonical host, a platform domain like
+`*.up.railway.app`, or a load-balancer health-check host. Point them at your own
+domains, or set `REDIRECT_HOSTS` empty to disable. See the block in `.env.example`.
+
 Per-tenant quotas (issue #139): in the public multi-tenant mode (`ACCOUNTS_ENABLED=true`)
 each tenant is capped on rounds (`MAX_ROUNDS_PER_TENANT`, default 10), games per
 round (`MAX_GAMES_PER_ROUND`, default 1000), and successful buy-next generations
@@ -399,7 +406,14 @@ it serves the content-hashed build (`dist/`).
 **TLS is not in the image** — terminate it at a reverse proxy or managed platform
 in front of the container, then set `TRUST_PROXY=1` (see issue #156). On merge to
 `main`, CI publishes the image to the GitHub Container Registry
-(`ghcr.io/chulioz/game-sessions`), so a host can pull it instead of building.
+(`ghcr.io/chulioz/spielwirbel`), so a host can pull it instead of building.
+
+> ⚠️ **Self-hosters: the image moved.** With the Spielwirbel rebrand (#230) the
+> repository was renamed `game-sessions` → `spielwirbel`, so the published image
+> is now **`ghcr.io/chulioz/spielwirbel`**. GHCR packages do **not** auto-redirect
+> like repo URLs, so the old `ghcr.io/chulioz/game-sessions` tags are frozen and
+> receive no new builds. Update your `docker-compose.yml`/`docker run` to pull the
+> new path.
 
 ### Deploying to Railway (production)
 

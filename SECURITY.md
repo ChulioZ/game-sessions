@@ -47,7 +47,7 @@ land there.
 
 Use GitHub's **private vulnerability reporting**: go to the repository's
 **Security** tab and click **"Report a vulnerability"**
-([Security Advisories](https://github.com/ChulioZ/game-sessions/security/advisories/new)).
+([Security Advisories](https://github.com/ChulioZ/spielwirbel/security/advisories/new)).
 This opens a private advisory visible only to you and the maintainers.
 
 When reporting, please include:
