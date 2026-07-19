@@ -626,6 +626,20 @@ async function showResults(round, session, gamesHint, reveal) {
     finishWrap.appendChild(
       h(`<h3>${finished ? iconText('ti-trophy', t('result.finishTitleDone')) : esc(t('result.finishTitle'))}</h3>`)
     );
+    // Finishing comes first and needs no winners; the winner picker only shows
+    // up afterwards, so it can't read as a prerequisite (#254).
+    if (!finished) {
+      finishWrap.appendChild(
+        h(`<div class="muted" style="margin-bottom:10px">${esc(t('result.finishPrompt', { game: chosenGame ? chosenGame.title : '' }))}</div>`)
+      );
+      const finishBtn = h(`<button class="btn btn--primary">${iconText('ti-check', t('result.markPlayed'))}</button>`);
+      finishBtn.addEventListener('click', () => saveWinners([]));
+      const actions = h('<div class="toolbar" style="margin-top:14px"></div>');
+      actions.appendChild(finishBtn);
+      finishWrap.appendChild(actions);
+      return;
+    }
+
     finishWrap.appendChild(
       h(`<div class="muted" style="margin-bottom:10px">${esc(t('result.whoWon', { game: chosenGame ? chosenGame.title : '' }))}</div>`)
     );
@@ -634,63 +648,57 @@ async function showResults(round, session, gamesHint, reveal) {
     members.forEach((m) => {
       const sel = winnerIds.includes(m.id);
       const chip = h(`<button class="winner-chip ${sel ? 'is-selected' : ''}">${sel ? '<i class="ti ti-trophy" aria-hidden="true"></i> ' : ''}${esc(m.name)}</button>`);
-      chip.addEventListener('click', () => {
-        winnerIds = winnerIds.includes(m.id)
-          ? winnerIds.filter((x) => x !== m.id)
-          : [...winnerIds, m.id];
-        renderFinish();
-      });
+      // Each toggle persists right away — no separate save button in this state.
+      chip.addEventListener('click', () => saveWinners(
+        winnerIds.includes(m.id) ? winnerIds.filter((x) => x !== m.id) : [...winnerIds, m.id]
+      ));
       chips.appendChild(chip);
     });
     finishWrap.appendChild(chips);
 
     const actions = h('<div class="toolbar" style="margin-top:14px"></div>');
-    const saveBtn = h(`<button class="btn btn--primary">${finished ? iconText('ti-check', t('result.update')) : iconText('ti-trophy', t('result.markPlayed'))}</button>`);
-    saveBtn.addEventListener('click', async () => {
+    const resetBtn = h(`<button class="btn btn--ghost">${esc(t('result.reset'))}</button>`);
+    resetBtn.addEventListener('click', async () => {
       try {
-        const saved = await api('POST', `/api/rounds/${round.id}/sessions/${session.id}/finish`, {
-          finished: true,
-          winnerIds,
+        await api('POST', `/api/rounds/${round.id}/sessions/${session.id}/finish`, {
+          finished: false,
+          winnerIds: [],
         });
-        finished = true;
-        winnerIds = saved.winnerIds.slice(); // filtered server-side
-        session.finished = true;
-        session.winnerIds = winnerIds.slice();
-        toast(t('result.toast.saved'));
+        finished = false;
+        winnerIds = [];
+        session.finished = false;
+        session.winnerIds = [];
+        toast(t('result.toast.reset'));
         renderFinish();
       } catch (e) { toast(e.message); }
     });
-    actions.appendChild(saveBtn);
-
-    if (finished) {
-      const resetBtn = h(`<button class="btn btn--ghost">${esc(t('result.reset'))}</button>`);
-      resetBtn.addEventListener('click', async () => {
-        try {
-          await api('POST', `/api/rounds/${round.id}/sessions/${session.id}/finish`, {
-            finished: false,
-            winnerIds: [],
-          });
-          finished = false;
-          winnerIds = [];
-          session.finished = false;
-          session.winnerIds = [];
-          toast(t('result.toast.reset'));
-          renderFinish();
-        } catch (e) { toast(e.message); }
-      });
-      actions.appendChild(resetBtn);
-    }
+    actions.appendChild(resetBtn);
     finishWrap.appendChild(actions);
 
-    if (finished) {
-      const names = winnerIds
-        .map((wid) => (members.find((m) => m.id === wid) || {}).name)
-        .filter(Boolean);
-      const inner = names.length
-        ? iconText('ti-trophy', t('result.winners', { names: names.join(', ') }))
-        : iconText('ti-check', t('result.playedNoWinner'));
-      finishWrap.appendChild(h(`<div class="winner-result">${inner}</div>`));
-    }
+    const names = winnerIds
+      .map((wid) => (members.find((m) => m.id === wid) || {}).name)
+      .filter(Boolean);
+    const inner = names.length
+      ? iconText('ti-trophy', t('result.winners', { names: names.join(', ') }))
+      : iconText('ti-check', t('result.playedNoWinner'));
+    finishWrap.appendChild(h(`<div class="winner-result">${inner}</div>`));
+  }
+
+  // Marks the session finished with the given winners (possibly none) and
+  // re-renders; only committed to local state once the server accepted it.
+  async function saveWinners(ids) {
+    try {
+      const saved = await api('POST', `/api/rounds/${round.id}/sessions/${session.id}/finish`, {
+        finished: true,
+        winnerIds: ids,
+      });
+      finished = true;
+      winnerIds = saved.winnerIds.slice(); // filtered server-side
+      session.finished = true;
+      session.winnerIds = winnerIds.slice();
+      toast(t('result.toast.saved'));
+      renderFinish();
+    } catch (e) { toast(e.message); }
   }
 
   updateChosen();

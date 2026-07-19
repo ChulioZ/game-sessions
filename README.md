@@ -88,7 +88,8 @@ code and documentation are in English.
 - **Finale & results** – votes stay sealed until everyone is done, then a
   little show reveals the results: per-game average (colored by score), rating
   distribution, medals for the favourites, and retirement proposals. Pick the
-  game you actually played, mark it finished and record the winner(s) — or
+  game you actually played and mark it finished; recording the winner(s) is an
+  optional follow-up step afterwards — or
   cancel the session if nothing appealed. Sessions can be deleted later, and a
   single game can be removed from a session's results.
 - **Ratings on demand** – a game's average is always computed live from all
