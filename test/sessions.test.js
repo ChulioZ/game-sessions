@@ -14,8 +14,8 @@ async function addGame(rid, fields = {}) {
 
 test('starting a session picks from matching games and returns them', async () => {
   const round = await createRound(request);
-  await addGame(round.id, { title: 'A', type: 'analog' });
-  await addGame(round.id, { title: 'B', type: 'digital' });
+  await addGame(round.id, { title: 'A' });
+  await addGame(round.id, { title: 'B' });
 
   const res = await request(app).post(`/api/rounds/${round.id}/sessions`).send({ count: 5 });
   assert.equal(res.status, 201);
@@ -23,16 +23,16 @@ test('starting a session picks from matching games and returns them', async () =
   assert.equal(res.body.session.gameIds.length, 2);
 });
 
-test('type filter narrows the pool', async () => {
+test('tag filter narrows the pool (#242)', async () => {
   const round = await createRound(request);
-  // type is derived from platform: Analog → analog, a store platform → digital.
-  await addGame(round.id, { title: 'A', platform: 'analog' });
-  await addGame(round.id, { title: 'B', platform: 'ps' });
+  const tag = (await request(app).post(`/api/rounds/${round.id}/tags`).send({ name: 'Party' })).body;
+  await addGame(round.id, { title: 'A' });
+  await addGame(round.id, { title: 'B', tagIds: tag.id });
   const res = await request(app)
     .post(`/api/rounds/${round.id}/sessions`)
-    .send({ filter: 'digital', count: 5 });
+    .send({ tagIds: [tag.id], count: 5 });
   assert.equal(res.body.games.length, 1);
-  assert.equal(res.body.games[0].type, 'digital');
+  assert.equal(res.body.games[0].title, 'B');
 });
 
 test('player count filters games by their min/max range', async () => {
@@ -191,10 +191,10 @@ test('direct pick ignores draw filters and never draws extra games', async () =>
   const round = await createRound(request);
   const game = await addGame(round.id, { title: 'Solo', minPlayers: '1', maxPlayers: '1' });
   await addGame(round.id, { title: 'Filler' });
-  // A player-range that a draw would reject, plus count/filter noise: all ignored.
+  // A player-range that a draw would reject, plus count noise: all ignored.
   const res = await request(app)
     .post(`/api/rounds/${round.id}/sessions`)
-    .send({ gameId: game.id, count: 5, filter: 'digital', memberIds: round.members.map((m) => m.id) });
+    .send({ gameId: game.id, count: 5, memberIds: round.members.map((m) => m.id) });
   assert.equal(res.status, 201);
   assert.deepEqual(res.body.session.gameIds, [game.id]);
   assert.equal(res.body.session.memberIds.length, round.members.length);

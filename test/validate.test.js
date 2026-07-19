@@ -86,16 +86,17 @@ test('games POST preserves the exact validation messages', async () => {
   assert.equal(both.body.error, 'Title is missing');
 });
 
-test('games POST falls back to defaults for an unknown platform/duration (no 400)', async () => {
+test('games POST strips unknown fields but never 400s on them (#242)', async () => {
   const round = await createRound(request);
-  const res = await addGame(round.id, { platform: 'bogus', duration: 'eternal' });
+  // Retired platform/duration/type keys are simply dropped, not rejected.
+  const res = await addGame(round.id, { platform: 'bogus', duration: 'eternal', type: 'x' });
   assert.equal(res.status, 201);
-  assert.equal(res.body.platform, 'analog'); // default
-  assert.equal(res.body.type, 'analog'); // derived from the default platform
-  assert.equal(res.body.duration, 'medium'); // default
+  assert.equal('platform' in res.body, false);
+  assert.equal('duration' in res.body, false);
+  assert.equal('type' in res.body, false);
 });
 
-test('games PATCH preserves title/duration validation messages', async () => {
+test('games PATCH preserves the title validation message', async () => {
   const round = await createRound(request);
   const game = (await addGame(round.id)).body;
 
@@ -104,25 +105,19 @@ test('games PATCH preserves title/duration validation messages', async () => {
     .send({ title: '  ' });
   assert.equal(emptyTitle.status, 400);
   assert.equal(emptyTitle.body.error, 'Title is missing');
-
-  const badDuration = await request(app)
-    .patch(`/api/rounds/${round.id}/games/${game.id}`)
-    .send({ duration: 'eternal' });
-  assert.equal(badDuration.status, 400);
-  assert.equal(badDuration.body.error, 'Invalid duration');
 });
 
 /* -------------------------------- sessions --------------------------------- */
 
-test('sessions start stays lenient: junk votes/durations/count never 400 on shape', async () => {
+test('sessions start stays lenient: junk votes/count never 400 on shape', async () => {
   const round = await createRound(request);
   await addGame(round.id, { title: 'A', minPlayers: '1', maxPlayers: '8' });
 
-  // count as a non-number string -> floored to 1; durations non-array -> ignored;
-  // memberIds non-array -> everyone. None of these should 400.
+  // count as a non-number string -> floored to 1; memberIds non-array ->
+  // everyone. None of these should 400.
   const res = await request(app)
     .post(`/api/rounds/${round.id}/sessions`)
-    .send({ count: 'lots', durations: 'short', memberIds: 'nope' });
+    .send({ count: 'lots', memberIds: 'nope' });
   assert.equal(res.status, 201);
   assert.equal(res.body.games.length, 1);
 });

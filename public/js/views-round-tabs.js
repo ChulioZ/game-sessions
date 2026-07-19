@@ -9,7 +9,7 @@ function renderRegalTab(round, activeGames) {
   // Filters (and sort) persist for the session but are scoped to one round —
   // opening a different round's Regal resets them to defaults.
   if (regalFiltersRid !== round.id) {
-    regalFilters = { type: 'all', durations: new Set(), tags: new Map(), query: '' };
+    regalFilters = { tags: new Map(), query: '' };
     gamesSort = 'avg';
     regalFiltersRid = round.id;
   }
@@ -55,56 +55,17 @@ function renderRegalTab(round, activeGames) {
     gamesTools.appendChild(search);
     gamesTools.appendChild(sortSel);
 
-    // Filter chips: type behaves like a radio group, durations toggle freely
-    // (none selected = duration doesn't matter).
-    const counts = {
-      analog: activeGames.filter((g) => g.type === 'analog').length,
-      digital: activeGames.filter((g) => g.type === 'digital').length,
-    };
-    // Initialize from the persisted state; durFilter is the same Set instance,
-    // so toggling it writes straight back into regalFilters.
-    let typeFilter = regalFilters.type;
-    const durFilter = regalFilters.durations;
     let query = regalFilters.query;
-    const chips = h(`<div class="filter-chips">
-        <button class="chip" data-type="all">${esc(t('games.filter.all', { n: activeGames.length }))}</button>
-        <button class="chip" data-type="analog"><i class="ti ti-dice-3" aria-hidden="true"></i>${esc(t('games.filter.analog', { n: counts.analog }))}</button>
-        <button class="chip" data-type="digital"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i>${esc(t('games.filter.digital', { n: counts.digital }))}</button>
-        <span class="filter-chips__sep"></span>
-        <button class="chip" data-dur="short"><i class="ti ti-bolt" aria-hidden="true"></i>${esc(t('duration.short'))}</button>
-        <button class="chip" data-dur="medium"><i class="ti ti-clock" aria-hidden="true"></i>${esc(t('duration.medium'))}</button>
-        <button class="chip" data-dur="long"><i class="ti ti-hourglass" aria-hidden="true"></i>${esc(t('duration.long'))}</button>
-      </div>`);
-    // Reflect the persisted filters on the freshly built chips.
-    chips.querySelectorAll('[data-type]').forEach((c) => c.classList.toggle('is-on', c.dataset.type === typeFilter));
-    chips.querySelectorAll('[data-dur]').forEach((c) => c.classList.toggle('is-on', durFilter.has(c.dataset.dur)));
-    chips.querySelectorAll('[data-type]').forEach((chip) => {
-      chip.addEventListener('click', () => {
-        typeFilter = chip.dataset.type;
-        regalFilters.type = typeFilter;
-        chips.querySelectorAll('[data-type]').forEach((c) => c.classList.toggle('is-on', c === chip));
-        renderGames();
-      });
-    });
-    chips.querySelectorAll('[data-dur]').forEach((chip) => {
-      chip.addEventListener('click', () => {
-        const d = chip.dataset.dur;
-        if (durFilter.has(d)) durFilter.delete(d);
-        else durFilter.add(d);
-        chip.classList.toggle('is-on', durFilter.has(d));
-        renderGames();
-      });
-    });
-    // Custom-tag chips (#238, tri-state #241): one per round tag, all ignored by
-    // default. Clicking cycles ignore -> include -> exclude; included tags
-    // combine with AND, excluded tags reject a game carrying any of them. Ids of
-    // since-deleted tags are pruned from the persisted map so they can't
-    // invisibly filter everything out.
+    // Filter chips: custom round tags only (#238, tri-state #241). One chip per
+    // round tag, all ignored by default; clicking cycles ignore -> include ->
+    // exclude, where included tags combine with AND and excluded tags reject a
+    // game carrying any of them. Ids of since-deleted tags are pruned from the
+    // persisted map so they can't invisibly filter everything out.
+    const chips = h('<div class="filter-chips"></div>');
     const roundTags = round.tags || [];
     const tagFilter = regalFilters.tags;
     [...tagFilter.keys()].forEach((x) => { if (!roundTags.some((tg) => tg.id === x)) tagFilter.delete(x); });
     if (roundTags.length) {
-      chips.appendChild(h('<span class="filter-chips__sep"></span>'));
       roundTags.forEach((tg) => {
         const chip = h('<button class="chip"></button>');
         paintTagChip(chip, tg.name, tagFilter.get(tg.id));
@@ -114,8 +75,8 @@ function renderRegalTab(round, activeGames) {
         });
         chips.appendChild(chip);
       });
+      gamesSec.appendChild(chips);
     }
-    gamesSec.appendChild(chips);
 
     // Build the cards once and remember them by game id. When re-sorting we only
     // reorder these existing nodes – no page rebuild that would reset the scroll.
@@ -126,7 +87,7 @@ function renderRegalTab(round, activeGames) {
     activeGames.forEach((g) => {
       const fallback = g.image
         ? ''
-        : `<i class="ti ${typeIcon(g.type)}" aria-hidden="true"></i>`;
+        : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`;
       const avg = avgMap[g.id];
       const scorePill =
         avg !== null
@@ -134,7 +95,7 @@ function renderRegalTab(round, activeGames) {
           : `<span class="score-pill score-pill--none">${esc(t('games.scoreNew'))}</span>`;
       const gc = h(`<div class="game-card game-card--clickable">
            <div class="game-card__img">${fallback}
-             <div class="game-card__badges">${scorePill}${typeBadge(g.type)}${durationBadge(g.duration)}</div>
+             <div class="game-card__badges">${scorePill}</div>
            </div>
            <div class="game-card__body">
              <div class="game-card__title">${esc(g.title)}</div>
@@ -159,8 +120,6 @@ function renderRegalTab(round, activeGames) {
       return randomOrderedGames(round, activeGames);
     }
     function matchesFilters(g) {
-      if (typeFilter !== 'all' && g.type !== typeFilter) return false;
-      if (durFilter.size && !durFilter.has(g.duration)) return false;
       if (!matchesTagFilter(tagFilter, g.tagIds)) return false;
       const q = query.trim().toLowerCase();
       if (q && !g.title.toLowerCase().includes(q)) return false;
@@ -258,7 +217,7 @@ function renderChronikTab(round, activities) {
 
     // Thumbnail: the chosen game's cover, or an icon for the session's state.
     const thumbIcon = chosen
-      ? chosen.image ? '' : `<i class="ti ${typeIcon(chosen.type)}" aria-hidden="true"></i>`
+      ? chosen.image ? '' : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`
       : `<i class="ti ${s.cancelled ? 'ti-x' : 'ti-cards'}" aria-hidden="true"></i>`;
 
     // Headline is the chosen game (with a rating pill); the date leads only
@@ -598,12 +557,12 @@ async function showRetired(rid) {
     games.forEach((g) => {
       const fallback = g.image
         ? ''
-        : `<i class="ti ${typeIcon(g.type)}" aria-hidden="true"></i>`;
+        : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`;
       const when = g.retiredAt ? fmtDateTime(g.retiredAt) : '?';
       const row = h(`<div class="archive-row">
            <div class="archive-row__img">${fallback}</div>
            <div class="archive-row__body">
-             <div class="archive-row__title">${esc(g.title)} ${typeTag(g.type)} ${durationTag(g.duration)}</div>
+             <div class="archive-row__title">${esc(g.title)}</div>
              <div class="muted archive-row__meta"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('retired.at', { when }))}</div>
            </div>
            <div class="archive-row__actions">

@@ -178,7 +178,7 @@ async function showGameDetail(rid, gameId) {
   const imgStyle = game.image ? `style="background-image:url('${game.image}')"` : '';
   const fallback = game.image
     ? ''
-    : `<i class="ti ${typeIcon(game.type)}" aria-hidden="true"></i>`;
+    : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`;
   app.innerHTML = '';
 
   // Send a partial update, then re-render the page from fresh data.
@@ -235,21 +235,6 @@ async function showGameDetail(rid, gameId) {
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
       else if (e.key === 'Escape') { handled = true; input.replaceWith(spanEl); }
-    });
-  }
-
-  // A little menu of mutually exclusive options (type, duration).
-  function openMenu(anchor, options, current, onPick) {
-    openPopover(anchor, (el, close) => {
-      el.classList.add('popover--menu');
-      options.forEach((opt) => {
-        const btn = h(`<button class="popover__opt${opt.value === current ? ' is-current' : ''}">${opt.label}</button>`);
-        btn.addEventListener('click', () => {
-          close();
-          if (opt.value !== current) onPick(opt.value);
-        });
-        el.appendChild(btn);
-      });
     });
   }
 
@@ -403,44 +388,13 @@ async function showGameDetail(rid, gameId) {
   titleEl.addEventListener('click', () => startTitleEdit(titleEl));
   h1.append(titleEl, space());
 
-  // Platform tag (editable). Switching to a concrete platform derives the type;
-  // switching to Other seeds it from the current type and reveals a second,
-  // editable analog/digital tag so Other games keep a manual type.
-  const platform = gamePlatform(game);
-  const platEl = h(platformTag(platform));
-  makeEditableTag(platEl, () => openMenu(platEl,
-    PLATFORM_IDS.map((p) => ({ value: p, label: t('platform.' + p) })),
-    platform,
-    (v) => updateGame(v === 'other' ? { platform: 'other', type: game.type } : { platform: v })));
-
-  let typeEl = null;
-  if (platform === 'other') {
-    typeEl = h(typeTag(game.type));
-    makeEditableTag(typeEl, () => openMenu(typeEl, [
-      { value: 'analog', label: t('type.analog') },
-      { value: 'digital', label: t('type.digital') },
-    ], game.type, (v) => updateGame({ type: v })));
-  }
-
-  const hasDur = ['short', 'medium', 'long'].includes(game.duration);
-  const durEl = hasDur
-    ? h(durationTag(game.duration))
-    : h(`<span class="tag tag--duration tag--empty">${esc(t('detail.setDuration'))}</span>`);
-  makeEditableTag(durEl, () => openMenu(durEl, [
-    { value: 'short', label: t('duration.short') },
-    { value: 'medium', label: t('duration.medium') },
-    { value: 'long', label: t('duration.long') },
-  ], game.duration, (v) => updateGame({ duration: v })));
-
   const hasPl = Number.isInteger(game.minPlayers) && Number.isInteger(game.maxPlayers);
   const plEl = hasPl
     ? h(playersTag(game.minPlayers, game.maxPlayers))
     : h(`<span class="tag tag--players tag--empty">${esc(t('detail.setPlayers'))}</span>`);
   makeEditableTag(plEl, () => openPlayersPopover(plEl));
 
-  h1.append(platEl, space());
-  if (typeEl) h1.append(typeEl, space());
-  h1.append(durEl, space(), plEl);
+  h1.append(plEl);
 
   // Custom round tags (#238): assigned tags render as chips, each opening the
   // edit popover; with none assigned, an empty chip is the way in (and the

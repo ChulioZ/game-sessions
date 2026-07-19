@@ -91,7 +91,7 @@ test('parsePlayers handles the German store (Spieler + en-dash) and skips online
   );
 });
 
-test('parseProduct maps the matching product + players, digital, default long duration', () => {
+test('parseProduct maps the matching product + players, digital', () => {
   const html = pageHtml(
     { 'Product:CCC': SEARCH_STATE['Product:CCC'] },
     '<div><span class="compatText">1 - 4 players</span></div>'
@@ -101,7 +101,6 @@ test('parseProduct maps the matching product + players, digital, default long du
   assert.equal(d.externalId, 'CCC');
   assert.equal(d.title, 'Rocket League');
   assert.equal(d.type, 'digital');
-  assert.equal(d.duration, 'long'); // no play-time exposed → default to long
   assert.equal(d.minPlayers, 1);
   assert.equal(d.maxPlayers, 4);
   assert.equal(d.imageUrl, 'https://image.api.playstation.com/vulcan/rl.png');

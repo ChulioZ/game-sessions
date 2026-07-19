@@ -23,38 +23,37 @@ code and documentation are in English.
   is a lobby of round cards (members, game/session counts, last result); a new
   round is set up on a playful "seats around the table" screen, optionally
   importing the games list from an existing round.
-- **Games** – each game has a title, a **platform** (Analog / PlayStation / Xbox
-  / Switch / Steam / Sonstige), an expected duration (short / medium / long), a
-  required player range (min–max), and an optional cover image (paste from
-  clipboard or pick a file). The analog / digital type used by the filters and
-  badges is derived from the platform (only "Sonstige" lets you pick it by hand).
-  When adding a
+- **Games** – each game has a title, a required player range (min–max), any
+  number of custom round **tags** (see below), and an optional cover image (paste
+  from clipboard or pick a file). When adding a
   game, the title field doubles as a **search-as-you-type lookup**: it queries
   the **PlayStation Store**, **Steam**, the **Nintendo eShop** and the
   **Xbox / Microsoft Store** (digital games) and **BoardGameGeek** (board games)
   together and merges the hits into one
   dropdown. When several stores return the **same title** (e.g. a cross-platform
-  game), they collapse into a **single row with one badge per platform** — click
+  game), they collapse into a **single row with one badge per store** — click
   a badge to fill from that store, or the title to use the top match. Pick a
-  suggestion to auto-fill the title, cover art, player range, play time and
-  platform, and store a link back to the source page (shown on the game's detail
+  suggestion to auto-fill the title, cover art and player range, and store a link
+  back to the source page (shown on the game's detail
   view). The lookup is optional — manual entry works exactly as before, and the
   app degrades gracefully when a source is unreachable (one provider failing
   still shows the others' results).
   Details can be edited inline on the game's detail page. A game added by hand
   (with no source link) can be **linked to a provider after the fact** from its
   detail page: search the providers, pick the match, and choose which differing
-  fields (cover, player count, play time, type) to take from it — the source
+  fields (name, cover, player count) to take from it — the source
   link is always saved. Games are never lost by accident:
   instead of deleting, they are **retired** — kept with a timestamp in a
   browsable archive and restorable any time. Only already-retired games can be
   permanently deleted.
 - **Tags** – every round can define its own free-form tags (e.g. "outside",
-  "quick lunch break") on a dedicated screen reached from the Start tab. Assign
+  "quick lunch break", "digital", "co-op") on a dedicated screen reached from the
+  Start tab. Tags are the single way to categorize games. Assign
   any number of tags to a game — in the add-game sheet or later from the game's
   detail page, creating new tags inline — and filter both the Regal and the
-  session draw by them (toggle chips, all off by default; several tags combine
-  with AND). Deleting a tag simply unassigns it from every game.
+  session draw by them (tri-state chips: off / include / exclude, all off by
+  default; included tags combine with AND, excluded tags reject any match).
+  Deleting a tag simply unassigns it from every game.
 - **Members** – each member has a detail page (opened from the Start hero row,
   the Pokale podium, or a session's participant list) with their stats — wins,
   sessions joined, win rate, average rating given, and favorite game — and lets
@@ -65,8 +64,8 @@ code and documentation are in English.
     button, resumable in-progress sessions, the last played result, gentle
     retire recommendations for games that are rated low or often proposed for
     retirement, and **buy-next / play-next suggestions** (see below).
-  - **Regal** (shelf) – the game collection as a card grid with filter chips
-    (all / analog / digital, duration, custom tags), a search pill, sorting
+  - **Regal** (shelf) – the game collection as a card grid with custom-tag
+    filter chips, a search pill, sorting
     (random / name / rating),
     and the add-game sheet. Each card opens the game's detail page
     ("Spielepass") with its score ring, editable details, a **Jetzt spielen**
@@ -76,8 +75,8 @@ code and documentation are in English.
   - **Pokale** (trophies) – a winners' podium (ties share a step) plus stat
     tiles: most played, best rated, current winning streak, and the
     "Staubfänger" — the game gathering dust the longest.
-- **Sessions (hot-seat voting)** – pick who is playing tonight, filter the
-  collection by type, duration and tags, and draw a random set of candidate games —
+- **Sessions (hot-seat voting)** – pick who is playing tonight, optionally filter
+  the collection by custom tags, and draw a random set of candidate games —
   only games whose player range fits the number of joining members are
   eligible. The device is then passed around: a handover screen names whose
   turn it is, and each member rates every drawn game **1–5** or proposes to
@@ -99,10 +98,9 @@ code and documentation are in English.
   rate highly but rarely play, so loved titles get back on the table (no
   network, no key). **Layer B** is an opt-in "generate suggestions" button that
   asks an LLM for real new titles to consider buying, matched to your
-  collection's taste; the result is cached per round. Suggestions are
-  **platform-aware** (each pick is tagged with one of the platforms your round
-  actually plays on, and carries a store-**search** link so you can go look it
-  up), and their reason text is written in the **active UI language**. Every
+  collection's taste; the result is cached per round. Each suggestion is a title
+  plus a short reason written in the **active UI language** (board and digital
+  games alike). Every
   generation is **kept as a history** rather than overwriting the last, so you
   can page back through past runs (each shows its date/model), delete one you
   don't want, and no good earlier list is lost. It sends
@@ -239,6 +237,9 @@ routes/
   activities.js      …/activities           (list the feed [GET], delete an entry)
   background.js      …/background           (set the design)
   tags.js            …/tags                 (create a custom tag [deduped], delete one)
+  legacy-migrate.js  …/legacy                (one-time #242 tool: list leftover
+                                             platform/duration values, migrate one
+                                             to a tag; removed by #243 after use)
   recommendations.js …/recommendations      (buy-next run history: list [GET],
                                              generate & append via Claude [POST],
                                              delete one run [DELETE /:runId])

@@ -64,13 +64,12 @@ test('parseSearch dedupes by fs_id and skips entries missing id or title', () =>
   assert.deepEqual(out, [{ providerId: '1', title: 'A', thumbnail: null }]);
 });
 
-test('parseDetail maps a doc to digital detail (players, long duration, store url)', () => {
+test('parseDetail maps a doc to digital detail (players, store url)', () => {
   const d = nintendo.parseDetail(SEARCH_JSON, '70010000000126');
   assert.equal(d.provider, 'nintendo');
   assert.equal(d.externalId, '70010000000126');
   assert.equal(d.title, 'The Legend of Zelda: Breath of the Wild');
   assert.equal(d.type, 'digital');
-  assert.equal(d.duration, 'long'); // Nintendo has no play-time; digital default
   assert.equal(d.minPlayers, 1);
   assert.equal(d.maxPlayers, 1);
   assert.equal(d.imageUrl, 'https://www.nintendo.com/eu/media/images/zelda_square.jpg');
@@ -93,7 +92,6 @@ test('parseDetail still returns a usable object for an empty result set', () => 
   assert.equal(d.title, null);
   assert.equal(d.imageUrl, null);
   assert.equal(d.type, 'digital');
-  assert.equal(d.duration, 'long');
   assert.equal(d.minPlayers, null);
   assert.equal(d.maxPlayers, null);
   assert.equal(d.url, 'https://www.nintendo.com'); // no path -> store home fallback
