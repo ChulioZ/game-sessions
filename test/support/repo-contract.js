@@ -161,6 +161,38 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.setBackground(T, 'missing', { type: 'none' }), null);
   });
 
+  test('addTag creates and dedupes; deleteTag unassigns from every game (#238)', async () => {
+    const round = await freshRound();
+    assert.equal('tags' in round, false); // absent until the first tag is created
+
+    const first = await repo.addTag(T, round.id, 'Outside');
+    assert.match(first.id, /^[0-9a-f]{16}$/);
+    assert.equal(first.name, 'Outside');
+    // A name matching case-insensitively reuses the existing tag.
+    const dup = await repo.addTag(T, round.id, 'oUTSIDE');
+    assert.deepEqual(dup, first);
+    const second = await repo.addTag(T, round.id, 'Movement');
+    assert.deepEqual((await repo.getRound(T, round.id)).tags, [first, second]);
+
+    // createGame stores tagIds; updateGame replaces the assignment.
+    const tagged = await repo.createGame(T, round.id, gameFields({ tagIds: [first.id, second.id] }));
+    assert.deepEqual(tagged.tagIds, [first.id, second.id]);
+    const plain = await repo.createGame(T, round.id, gameFields({ title: 'B' }));
+    assert.equal('tagIds' in plain, false); // absent when created without tags
+    const patched = await repo.updateGame(T, round.id, plain.id, { tagIds: [second.id] });
+    assert.deepEqual(patched.tagIds, [second.id]);
+
+    // Deleting a tag removes it from the round AND from every game that had it.
+    assert.equal(await repo.deleteTag(T, round.id, second.id), true);
+    assert.equal(await repo.deleteTag(T, round.id, second.id), false);
+    const after = await repo.getRound(T, round.id);
+    assert.deepEqual(after.tags, [first]);
+    assert.deepEqual(after.games.find((g) => g.id === tagged.id).tagIds, [first.id]);
+    assert.deepEqual(after.games.find((g) => g.id === plain.id).tagIds, []);
+
+    assert.equal(await repo.addTag(T, 'missing', 'X'), null);
+  });
+
   test('saveRecommendationRuns stores runs and retires the legacy object', async () => {
     const round = await freshRound();
     const runs = [{ id: 'r1', items: [{ title: 'X' }] }];
@@ -251,6 +283,8 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.saveSessionResults(OTHER, round.id, session.id, {}), null);
     assert.equal(await repo.deleteSession(OTHER, round.id, session.id), false);
     assert.equal(await repo.setBackground(OTHER, round.id, { type: 'none' }), null);
+    assert.equal(await repo.addTag(OTHER, round.id, 'evil'), null);
+    assert.equal(await repo.deleteTag(OTHER, round.id, 'any'), false);
     assert.equal(await repo.saveRecommendationRuns(OTHER, round.id, []), null);
     assert.equal(await repo.deleteActivity(OTHER, round.id, 'any'), false);
     assert.equal(await repo.deleteRound(OTHER, round.id), false);

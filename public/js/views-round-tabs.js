@@ -9,7 +9,7 @@ function renderRegalTab(round, activeGames) {
   // Filters (and sort) persist for the session but are scoped to one round —
   // opening a different round's Regal resets them to defaults.
   if (regalFiltersRid !== round.id) {
-    regalFilters = { type: 'all', durations: new Set(), query: '' };
+    regalFilters = { type: 'all', durations: new Set(), tags: new Set(), query: '' };
     gamesSort = 'avg';
     regalFiltersRid = round.id;
   }
@@ -95,6 +95,25 @@ function renderRegalTab(round, activeGames) {
         renderGames();
       });
     });
+    // Custom-tag chips (#238): one per round tag, all off by default; ON tags
+    // combine with AND. Ids of since-deleted tags are pruned from the
+    // persisted set so they can't invisibly filter everything out.
+    const roundTags = round.tags || [];
+    const tagFilter = regalFilters.tags;
+    [...tagFilter].forEach((x) => { if (!roundTags.some((tg) => tg.id === x)) tagFilter.delete(x); });
+    if (roundTags.length) {
+      chips.appendChild(h('<span class="filter-chips__sep"></span>'));
+      roundTags.forEach((tg) => {
+        const chip = h(`<button class="chip${tagFilter.has(tg.id) ? ' is-on' : ''}"><i class="ti ti-tags" aria-hidden="true"></i>${esc(tg.name)}</button>`);
+        chip.addEventListener('click', () => {
+          if (tagFilter.has(tg.id)) tagFilter.delete(tg.id);
+          else tagFilter.add(tg.id);
+          chip.classList.toggle('is-on', tagFilter.has(tg.id));
+          renderGames();
+        });
+        chips.appendChild(chip);
+      });
+    }
     gamesSec.appendChild(chips);
 
     // Build the cards once and remember them by game id. When re-sorting we only
@@ -141,6 +160,7 @@ function renderRegalTab(round, activeGames) {
     function matchesFilters(g) {
       if (typeFilter !== 'all' && g.type !== typeFilter) return false;
       if (durFilter.size && !durFilter.has(g.duration)) return false;
+      if (tagFilter.size && ![...tagFilter].every((x) => (g.tagIds || []).includes(x))) return false;
       const q = query.trim().toLowerCase();
       if (q && !g.title.toLowerCase().includes(q)) return false;
       return true;

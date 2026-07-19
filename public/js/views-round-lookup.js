@@ -313,6 +313,14 @@ function showAddGame(round) {
           </div>
         </div>
         <div class="field">
+          <label>${esc(t('addGame.tagsLabel'))}</label>
+          <div class="filter-chips" id="tagSeg" hidden></div>
+          <div class="toolbar" style="margin-top:6px">
+            <input id="newTag" class="input" placeholder="${esc(t('tags.addPlaceholder'))}" style="flex:1" autocomplete="off" />
+            <button type="button" id="addTagBtn" class="btn">${esc(t('tags.add'))}</button>
+          </div>
+        </div>
+        <div class="field">
           <label>${esc(t('addGame.imageLabel'))}</label>
           <div id="pasteZone" class="paste-zone" tabindex="0">
             <div class="paste-zone__hint">
@@ -394,6 +402,42 @@ function showAddGame(round) {
       durSeg.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-on', c === chip));
       duration = chip.dataset.duration;
     });
+  });
+
+  // Custom round tags (#238): toggle the round's existing tags onto the new
+  // game, or create one inline (added to the round's tag list immediately; a
+  // duplicate name reuses the existing tag — the server dedupes).
+  const selectedTagIds = new Set();
+  const roundTags = (round.tags || []).slice(); // local copy; never mutate the cached round
+  const tagSeg = form.querySelector('#tagSeg');
+  function renderTagChips() {
+    tagSeg.hidden = roundTags.length === 0;
+    tagSeg.replaceChildren(...roundTags.map((tg) => {
+      const chip = h(`<button type="button" class="chip${selectedTagIds.has(tg.id) ? ' is-on' : ''}">${esc(tg.name)}</button>`);
+      chip.addEventListener('click', () => {
+        if (selectedTagIds.has(tg.id)) selectedTagIds.delete(tg.id);
+        else selectedTagIds.add(tg.id);
+        chip.classList.toggle('is-on', selectedTagIds.has(tg.id));
+      });
+      return chip;
+    }));
+  }
+  renderTagChips();
+  const newTagInput = form.querySelector('#newTag');
+  const createTag = async () => {
+    const name = newTagInput.value.trim();
+    if (!name) return;
+    try {
+      const tag = await api('POST', `/api/rounds/${round.id}/tags`, { name });
+      if (!roundTags.some((x) => x.id === tag.id)) roundTags.push(tag);
+      selectedTagIds.add(tag.id);
+      newTagInput.value = '';
+      renderTagChips();
+    } catch (e) { toast(e.message === 'quota_tags' ? t('tags.toast.quota') : e.message); }
+  };
+  form.querySelector('#addTagBtn').addEventListener('click', createTag);
+  newTagInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); createTag(); }
   });
 
   // Player-count steppers: digits only, +/- clamp at 1.
@@ -545,6 +589,7 @@ function showAddGame(round) {
     fd.append('duration', duration);
     fd.append('minPlayers', minPlayers);
     fd.append('maxPlayers', maxPlayers);
+    selectedTagIds.forEach((x) => fd.append('tagIds', x));
     if (pastedBlob) {
       const ext = (pastedBlob.type && pastedBlob.type.split('/')[1]) || 'png';
       fd.append('image', pastedBlob, 'pasted.' + ext);

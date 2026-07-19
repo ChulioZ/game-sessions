@@ -59,6 +59,9 @@ function showStartSession(round) {
   let filter = 'all';
   // All durations selected by default = no duration filter.
   const durations = new Set(DURATIONS);
+  // Custom-tag filter (#238): all OFF by default = no tag filter; ON tags
+  // combine with AND (a game must carry every selected tag).
+  const selectedTags = new Set();
   // All members join by default; the number of joining members filters the
   // games by their player count.
   const joining = new Set(round.members.map((m) => m.id));
@@ -71,6 +74,7 @@ function showStartSession(round) {
       (g) =>
         (filter === 'all' || g.type === filter) &&
         (durations.size === DURATIONS.length || durations.has(g.duration)) &&
+        [...selectedTags].every((x) => (g.tagIds || []).includes(x)) &&
         (typeof g.minPlayers !== 'number' || joining.size >= g.minPlayers) &&
         (typeof g.maxPlayers !== 'number' || joining.size <= g.maxPlayers)
     );
@@ -116,6 +120,21 @@ function showStartSession(round) {
       updateHint();
     });
   });
+  // Custom-tag chips (#238), appended after the duration chips.
+  const roundTags = round.tags || [];
+  if (roundTags.length) {
+    chips.appendChild(h('<span class="filter-chips__sep"></span>'));
+    roundTags.forEach((tg) => {
+      const chip = h(`<button type="button" class="chip"><i class="ti ti-tags" aria-hidden="true"></i>${esc(tg.name)}</button>`);
+      chip.addEventListener('click', () => {
+        if (selectedTags.has(tg.id)) selectedTags.delete(tg.id);
+        else selectedTags.add(tg.id);
+        chip.classList.toggle('is-on', selectedTags.has(tg.id));
+        updateHint();
+      });
+      chips.appendChild(chip);
+    });
+  }
 
   const countInput = form.querySelector('#count');
   countInput.addEventListener('input', () => {
@@ -139,6 +158,7 @@ function showStartSession(round) {
         count,
         filter,
         durations: [...durations],
+        tagIds: [...selectedTags],
         memberIds: [...joining],
       });
       // Straight into the first handover — the drawn games stay secret until

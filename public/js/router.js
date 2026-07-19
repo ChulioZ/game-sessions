@@ -74,6 +74,7 @@ function resolveRoute(pathname) {
     if (['regal', 'chronik', 'pokale'].includes(sub)) return () => showRound(rid, sub);
     if (sub === 'retired') return () => showRetired(rid);
     if (sub === 'design') return () => showBackground(rid);
+    if (sub === 'tags') return () => showTags(rid);
     if (sub === 'game' && parts[3]) return () => showGameDetail(rid, parts[3]);
     if (sub === 'member' && parts[3]) return () => showMember(rid, parts[3]);
     if (sub === 'session' && parts[3]) return () => showResultsById(rid, parts[3]);

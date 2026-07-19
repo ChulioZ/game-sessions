@@ -66,6 +66,7 @@ const frontendGlobals = {
   // share one global scope, so all their top-level names are listed together.
   showRound: 'readonly', showRetired: 'readonly', THEMES: 'readonly',
   showBackground: 'readonly', showGameDetail: 'readonly', showAddGame: 'readonly',
+  showTags: 'readonly',
   HUB_TABS: 'readonly', renderHubDock: 'readonly', renderStartTab: 'readonly',
   renderBuyNext: 'readonly', generateBuyNext: 'readonly',
   renderRegalTab: 'readonly', renderChronikTab: 'readonly', renderPokaleTab: 'readonly',

@@ -151,7 +151,7 @@ function setupLangPicker() {
 let gamesSort = 'avg';
 // Regal filter state – kept for the running session, scoped to one round.
 // Reset (along with gamesSort) when a different round's Regal is opened.
-let regalFilters = { type: 'all', durations: new Set(), query: '' };
+let regalFilters = { type: 'all', durations: new Set(), tags: new Set(), query: '' };
 let regalFiltersRid = null;
 // Remembered random order per round, so it stays the same when navigating back.
 const randomOrderCache = {};

@@ -18,6 +18,7 @@ process.env.ACCOUNTS_ENABLED = 'true';
 process.env.SESSION_SECRET = 'test-session-secret';
 process.env.MAX_ROUNDS_PER_TENANT = '2';
 process.env.MAX_GAMES_PER_ROUND = '2';
+process.env.MAX_TAGS_PER_ROUND = '2';
 process.env.RECS_TENANT_MONTHLY_MAX = '1';
 
 const { test } = require('node:test');
@@ -99,6 +100,37 @@ test('games-per-round cap', async (t) => {
   });
 });
 
+test('tags-per-round cap (#238)', async (t) => {
+  const a = await makeAccount('tags-a@example.com');
+  const round = await request(app).post('/api/rounds').set(auth(a.token))
+    .send({ name: 'TagRound', members: ['Alice'] });
+  const rid = round.body.id;
+
+  await t.test('creates up to the limit, then 403 quota_tags', async () => {
+    for (const name of ['One', 'Two']) {
+      const res = await request(app).post(`/api/rounds/${rid}/tags`).set(auth(a.token)).send({ name });
+      assert.equal(res.status, 201);
+    }
+    const over = await request(app).post(`/api/rounds/${rid}/tags`).set(auth(a.token)).send({ name: 'Three' });
+    assert.equal(over.status, 403);
+    assert.equal(over.body.error, 'quota_tags');
+    assert.equal(over.body.limit, 2);
+  });
+
+  await t.test('a duplicate name still resolves at the cap (reuses, creates nothing)', async () => {
+    const res = await request(app).post(`/api/rounds/${rid}/tags`).set(auth(a.token)).send({ name: 'two' });
+    assert.equal(res.status, 201);
+    assert.equal(res.body.name, 'Two');
+  });
+
+  await t.test('deleting a tag frees the slot (state cap, not a rate cap)', async () => {
+    const fetched = await request(app).get(`/api/rounds/${rid}`).set(auth(a.token));
+    await request(app).delete(`/api/rounds/${rid}/tags/${fetched.body.tags[0].id}`).set(auth(a.token));
+    const res = await request(app).post(`/api/rounds/${rid}/tags`).set(auth(a.token)).send({ name: 'Again' });
+    assert.equal(res.status, 201);
+  });
+});
+
 test('per-tenant recommendation-spend cap', async (t) => {
   const realFetch = global.fetch;
   const realKey = process.env.ANTHROPIC_API_KEY;
@@ -176,5 +208,13 @@ test('quotas are inert when accounts are off (single-tenant deploy is unchanged)
     const res = await request(openApp).post('/api/rounds')
       .send({ name: `Open${i}`, members: ['Alice'] });
     assert.equal(res.status, 201, `round ${i} should be created with quotas inert`);
+  }
+
+  // The tags cap (MAX_TAGS_PER_ROUND=2 above) must be inert too (#238).
+  const rounds = await request(openApp).get('/api/rounds');
+  const rid = rounds.body[0].id;
+  for (let i = 0; i < 4; i++) {
+    const res = await request(openApp).post(`/api/rounds/${rid}/tags`).send({ name: `T${i}` });
+    assert.equal(res.status, 201, `tag ${i} should be created with quotas inert`);
   }
 });

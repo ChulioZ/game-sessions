@@ -49,6 +49,12 @@ code and documentation are in English.
   instead of deleting, they are **retired** — kept with a timestamp in a
   browsable archive and restorable any time. Only already-retired games can be
   permanently deleted.
+- **Tags** – every round can define its own free-form tags (e.g. "outside",
+  "quick lunch break") on a dedicated screen reached from the Start tab. Assign
+  any number of tags to a game — in the add-game sheet or later from the game's
+  detail page, creating new tags inline — and filter both the Regal and the
+  session draw by them (toggle chips, all off by default; several tags combine
+  with AND). Deleting a tag simply unassigns it from every game.
 - **Members** – each member has a detail page (opened from the Start hero row,
   the Pokale podium, or a session's participant list) with their stats — wins,
   sessions joined, win rate, average rating given, and favorite game — and lets
@@ -60,7 +66,8 @@ code and documentation are in English.
     retire recommendations for games that are rated low or often proposed for
     retirement, and **buy-next / play-next suggestions** (see below).
   - **Regal** (shelf) – the game collection as a card grid with filter chips
-    (all / analog / digital), a search pill, sorting (random / name / rating),
+    (all / analog / digital, duration, custom tags), a search pill, sorting
+    (random / name / rating),
     and the add-game sheet. Each card opens the game's detail page
     ("Spielepass") with its score ring, editable details, a **Jetzt spielen**
     launcher, and the history of sessions it appeared in.
@@ -70,7 +77,7 @@ code and documentation are in English.
     tiles: most played, best rated, current winning streak, and the
     "Staubfänger" — the game gathering dust the longest.
 - **Sessions (hot-seat voting)** – pick who is playing tonight, filter the
-  collection by type and duration, and draw a random set of candidate games —
+  collection by type, duration and tags, and draw a random set of candidate games —
   only games whose player range fits the number of joining members are
   eligible. The device is then passed around: a handover screen names whose
   turn it is, and each member rates every drawn game **1–5** or proposes to
@@ -231,6 +238,7 @@ routes/
                                              cancel, delete, remove one game)
   activities.js      …/activities           (list the feed [GET], delete an entry)
   background.js      …/background           (set the design)
+  tags.js            …/tags                 (create a custom tag [deduped], delete one)
   recommendations.js …/recommendations      (buy-next run history: list [GET],
                                              generate & append via Claude [POST],
                                              delete one run [DELETE /:runId])
@@ -256,7 +264,7 @@ public/
     views-home.js    lobby + new round
     views-round.js        round hub (Start/Regal/Chronik/Pokale dock) + Start tab
     views-round-tabs.js   Regal, Chronik, Pokale tabs + retired games
-    views-round-detail.js game detail, design picker, sheet helpers
+    views-round-detail.js game detail, design picker, tags screen, sheet helpers
     views-round-lookup.js provider lookup, add game, link provider
     views-member.js  member detail page (stats, name/color editing)
     views-session.js session setup, voting (hot-seat), finale, results
@@ -333,7 +341,8 @@ domains, or set `REDIRECT_HOSTS` empty to disable. See the block in `.env.exampl
 
 Per-tenant quotas (issue #139): in the public multi-tenant mode (`ACCOUNTS_ENABLED=true`)
 each tenant is capped on rounds (`MAX_ROUNDS_PER_TENANT`, default 10), games per
-round (`MAX_GAMES_PER_ROUND`, default 1000), and successful buy-next generations
+round (`MAX_GAMES_PER_ROUND`, default 1000), custom tags per round
+(`MAX_TAGS_PER_ROUND`, default 30), and successful buy-next generations
 per month (`RECS_TENANT_MONTHLY_MAX`, default 1 — bounds the billed Claude spend
 per tenant, on top of the per-IP `RECS_RATE_LIMIT_MAX`). With accounts off (the
 default, single-tenant deploy) these are inert. See the quotas block in `.env.example`.

@@ -27,6 +27,7 @@ const startSessionSchema = z.object({
     z.array(z.string())
   ),
   count: z.preprocess((v) => parseInt(v, 10), z.number().catch(NaN)),
+  tagIds: z.preprocess((v) => (Array.isArray(v) ? v.map(String) : []), z.array(z.string())),
   gameId: z.unknown().optional(),
 });
 
@@ -85,6 +86,7 @@ router.post('/', async (req, res) => {
       createdAt: now,
       filter: 'all',
       durations: null,
+      tagIds: null, // no tag filter in direct-pick mode (#238)
       requestedCount: 1,
       memberIds,
       gameIds: [game.id],
@@ -109,6 +111,12 @@ router.post('/', async (req, res) => {
   let count = body.count;
   if (!Number.isFinite(count) || count < 1) count = 1;
 
+  // Tag filter (#238): AND semantics — a game must carry every selected tag.
+  // Unknown ids are dropped (lenient, like memberIds); empty means no filter.
+  const roundTagIds = new Set((round.tags || []).map((tg) => tg.id));
+  let tagIds = [...new Set(body.tagIds)].filter((x) => roundTagIds.has(x));
+  if (tagIds.length === 0) tagIds = null;
+
   const playerCount = memberIds.length;
 
   const pool = round.games.filter(
@@ -116,6 +124,7 @@ router.post('/', async (req, res) => {
       !g.retired &&
       (filter === 'all' || g.type === filter) &&
       (!durations || durations.includes(g.duration)) &&
+      (!tagIds || tagIds.every((x) => (g.tagIds || []).includes(x))) &&
       (typeof g.minPlayers !== 'number' || playerCount >= g.minPlayers) &&
       (typeof g.maxPlayers !== 'number' || playerCount <= g.maxPlayers)
   );
@@ -128,6 +137,7 @@ router.post('/', async (req, res) => {
     createdAt: new Date().toISOString(),
     filter,
     durations, // null = all durations
+    tagIds, // null = no tag filter (#238)
     requestedCount: count,
     memberIds, // members who joined this session
     gameIds: picked.map((g) => g.id),

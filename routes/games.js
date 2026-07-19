@@ -49,6 +49,13 @@ const createGameSchema = z
     duration: z.enum(DURATIONS).catch('medium'),
     minPlayers: playerField,
     maxPlayers: playerField,
+    // Round-tag assignment (#238). Multipart repeats the field, so a single
+    // value arrives as a bare string — coerce to a string array either way;
+    // membership in the round's tag list is checked in the handler.
+    tagIds: z.preprocess(
+      (v) => (Array.isArray(v) ? v.map(String) : v == null ? [] : [String(v)]),
+      z.array(z.string())
+    ),
   })
   .superRefine((val, ctx) => {
     if (!val.title) ctx.addIssue({ code: 'custom', message: 'Title is missing', path: ['title'] });
@@ -123,6 +130,12 @@ router.post('/', upload.single('image'), async (req, res) => {
   const body = validateBody(createGameSchema, req, res);
   if (!body) return;
   const { title, platform, duration, minPlayers, maxPlayers } = body;
+
+  // Tags must belong to this round (deduped; unknown ids -> 400, #238).
+  const tagIds = [...new Set(body.tagIds)];
+  const roundTagIds = new Set((round.tags || []).map((tg) => tg.id));
+  if (tagIds.some((x) => !roundTagIds.has(x)))
+    return res.status(400).json({ error: 'Unknown tag' });
   // Platform (default analog) drives the type for the five concrete platforms;
   // only `other` honours the client-supplied analog/digital type.
   const type = platform === 'other'
@@ -149,6 +162,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     maxPlayers,
     image,
     source: buildSource(req.body),
+    tagIds,
   });
   if (!game) return res.status(404).json({ error: 'Round not found' });
   res.status(201).json(game);
@@ -200,6 +214,17 @@ router.patch('/:gid', upload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'maxPlayers must be an integer >= minPlayers' });
     patch.minPlayers = minPlayers;
     patch.maxPlayers = maxPlayers;
+  }
+
+  // Replace the game's tag assignment (#238). Sent as JSON, so an array (or
+  // null to clear) arrives as-is; unknown ids -> 400 like on create.
+  if (b.tagIds !== undefined) {
+    const list = Array.isArray(b.tagIds) ? b.tagIds.map(String) : b.tagIds == null ? [] : [String(b.tagIds)];
+    const tagIds = [...new Set(list)];
+    const roundTagIds = new Set((round.tags || []).map((tg) => tg.id));
+    if (tagIds.some((x) => !roundTagIds.has(x)))
+      return res.status(400).json({ error: 'Unknown tag' });
+    patch.tagIds = tagIds;
   }
 
   // Attach a provider source link (used to link a previously-unlinked game to a

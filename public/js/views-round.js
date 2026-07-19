@@ -254,11 +254,16 @@ function renderStartTab(round, activeGames) {
     `<button class="btn"><i class="ti ti-plus" aria-hidden="true"></i> ${esc(t('round.addGame'))}</button>`
   );
   addGameBtn.addEventListener('click', () => showAddGame(round));
+  const tagsBtn = h(
+    `<button class="btn"><i class="ti ti-tags" aria-hidden="true"></i> ${esc(t('round.tags'))}</button>`
+  );
+  tagsBtn.addEventListener('click', () => showTags(rid));
   const bgBtn = h(
     `<button class="btn"><i class="ti ti-palette" aria-hidden="true"></i> ${esc(t('round.design'))}</button>`
   );
   bgBtn.addEventListener('click', () => showBackground(rid));
   actions.appendChild(addGameBtn);
+  actions.appendChild(tagsBtn);
   actions.appendChild(bgBtn);
   app.appendChild(actions);
 }
