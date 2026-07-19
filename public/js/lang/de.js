@@ -2,6 +2,7 @@
 
 I18N.de = {
   'app.title': 'Spieleabend',
+  'footer.contact': 'Kontakt',
   'nav.home': 'Start',
   'common.back': 'Zurück',
   'common.delete': 'Löschen',

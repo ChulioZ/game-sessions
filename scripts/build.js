@@ -12,7 +12,8 @@
  *
  * What it does: mirror public/ into dist/, then replace each js/css file with a
  * minified, content-hashed copy (e.g. js/core.js -> js/core.<hash>.js) and
- * rewrite every reference to it in index.html, sw.js and login.html. The service
+ * rewrite every reference to it in index.html, sw.js, login.html and
+ * kontakt.html. The service
  * worker's CACHE name is re-derived from the hashed set so a new build
  * auto-invalidates the old shell cache. Everything else (fonts, icons, the
  * manifest, tabler-icons.css) is copied through unchanged — only js + styles.css
@@ -38,8 +39,10 @@ const ROOT = path.join(__dirname, '..');
 const DEFAULT_SRC = path.join(ROOT, 'public');
 const DEFAULT_OUT = path.join(ROOT, 'dist');
 
-// Files whose asset references get rewritten to the hashed names.
-const REWRITE_FILES = ['index.html', 'sw.js', 'login.html'];
+// Files whose asset references get rewritten to the hashed names. The standalone
+// pages (login.html, kontakt.html) each pull one own script, so they must be
+// rewritten too or a built deploy would 404 the un-hashed reference.
+const REWRITE_FILES = ['index.html', 'sw.js', 'login.html', 'kontakt.html'];
 
 function sha8(buf) {
   return crypto.createHash('sha256').update(buf).digest('hex').slice(0, 8);

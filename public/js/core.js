@@ -130,6 +130,9 @@ function joinNames(names) {
 function applyStaticTexts() {
   document.getElementById('homeBtn').innerHTML =
     `<i class="ti ti-dice-5" aria-hidden="true"></i> <span class="topbar__word">${esc(t('app.title'))}</span>`;
+  // Shared site footer (issue #224): the Kontakt link label. #134 adds the
+  // Impressum/Datenschutz labels here alongside their links.
+  document.getElementById('footerKontakt').textContent = t('footer.contact');
 }
 
 // Language picker in the top bar.

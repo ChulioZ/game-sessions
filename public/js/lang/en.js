@@ -2,6 +2,7 @@
 
 I18N.en = {
   'app.title': 'Spieleabend',
+  'footer.contact': 'Contact',
   'nav.home': 'Home',
   'common.back': 'Back',
   'common.delete': 'Delete',

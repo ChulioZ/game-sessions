@@ -133,6 +133,20 @@ h1, h2, h3 { font-family: var(--font-display); }
   /* Generous bottom padding so the floating dock never covers content. */
   padding: 24px 20px 120px;
 }
+/* Shared site footer (issue #224). Muted, theme-derived link colour (no
+   hardcoded tones — .claude/rules/theme-derived-colors.md). */
+.site-footer {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 20px 40px;
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+.site-footer a { color: var(--ink-soft); text-decoration: none; }
+.site-footer a:hover { text-decoration: underline; }
 .page-head {
   display: flex;
   align-items: center;

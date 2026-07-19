@@ -220,6 +220,9 @@ routes/
                                              e-mail, login, refresh, logout,
                                              forgot/reset password, me —
                                              404 unless ACCOUNTS_ENABLED)
+  contact.js         /api/contact           (public contact form → e-mails the
+                                             operator; no auth, own rate limit,
+                                             honeypot; fails loud in production)
   lookup.js          /api/lookup            (search/game — provider proxy: PS Store, BGG, Steam, Nintendo, Xbox)
   rounds.js          /api/rounds            (list, detail, create, delete)
   games.js           …/games                (add [+cover download/source],
@@ -236,6 +239,7 @@ routes/
 public/
   index.html
   login.html         standalone login page (shown only when AUTH_PASSWORD is set)
+  kontakt.html       standalone public contact form (bilingual, no login needed)
   styles.css
   manifest.webmanifest  PWA manifest (installable app metadata + icons)
   sw.js              service worker: precache the app shell, offline fallback
@@ -244,6 +248,8 @@ public/
   js/
     login.js         login.html's own script — an IIFE, not part of the
                      shared global scope below (only loaded by login.html)
+    kontakt.js       kontakt.html's own script — an IIFE (bilingual form),
+                     not part of the shared global scope (only loaded there)
     i18n.js          translation engine (t(), locale detection)
     lang/en.js       English strings
     lang/de.js       German strings
@@ -317,8 +323,19 @@ or the AWS default provider chain. Unset, images stay under `DATA_DIR/uploads` a
 before. See the S3 block in `.env.example`.
 
 Behind a TLS-terminating proxy: `TRUST_PROXY=1 npm start` (so rate limiting sees
-the real client IP). Tune the limits with `RATE_LIMIT_MAX` (global, per 15 min)
-and `RECS_RATE_LIMIT_MAX` (buy-next generations, per hour).
+the real client IP). Tune the limits with `RATE_LIMIT_MAX` (global, per 15 min),
+`RECS_RATE_LIMIT_MAX` (buy-next generations, per hour) and `CONTACT_RATE_LIMIT_MAX`
+(contact-form submissions, per 15 min, default 5).
+
+Contact form (issue #224): a public, login-free page at `/kontakt.html` with a
+bilingual form that POSTs to `/api/contact`, which e-mails the operator — the
+phone-free second communication channel a German Impressum (§ 5 DDG) relies on, and
+the DSA notice-and-action channel. Delivery goes to `CONTACT_TO` (falling back to
+`MAIL_FROM`) via the same Brevo setup as the account mails. It has its own low rate
+limit and a server-side honeypot for spam, and in `NODE_ENV=production` it **fails
+loud** (`502` with a fallback e-mail) rather than silently dropping a message when
+mail is unconfigured — so configure `BREVO_API_KEY` + `MAIL_FROM` + `CONTACT_TO`
+before relying on it in production. A shared site footer links to it.
 
 Require a login: set `AUTH_PASSWORD=…` (and optionally `SESSION_SECRET=…`) to gate
 the whole app behind a single shared password — an unauthenticated visitor gets a

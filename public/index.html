@@ -32,6 +32,15 @@
     <!-- Content is rendered by the js/* files -->
   </main>
 
+  <!-- Shared site footer (issue #224). Ships the public Kontakt link now; #134
+       adds the Impressum + Datenschutz links here once those pages exist — don't
+       add links to not-yet-built legal pages (they'd 404 on Live). Root-absolute
+       paths per .claude/rules/spa-fallback-absolute-asset-paths.md; label set in
+       applyStaticTexts() so it re-localizes on language change. -->
+  <footer class="site-footer" role="contentinfo">
+    <a href="/kontakt.html" id="footerKontakt"></a>
+  </footer>
+
   <!-- small toast for feedback -->
   <div id="toast" class="toast" hidden></div>
 
