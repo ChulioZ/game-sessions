@@ -7,7 +7,8 @@ the shared-password gate. Things that will bite if you forget them:
 - **The feature is double-gated: `ACCOUNTS_ENABLED=true` AND a non-empty
   `SESSION_SECRET`.** Without both, every /api/account handler 404s
   (`accounts_disabled`). The secret requirement is not bureaucracy: access
-  tokens are HMAC-signed with SESSION_SECRET, and unlike lib/auth.js it must
+  tokens are HS256 JWTs signed with SESSION_SECRET (via `jsonwebtoken`, #214),
+  and unlike lib/auth.js it must
   NOT fall back to AUTH_PASSWORD — the shared password is known to the whole
   group, so falling back would let any group member forge any user's tokens.
   Enabling accounts in production is still a deliberate ops step (not

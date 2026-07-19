@@ -307,11 +307,15 @@ version further. Filed as #211–#215 (2026-07-19).
    their own `typeof`/`Array.isArray` checks. A `zod` schema per body shape,
    run through the shared `lib/validate.js` helper, now makes body validation
    uniform at the router boundary (`rounds`/`games`/`sessions`/`account`).
-4. **Identity/token issuance** — [`lib/accounts.js`](../lib/accounts.js) is a
-   well-built hand-rolled HMAC access-token + rotating-refresh-token scheme,
-   but it's about to gate real users' accounts. **Decided 2026-07-19: scope as
-   a code-only swap to `jsonwebtoken`/`jose`**, not an IdP migration — the IdP
-   question is a separate, later build-vs-buy decision. Filed as **#214**.
+4. **Identity/token issuance — access tokens shipped (#214).**
+   [`lib/accounts.js`](../lib/accounts.js) was a well-built hand-rolled HMAC
+   access-token + rotating-refresh-token scheme, but it gates real users'
+   accounts. The access token is now a standard HS256 JWT issued/verified via
+   the vetted `jsonwebtoken` library (`sub` = user id, `exp` = 15-min TTL,
+   `SESSION_SECRET`-signed, `alg` pinned) — a code-only swap, **not** an IdP
+   migration (that build-vs-buy question stays a separate, later decision, see
+   §9). The refresh token deliberately stays opaque + hashed-at-rest — it isn't
+   a JWT and doesn't need to be. Filed and shipped as **#214**.
 5. **Rate-limit store** — `express-rate-limit`'s default in-memory store only
    works correctly for exactly one process. Fine today (single Railway
    instance); becomes wrong the moment horizontal scaling (§12 Phase 3) adds a
@@ -512,7 +516,7 @@ Not go-live blockers (Phase 1 is already live) — closing the gap between
 | **Postgres schema migrations** + adopt **Knex** | L | Med | #211 |
 | **Structured logging** — `pino`/`pino-http` — **shipped** (#212) | S–M | Low | #212 |
 | **Centralized request validation** — `zod` at the router boundary — **shipped** (#213) | M | Low | #213 |
-| **Identity/token issuance** — `jsonwebtoken`/`jose` | M | Med | #214 |
+| **Identity/token issuance** — access-token JWTs via `jsonwebtoken` — **shipped** (#214) | M | Med | #214 |
 | **Rate-limit shared store** (`rate-limit-redis` or similar) | S | Low | #215 |
 
 See §7 for the reasoning behind each.

@@ -62,7 +62,7 @@ test('accounts mode: /api data routes require a valid token', async () => {
   assert.equal(anon.body.error, 'auth_required');
 
   // A forged/expired token is refused just the same.
-  const forged = await request(app).get('/api/rounds').set('Authorization', 'Bearer a1.x.y.z');
+  const forged = await request(app).get('/api/rounds').set('Authorization', 'Bearer not-a-valid-token');
   assert.equal(forged.status, 401);
 
   // A valid token gets through to the (empty) round list for a brand-new account.

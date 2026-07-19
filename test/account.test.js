@@ -248,15 +248,46 @@ test('a member can be linked to a user and unlinked again', async () => {
 
 /* --------------------------- token primitive edges -------------------------- */
 
-test('access tokens reject tampering, wrong version, and expiry', () => {
+test('access tokens are JWTs that reject tampering, wrong signature, and expiry', () => {
   const good = accounts.mintAccessToken('user1');
   assert.equal(accounts.verifyAccessToken(good), 'user1');
 
-  const [v, uid, exp, sig] = good.split('.');
-  assert.equal(accounts.verifyAccessToken(`${v}.other.${exp}.${sig}`), null); // uid swap
-  assert.equal(accounts.verifyAccessToken(`x9.${uid}.${exp}.${sig}`), null); // version
-  assert.equal(accounts.verifyAccessToken('garbage'), null);
+  const parts = good.split('.');
+  assert.equal(parts.length, 3); // a real JWT: header.payload.signature
+  const [header, payload, sig] = parts;
+
+  // Swap the payload for one with a different sub while keeping the original
+  // signature — the signature covers header+payload, so verification must fail.
+  const forged = Buffer.from(JSON.stringify({ sub: 'other' })).toString('base64url');
+  assert.equal(accounts.verifyAccessToken(`${header}.${forged}.${sig}`), null);
+
+  assert.equal(accounts.verifyAccessToken(`${header}.${payload}.deadbeef`), null); // bad signature
+  assert.equal(accounts.verifyAccessToken('garbage'), null); // not a JWT
   assert.equal(accounts.verifyAccessToken(accounts.mintAccessToken('user1', -1000)), null); // expired
+});
+
+test('access tokens are signed with SESSION_SECRET only — no AUTH_PASSWORD fallback', () => {
+  const token = accounts.mintAccessToken('user1');
+
+  // A different SESSION_SECRET must not verify the token...
+  const realSecret = process.env.SESSION_SECRET;
+  process.env.SESSION_SECRET = 'a-completely-different-secret';
+  try {
+    assert.equal(accounts.verifyAccessToken(token), null);
+  } finally {
+    process.env.SESSION_SECRET = realSecret;
+  }
+
+  // ...and AUTH_PASSWORD is never consulted as a signing key: with SESSION_SECRET
+  // cleared, verification fails even when AUTH_PASSWORD equals the old secret.
+  process.env.SESSION_SECRET = '';
+  process.env.AUTH_PASSWORD = realSecret;
+  try {
+    assert.equal(accounts.verifyAccessToken(token), null);
+  } finally {
+    process.env.SESSION_SECRET = realSecret;
+    delete process.env.AUTH_PASSWORD;
+  }
 });
 
 test('pushRefreshToken drops expired entries and caps the list at the oldest end', () => {

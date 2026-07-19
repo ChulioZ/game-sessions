@@ -89,7 +89,7 @@ test('tenant isolation across accounts and the default (gate-only) caller', asyn
     // gate-only 'default' caller still works — see the second test below.)
     const anon = await request(app).get(`/api/rounds/${roundId}`);
     assert.equal(anon.status, 401);
-    const forged = await request(app).get(`/api/rounds/${roundId}`).set('Authorization', 'Bearer a1.x.y.z');
+    const forged = await request(app).get(`/api/rounds/${roundId}`).set('Authorization', 'Bearer not-a-valid-token');
     assert.equal(forged.status, 401);
     // Creating a round without a token is refused too — no unauthenticated writes.
     const created = await request(app).post('/api/rounds').send({ name: 'Default-Runde', members: ['M'] });
