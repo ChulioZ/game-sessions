@@ -383,7 +383,7 @@ function closePopover() {
   document.removeEventListener('mousedown', activePopover.onDoc, true);
   document.removeEventListener('keydown', activePopover.onKey, true);
   window.removeEventListener('resize', activePopover.onGone, true);
-  window.removeEventListener('scroll', activePopover.onGone, true);
+  window.removeEventListener('scroll', activePopover.onScroll, true);
   activePopover = null;
 }
 function openPopover(anchor, build) {
@@ -408,11 +408,16 @@ function openPopover(anchor, build) {
   const onDoc = (e) => { if (!el.contains(e.target) && !anchor.contains(e.target)) close(); };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
   const onGone = () => close();
+  // Capture-phase scroll on window also fires for scrolls *inside* the popover —
+  // a single-line <input> scrolls as soon as its text overflows, which silently
+  // closed the popover mid-typing (#247). Ignore those; a page scroll targets
+  // `document` (not contained by `el`), so it still closes as before.
+  const onScroll = (e) => { if (!el.contains(e.target)) close(); };
   document.addEventListener('mousedown', onDoc, true);
   document.addEventListener('keydown', onKey, true);
   window.addEventListener('resize', onGone, true);
-  window.addEventListener('scroll', onGone, true);
-  activePopover = { el, onDoc, onKey, onGone };
+  window.addEventListener('scroll', onScroll, true);
+  activePopover = { el, onDoc, onKey, onGone, onScroll };
   return { el, close };
 }
 

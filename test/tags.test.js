@@ -56,6 +56,25 @@ test('tag routes: create (trimmed + deduped) and delete', async (t) => {
     assert.equal(noTag.body.error, 'Tag not found');
   });
 
+  // Own round: the sibling subtests assert on this round's exact tag list, so a
+  // tag created here would throw them off.
+  await t.test('a name longer than 30 chars is a 400; exactly 30 is accepted', async () => {
+    const own = await createRound(request);
+    const tooLong = await request(app)
+      .post(`/api/rounds/${own.id}/tags`)
+      .send({ name: 'x'.repeat(31) });
+    assert.equal(tooLong.status, 400);
+    assert.equal(tooLong.body.error, 'Tag name is too long');
+
+    // The cap applies to the *trimmed* name, so surrounding whitespace doesn't
+    // push an otherwise-valid name over the limit.
+    const padded = await request(app)
+      .post(`/api/rounds/${own.id}/tags`)
+      .send({ name: `  ${'y'.repeat(30)}  ` });
+    assert.equal(padded.status, 201);
+    assert.equal(padded.body.name, 'y'.repeat(30));
+  });
+
   await t.test('deleting a tag unassigns it from every game', async () => {
     const tagged = await addGame(round.id, 'Tagged', [outside.id]);
     assert.equal(tagged.status, 201);

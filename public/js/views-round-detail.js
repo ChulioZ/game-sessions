@@ -102,7 +102,7 @@ async function showTags(rid) {
   sec.appendChild(h(`<div class="muted" style="margin-bottom:14px">${esc(t('tags.note'))}</div>`));
 
   const addRow = h(`<div class="toolbar" style="margin-bottom:14px">
-       <input class="input" style="flex:1" placeholder="${esc(t('tags.addPlaceholder'))}" />
+       <input class="input" style="flex:1" maxlength="30" placeholder="${esc(t('tags.addPlaceholder'))}" />
        <button class="btn btn--primary"><i class="ti ti-plus" aria-hidden="true"></i> ${esc(t('tags.add'))}</button>
      </div>`);
   const input = addRow.querySelector('input');
@@ -299,7 +299,7 @@ async function showGameDetail(rid, gameId) {
       renderChips();
       el.appendChild(chipsWrap);
 
-      const input = h(`<input class="input" placeholder="${esc(t('tags.addPlaceholder'))}" />`);
+      const input = h(`<input class="input" maxlength="30" placeholder="${esc(t('tags.addPlaceholder'))}" />`);
       const addBtn = h(`<button class="btn">${esc(t('tags.add'))}</button>`);
       const create = async () => {
         const name = input.value.trim();

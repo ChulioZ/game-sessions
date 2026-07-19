@@ -12,8 +12,16 @@ const quota = require('../lib/quota');
 
 const router = express.Router({ mergeParams: true });
 
+// Keep in sync with the `maxlength` on both tag inputs in
+// public/js/views-round-detail.js — the client caps first so a rejected name
+// never round-trips; this is the backstop.
+const TAG_NAME_MAX = 30;
+
 const createTagSchema = z.object({
-  name: z.preprocess((v) => String(v || '').trim(), z.string().min(1, 'Tag name is missing')),
+  name: z.preprocess(
+    (v) => String(v || '').trim(),
+    z.string().min(1, 'Tag name is missing').max(TAG_NAME_MAX, 'Tag name is too long'),
+  ),
 });
 
 // Create a tag. A name matching an existing tag (trimmed, case-insensitive)
