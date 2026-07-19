@@ -462,8 +462,10 @@ function renderPokaleTab(round) {
   }
 
   // Streak: how many of the latest nights in a row one member won alone.
+  // Chronological by `createdAt` (when the night happened), like the Chronik —
+  // `finishedAt` moves when an old session is re-finished.
   const chrono = [...finished].sort((a, b) =>
-    String(a.finishedAt || a.createdAt).localeCompare(String(b.finishedAt || b.createdAt))
+    String(a.createdAt).localeCompare(String(b.createdAt))
   );
   let streakMember = null;
   let streak = 0;
@@ -489,7 +491,7 @@ function renderPokaleTab(round) {
   const lastAt = {};
   finished.forEach((s) => {
     if (!s.chosenGameId) return;
-    const at = s.finishedAt || s.createdAt;
+    const at = s.createdAt;
     if (!lastAt[s.chosenGameId] || at > lastAt[s.chosenGameId]) lastAt[s.chosenGameId] = at;
   });
   const active = round.games.filter((g) => !g.retired);

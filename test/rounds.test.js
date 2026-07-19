@@ -75,6 +75,53 @@ test('GET /api/rounds summary carries members, background and lastPlayed', async
   assert.ok(entry.lastPlayed.at);
 });
 
+test('GET /api/rounds lastPlayed follows createdAt, not a later re-finish', async () => {
+  // Re-finishing an older session must not make it the "last played" one: the
+  // home tile has to agree with the Chronik, which orders by createdAt.
+  const round = await createRound(request); // Alice, Bob
+  const alice = round.members[0];
+
+  async function playSession(title) {
+    const game = (
+      await request(app)
+        .post(`/api/rounds/${round.id}/games`)
+        .field('title', title)
+        .field('minPlayers', '2')
+        .field('maxPlayers', '2')
+    ).body;
+    const session = (
+      await request(app).post(`/api/rounds/${round.id}/sessions`).send({ gameId: game.id })
+    ).body.session;
+    await request(app)
+      .post(`/api/rounds/${round.id}/sessions/${session.id}/finish`)
+      .send({ finished: true, winnerIds: [alice.id] });
+    return session;
+  }
+
+  const older = await playSession('Chess');
+  // Keep the two createdAt stamps apart (they are ISO strings with ms).
+  await new Promise((r) => setTimeout(r, 5));
+  await playSession('Go');
+
+  let entry = (await request(app).get('/api/rounds')).body.find((r) => r.id === round.id);
+  assert.equal(entry.lastPlayed.gameTitle, 'Go');
+  const at = entry.lastPlayed.at;
+  assert.ok(at > older.createdAt); // the newer session's createdAt is shown
+
+  // Reset the older session's result and finish it again — its finishedAt is
+  // now the newest, but it stays the older session.
+  await request(app)
+    .post(`/api/rounds/${round.id}/sessions/${older.id}/finish`)
+    .send({ finished: false });
+  await request(app)
+    .post(`/api/rounds/${round.id}/sessions/${older.id}/finish`)
+    .send({ finished: true, winnerIds: [alice.id] });
+
+  entry = (await request(app).get('/api/rounds')).body.find((r) => r.id === round.id);
+  assert.equal(entry.lastPlayed.gameTitle, 'Go');
+  assert.equal(entry.lastPlayed.at, at);
+});
+
 test('GET /api/rounds/:rid 404s for an unknown round', async () => {
   const res = await request(app).get('/api/rounds/does-not-exist');
   assert.equal(res.status, 404);
