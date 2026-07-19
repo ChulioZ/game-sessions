@@ -139,20 +139,18 @@ function renderStartTab(round, activeGames) {
 
   // "Last played" ticket: the newest finished session whose chosen game still
   // exists. Delivers the emotional payoff above the fold; tap opens that result.
+  // Ordered by `createdAt` — when the session was played — so this agrees with
+  // the Chronik; `finishedAt` changes when an old session is re-finished.
   const lastPlayed = round.sessions
     .filter((s) => s.finished && s.chosenGameId && round.games.some((g) => g.id === s.chosenGameId))
-    .sort((a, b) =>
-      String(b.finishedAt || b.chosenAt || b.createdAt).localeCompare(
-        String(a.finishedAt || a.chosenAt || a.createdAt)
-      )
-    )[0];
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
   if (lastPlayed) {
     const game = round.games.find((g) => g.id === lastPlayed.chosenGameId);
     const winnerNames = (lastPlayed.winnerIds || [])
       .map((wid) => (round.members.find((m) => m.id === wid) || {}).name)
       .filter(Boolean);
     const sst = gameStatsForSession(round, lastPlayed, game.id);
-    const when = fmtDateTime(lastPlayed.finishedAt || lastPlayed.chosenAt || lastPlayed.createdAt);
+    const when = fmtDateTime(lastPlayed.createdAt);
     const imgStyle = game.image ? ` style="background-image:url('${game.image}')"` : '';
     const fallback = game.image
       ? ''

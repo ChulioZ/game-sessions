@@ -29,16 +29,15 @@ router.get('/', async (req, res) => {
   res.json(
     rounds.map((r) => {
       // Newest finished session whose chosen game still exists (same rule as
-      // the round screen's "Zuletzt gespielt" line).
+      // the round screen's "Zuletzt gespielt" line). Ordered by `createdAt` —
+      // when the session was played — like the Chronik. Using `finishedAt`
+      // would let re-finishing an older session jump it to the top while the
+      // Chronik keeps it in place.
       const lastPlayed = r.sessions
         .filter(
           (s) => s.finished && s.chosenGameId && r.games.some((g) => g.id === s.chosenGameId)
         )
-        .sort((a, b) =>
-          String(b.finishedAt || b.chosenAt || b.createdAt).localeCompare(
-            String(a.finishedAt || a.chosenAt || a.createdAt)
-          )
-        )[0];
+        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
       const lastGame = lastPlayed && r.games.find((g) => g.id === lastPlayed.chosenGameId);
       return {
         id: r.id,
@@ -55,7 +54,7 @@ router.get('/', async (req, res) => {
               winnerNames: (lastPlayed.winnerIds || [])
                 .map((wid) => (r.members.find((m) => m.id === wid) || {}).name)
                 .filter(Boolean),
-              at: lastPlayed.finishedAt || lastPlayed.chosenAt || lastPlayed.createdAt,
+              at: lastPlayed.createdAt,
             }
           : null,
       };
