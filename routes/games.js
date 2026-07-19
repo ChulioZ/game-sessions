@@ -14,12 +14,6 @@ const quota = require('../lib/quota');
 
 const router = express.Router({ mergeParams: true });
 
-const DURATIONS = ['short', 'medium', 'long'];
-// Platform is the primary, user-facing field; the analog/digital `type` (which
-// still drives Regal filters, badges and buy-next) is derived from it. Only the
-// `other` platform lets the client pick the type freely.
-const PLATFORMS = ['analog', 'ps', 'xbox', 'switch', 'steam', 'other'];
-const PLATFORM_TYPE = { analog: 'analog', ps: 'digital', xbox: 'digital', switch: 'digital', steam: 'digital' };
 const IMG_TIMEOUT_MS = 10000;
 const MAX_IMG_BYTES = 10 * 1024 * 1024; // mirror the multer upload limit
 
@@ -36,17 +30,13 @@ const EXT_BY_MIME = {
 // (z.number() rejects NaN) instead of raising a generic "expected number" issue.
 const playerField = z.preprocess((v) => parseInt(v, 10), z.number().catch(NaN));
 
-// Create-game body. Platform/duration fall back to their defaults on an unknown
-// value (never a 400, matching the old `PLATFORMS.includes(...) ? … : 'analog'`);
-// title and the player range are the only hard requirements. Order of the
-// superRefine issues mirrors the old top-to-bottom checks (title, then min, max)
-// so the surfaced message is unchanged. `type` is derived in the handler from
-// the validated platform; the cover/source fields are read straight off req.body.
+// Create-game body. Title and the player range are the only hard requirements.
+// Order of the superRefine issues mirrors the old top-to-bottom checks (title,
+// then min, max) so the surfaced message is unchanged. The cover/source fields
+// are read straight off req.body.
 const createGameSchema = z
   .object({
     title: z.preprocess((v) => String(v || '').trim(), z.string()),
-    platform: z.enum(PLATFORMS).catch('analog'),
-    duration: z.enum(DURATIONS).catch('medium'),
     minPlayers: playerField,
     maxPlayers: playerField,
     // Round-tag assignment (#238). Multipart repeats the field, so a single
@@ -66,16 +56,14 @@ const createGameSchema = z
   });
 
 // Edit-game body: only the pure, self-contained field checks (present-and-nonempty
-// title, enum duration). Platform/type and the min/max range are reconciled
-// against the *stored* game in the handler (they default to the game's current
-// values when one side is omitted), so they're business logic, not body-shape
-// validation, and stay there.
+// title). The min/max range is reconciled against the *stored* game in the
+// handler (it defaults to the game's current values when one side is omitted), so
+// it's business logic, not body-shape validation, and stays there.
 const updateGameSchema = z.object({
   // `.optional()` short-circuits an absent key before this runs, so (like the old
   // `if (b.title !== undefined) String(b.title).trim()`) it only sees a present
   // value — a blank one 400s with the same message.
   title: z.preprocess((v) => String(v).trim(), z.string().min(1, 'Title is missing')).optional(),
-  duration: z.enum(DURATIONS, { message: 'Invalid duration' }).optional(),
 });
 
 // Download a provider cover image into storage and return its /uploads path, or
@@ -129,18 +117,13 @@ router.post('/', upload.single('image'), async (req, res) => {
 
   const body = validateBody(createGameSchema, req, res);
   if (!body) return;
-  const { title, platform, duration, minPlayers, maxPlayers } = body;
+  const { title, minPlayers, maxPlayers } = body;
 
   // Tags must belong to this round (deduped; unknown ids -> 400, #238).
   const tagIds = [...new Set(body.tagIds)];
   const roundTagIds = new Set((round.tags || []).map((tg) => tg.id));
   if (tagIds.some((x) => !roundTagIds.has(x)))
     return res.status(400).json({ error: 'Unknown tag' });
-  // Platform (default analog) drives the type for the five concrete platforms;
-  // only `other` honours the client-supplied analog/digital type.
-  const type = platform === 'other'
-    ? (req.body.type === 'digital' ? 'digital' : 'analog')
-    : PLATFORM_TYPE[platform];
 
   // Cover: an uploaded file wins; otherwise pull a provider image URL (if given
   // and host-allowlisted) into storage so only the /uploads path is stored. The
@@ -155,9 +138,6 @@ router.post('/', upload.single('image'), async (req, res) => {
 
   const game = await req.repo.createGame(req.params.rid, {
     title,
-    platform,
-    type,
-    duration,
     minPlayers,
     maxPlayers,
     image,
@@ -168,8 +148,8 @@ router.post('/', upload.single('image'), async (req, res) => {
   res.status(201).json(game);
 });
 
-// Edit game details. Accepts any subset of title, type, duration, min/max
-// players, the cover image, and a provider source link. Sent as JSON, or as
+// Edit game details. Accepts any subset of title, min/max players, the cover
+// image, and a provider source link. Sent as JSON, or as
 // multipart when an image file is involved (new file, or removeImage=true to
 // clear the current one). A cover can also be set from a provider imageUrl and
 // the game linked to a provider (sourceProvider/…) — this is what "link an
@@ -188,23 +168,6 @@ router.patch('/:gid', upload.single('image'), async (req, res) => {
   const patch = {};
 
   if (valid.title !== undefined) patch.title = valid.title;
-  // Platform is authoritative: for a concrete platform the type is derived and a
-  // client-sent type is ignored; `other` (or a bare type edit, e.g. the Other
-  // analog/digital sub-control and the link-provider override) honours the type.
-  if (b.platform !== undefined) {
-    if (PLATFORMS.includes(b.platform)) {
-      patch.platform = b.platform;
-      if (b.platform !== 'other') {
-        patch.type = PLATFORM_TYPE[b.platform];
-      } else if (b.type !== undefined) {
-        patch.type = b.type === 'digital' ? 'digital' : 'analog';
-      }
-    }
-    // An invalid platform is ignored (leave platform/type untouched).
-  } else if (b.type !== undefined) {
-    patch.type = b.type === 'digital' ? 'digital' : 'analog';
-  }
-  if (valid.duration !== undefined) patch.duration = valid.duration;
   if (b.minPlayers !== undefined || b.maxPlayers !== undefined) {
     const minPlayers = b.minPlayers !== undefined ? parseInt(b.minPlayers, 10) : game.minPlayers;
     const maxPlayers = b.maxPlayers !== undefined ? parseInt(b.maxPlayers, 10) : game.maxPlayers;

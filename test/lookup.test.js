@@ -62,7 +62,7 @@ test('search returns 502 when the provider is unreachable', async () => {
   assert.equal(res.body.error, 'provider_unreachable');
 });
 
-test('GET /api/lookup/game returns normalized detail (digital, players, default long duration)', async () => {
+test('GET /api/lookup/game returns normalized detail (digital, players)', async () => {
   stubFetch((url) => {
     assert.match(url, /\/product\//);
     return htmlRes(page({ 'Product:X': PROD }, '<span class="compatText">1 - 4 players</span>'));
@@ -71,7 +71,6 @@ test('GET /api/lookup/game returns normalized detail (digital, players, default 
   assert.equal(res.status, 200);
   assert.equal(res.body.title, 'The Witcher 3: Wild Hunt');
   assert.equal(res.body.type, 'digital');
-  assert.equal(res.body.duration, 'long');
   assert.equal(res.body.minPlayers, 1);
   assert.equal(res.body.maxPlayers, 4);
   assert.equal(res.body.imageUrl, 'https://image.api.playstation.com/vulcan/w.png');
@@ -128,7 +127,7 @@ test('GET /api/lookup/search?provider=bgg returns BGG-id results (via Wikidata)'
   ]);
 });
 
-test('GET /api/lookup/game?provider=bgg returns analog detail with players + bucketed duration', async () => {
+test('GET /api/lookup/game?provider=bgg returns analog detail with players', async () => {
   // detail() now makes two calls: BGG geekitems (data) + a Wikidata label query
   // (localized title). With no localized label, the BGG canonical name is kept.
   stubFetch((url) => {
@@ -140,7 +139,6 @@ test('GET /api/lookup/game?provider=bgg returns analog detail with players + buc
   assert.equal(res.status, 200);
   assert.equal(res.body.title, 'Catan');
   assert.equal(res.body.type, 'analog');
-  assert.equal(res.body.duration, 'long');
   assert.equal(res.body.minPlayers, 3);
   assert.equal(res.body.maxPlayers, 4);
   assert.equal(res.body.imageUrl, 'https://cf.geekdo-images.com/x/pic.png');
@@ -225,7 +223,7 @@ test('GET /api/lookup/search?provider=steam returns only full games (type app)',
   ]);
 });
 
-test('GET /api/lookup/game?provider=steam returns digital detail (players, long duration)', async () => {
+test('GET /api/lookup/game?provider=steam returns digital detail (players)', async () => {
   stubFetch((url) => {
     assert.match(url, /store\.steampowered\.com\/api\/appdetails/);
     return jsonRes(STEAM_DETAIL);
@@ -234,7 +232,6 @@ test('GET /api/lookup/game?provider=steam returns digital detail (players, long 
   assert.equal(res.status, 200);
   assert.equal(res.body.title, 'Stardew Valley');
   assert.equal(res.body.type, 'digital');
-  assert.equal(res.body.duration, 'long');
   assert.equal(res.body.minPlayers, 1); // co-op present -> multiplayer, upper bound unknown
   assert.equal(res.body.maxPlayers, null);
   assert.equal(res.body.imageUrl, 'https://shared.akamai.steamstatic.com/apps/413150/header.jpg');
@@ -273,7 +270,7 @@ test('GET /api/lookup/search?provider=nintendo returns normalized Switch results
   ]);
 });
 
-test('GET /api/lookup/game?provider=nintendo returns digital detail (players, long duration)', async () => {
+test('GET /api/lookup/game?provider=nintendo returns digital detail (players)', async () => {
   stubFetch((url) => {
     assert.match(url, /searching\.nintendo-europe\.com/);
     assert.match(url, /fs_id/); // detail filters the index down to one item
@@ -283,7 +280,6 @@ test('GET /api/lookup/game?provider=nintendo returns digital detail (players, lo
   assert.equal(res.status, 200);
   assert.equal(res.body.title, 'Mario Kart 8 Deluxe');
   assert.equal(res.body.type, 'digital');
-  assert.equal(res.body.duration, 'long');
   assert.equal(res.body.minPlayers, 1);
   assert.equal(res.body.maxPlayers, 8);
   assert.equal(res.body.imageUrl, 'https://www.nintendo.com/eu/media/images/mk8_square.jpg');
@@ -344,7 +340,7 @@ test('GET /api/lookup/search?provider=xbox returns only game suggestions', async
   ]);
 });
 
-test('GET /api/lookup/game?provider=xbox returns digital detail (players, long duration)', async () => {
+test('GET /api/lookup/game?provider=xbox returns digital detail (players)', async () => {
   stubFetch((url) => {
     assert.match(url, /displaycatalog\.mp\.microsoft\.com/);
     return jsonRes(XBOX_DETAIL);
@@ -353,7 +349,6 @@ test('GET /api/lookup/game?provider=xbox returns digital detail (players, long d
   assert.equal(res.status, 200);
   assert.equal(res.body.title, 'Halo Infinite');
   assert.equal(res.body.type, 'digital');
-  assert.equal(res.body.duration, 'long');
   assert.equal(res.body.minPlayers, 1); // SinglePlayer floors the minimum
   assert.equal(res.body.maxPlayers, 8);
   assert.equal(res.body.imageUrl, 'https://store-images.s-microsoft.com/image/box');

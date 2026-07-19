@@ -29,8 +29,7 @@ module.exports = function repoContract(repo) {
   }
 
   const gameFields = (over = {}) => ({
-    title: 'A', platform: 'analog', type: 'analog', duration: 'medium',
-    minPlayers: 1, maxPlayers: 4, image: null, source: null, ...over,
+    title: 'A', minPlayers: 1, maxPlayers: 4, image: null, source: null, ...over,
   });
 
   test('createRound mints ids and getRound round-trips it', async () => {
@@ -66,35 +65,62 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.getRound(T, round.id), null);
   });
 
-  test('createRound import copies only active games (title/type/image) + logs them', async () => {
+  test('createRound import copies only active games (title/image) + logs them', async () => {
     const src = await freshRound();
     const active = await repo.createGame(T, src.id, gameFields({ title: 'Catan', minPlayers: 3, image: '/uploads/a.jpg' }));
-    const retired = await repo.createGame(T, src.id, gameFields({ title: 'Old', duration: 'short', minPlayers: 2, maxPlayers: 2 }));
+    const retired = await repo.createGame(T, src.id, gameFields({ title: 'Old', minPlayers: 2, maxPlayers: 2 }));
     await repo.retireGame(T, src.id, retired.id, true);
 
     const copy = await repo.createRound(T, { name: 'Copy', members: ['Z'], importFromRoundId: src.id });
     assert.equal(copy.games.length, 1);
     const g = copy.games[0];
     assert.equal(g.title, 'Catan');
-    assert.equal(g.type, 'analog');
     assert.equal(g.image, '/uploads/a.jpg');
     assert.equal(g.retired, false);
     assert.notEqual(g.id, active.id); // a fresh id, not the source game's
-    // duration/players are intentionally NOT carried over by import.
-    assert.equal(g.duration, undefined);
+    // players are intentionally NOT carried over by import.
+    assert.equal(g.minPlayers, undefined);
     const feed = await repo.listActivities(T, copy.id);
     assert.equal(feed.filter((a) => a.type === 'game_added').length, 1);
   });
 
   test('updateGame applies only the given patch; unknown round/game -> null', async () => {
     const round = await freshRound();
-    const game = await repo.createGame(T, round.id, gameFields({ platform: 'ps', type: 'digital', duration: 'long' }));
-    const updated = await repo.updateGame(T, round.id, game.id, { title: 'B', duration: 'short' });
+    const game = await repo.createGame(T, round.id, gameFields({ minPlayers: 2, maxPlayers: 2 }));
+    const updated = await repo.updateGame(T, round.id, game.id, { title: 'B', minPlayers: 3 });
     assert.equal(updated.title, 'B');
-    assert.equal(updated.duration, 'short');
-    assert.equal(updated.platform, 'ps'); // untouched
+    assert.equal(updated.minPlayers, 3);
+    assert.equal(updated.maxPlayers, 2); // untouched
     assert.equal(await repo.updateGame(T, round.id, 'missing', { title: 'X' }), null);
     assert.equal(await repo.updateGame(T, 'missing', game.id, { title: 'X' }), null);
+  });
+
+  test('migrateLegacyFieldToTag tags matching games and clears the legacy field (#242)', async () => {
+    const round = await freshRound();
+    const tag = await repo.addTag(T, round.id, 'Steam');
+    // Seed two legacy games via the generic patch (createGame no longer writes
+    // the retired fields), plus one without the field.
+    const a = await repo.createGame(T, round.id, gameFields({ title: 'A' }));
+    const b = await repo.createGame(T, round.id, gameFields({ title: 'B' }));
+    const c = await repo.createGame(T, round.id, gameFields({ title: 'C' }));
+    await repo.updateGame(T, round.id, a.id, { platform: 'steam' });
+    await repo.updateGame(T, round.id, b.id, { platform: 'steam' });
+    await repo.updateGame(T, round.id, c.id, { platform: 'ps' });
+
+    const count = await repo.migrateLegacyFieldToTag(T, round.id, 'platform', 'steam', tag.id);
+    assert.equal(count, 2);
+
+    const games = (await repo.getRound(T, round.id)).games;
+    const byId = Object.fromEntries(games.map((g) => [g.id, g]));
+    assert.deepEqual(byId[a.id].tagIds, [tag.id]);
+    assert.equal('platform' in byId[a.id], false);
+    assert.deepEqual(byId[b.id].tagIds, [tag.id]);
+    assert.equal('platform' in byId[b.id], false);
+    // The 'ps' game is untouched (different value).
+    assert.equal(byId[c.id].platform, 'ps');
+    assert.equal(byId[c.id].tagIds, undefined);
+    // A missing round -> null.
+    assert.equal(await repo.migrateLegacyFieldToTag(T, 'missing', 'platform', 'steam', tag.id), null);
   });
 
   test('deleteGame refuses active games, scrubs retired ones from sessions', async () => {

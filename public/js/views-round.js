@@ -111,7 +111,7 @@ function renderStartTab(round, activeGames) {
       const fallback = game
         ? game.image
           ? ''
-          : `<i class="ti ${typeIcon(game.type)}" aria-hidden="true"></i>`
+          : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`
         : '<i class="ti ti-tornado" aria-hidden="true"></i>';
       let pill = '';
       if (game) {
@@ -156,7 +156,7 @@ function renderStartTab(round, activeGames) {
     const imgStyle = game.image ? ` style="background-image:url('${game.image}')"` : '';
     const fallback = game.image
       ? ''
-      : `<i class="ti ${typeIcon(game.type)}" aria-hidden="true"></i>`;
+      : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`;
     const pill =
       sst.avg !== null
         ? `<span class="score-pill" style="background:${avgColor(sst.avg)}">Ø ${sst.avg.toFixed(1)}</span>`
@@ -222,7 +222,7 @@ function renderStartTab(round, activeGames) {
     recs.slice(0, 5).forEach(({ game, reasons }) => {
       const item = h(`<div class="recommend-item">
            <div class="recommend-item__info">
-             <span class="recommend-item__title">${esc(game.title)} ${typeTag(game.type)}</span>
+             <span class="recommend-item__title">${esc(game.title)}</span>
              <span class="recommend-item__reason">${reasons.map(esc).join(' · ')}</span>
            </div>
            <button class="btn recommend-item__btn">${esc(t('rec.retire'))}</button>
@@ -265,6 +265,15 @@ function renderStartTab(round, activeGames) {
   actions.appendChild(addGameBtn);
   actions.appendChild(tagsBtn);
   actions.appendChild(bgBtn);
+  // One-time platform/duration → tags migration (#242): only offered while the
+  // round still has games carrying the retired legacy fields. Removed by #243.
+  if (round.games.some((g) => g.platform || g.duration)) {
+    const migrateBtn = h(
+      `<button class="btn"><i class="ti ti-arrow-right" aria-hidden="true"></i> ${esc(t('round.migrateLegacy'))}</button>`
+    );
+    migrateBtn.addEventListener('click', () => showLegacyMigrate(round));
+    actions.appendChild(migrateBtn);
+  }
   app.appendChild(actions);
 }
 
@@ -318,7 +327,7 @@ function renderBuyNext(round, activeGames, statsByGame) {
     playNext.slice(0, 5).forEach(({ game, avg }) => {
       const item = h(`<div class="recommend-item">
            <div class="recommend-item__info">
-             <span class="recommend-item__title">${esc(game.title)} ${typeTag(game.type)}</span>
+             <span class="recommend-item__title">${esc(game.title)}</span>
            </div>
            <span class="score-pill" style="background:${avgColor(avg)}">Ø ${avg.toFixed(1)}</span>
          </div>`);
@@ -357,22 +366,17 @@ function renderBuyNext(round, activeGames, statsByGame) {
        </div>`);
     const body = collapse.querySelector('.buynext__body');
     const list = h('<div class="recommend-list"></div>');
-    items.forEach(({ title, reason, platform, url }) => {
-      // platform/url are absent on runs cached before #106 — degrade to the
-      // plain title-and-reason row in that case.
-      const badge = platform ? ` ${platformTag(platform)}` : '';
-      const link = url
-        ? `<a class="recommend-item__link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">
-             <i class="ti ti-external-link" aria-hidden="true"></i> ${esc(t('buynext.view'))}</a>`
-        : '';
+    items.forEach(({ title, reason }) => {
+      // Buy-next suggestions are now platform-agnostic (#242): just a title and a
+      // reason. Older cached runs may still carry platform/url fields — they're
+      // ignored, so those rows simply render without a badge or store link.
       list.appendChild(h(`<div class="recommend-item">
            <div class="recommend-item__info">
              <span class="recommend-item__head">
-               <span class="recommend-item__title">${esc(title)}</span>${badge}
+               <span class="recommend-item__title">${esc(title)}</span>
              </span>
              ${reason ? `<span class="recommend-item__reason">${esc(reason)}</span>` : ''}
            </div>
-           ${link}
          </div>`));
     });
     body.appendChild(list);

@@ -62,15 +62,10 @@ test('POST generates, parses, filters owned, and caches a buy-next run', async (
   assert.equal(res.status, 200);
   assert.equal(res.body.model, 'claude-haiku-4-5');
   assert.ok(res.body.id, 'the run carries an id');
-  // All games are analog, so the only target platform is analog: an item with no
-  // platform is bucketed to it and gets a BoardGameGeek search link.
+  // Recommendations are platform-agnostic now (#242): just a title and a reason,
+  // the owned title filtered out.
   assert.deepEqual(res.body.items, [
-    {
-      title: 'Splendor',
-      platform: 'analog',
-      reason: 'Fast and tactical.',
-      url: 'https://boardgamegeek.com/geeksearch.php?action=search&objecttype=boardgame&q=Splendor',
-    },
+    { title: 'Splendor', reason: 'Fast and tactical.' },
   ]);
   assert.ok(res.body.generatedAt);
 
@@ -222,18 +217,17 @@ test('unknown round returns 404', async () => {
   assert.equal(res.status, 404);
 });
 
-test('POST is platform-aware and localized: prompt targets the round platforms, reasons in German', async () => {
+test('POST is localized: prompt requests German reasons, items are platform-agnostic (#242)', async () => {
   process.env.ANTHROPIC_API_KEY = 'test-key';
   const round = await createRound(request);
-  await addGame(round.id, { title: 'Gran Turismo 7', platform: 'ps' });
-  await addGame(round.id, { title: 'Catan', platform: 'analog' });
+  await addGame(round.id, { title: 'Gran Turismo 7' });
+  await addGame(round.id, { title: 'Catan' });
   let sentBody = '';
   global.fetch = async (_url, opts) => {
     sentBody = opts.body;
     return anthropicReply([
-      { title: 'Ratchet & Clank', platform: 'ps', reason: 'Bunter Plattformer.' },
-      { title: 'Azul', platform: 'analog', reason: 'Elegantes Legespiel.' },
-      { title: 'Zelda', platform: 'switch', reason: 'x' }, // switch not a target here -> dropped
+      { title: 'Ratchet & Clank', reason: 'Bunter Plattformer.' },
+      { title: 'Azul', reason: 'Elegantes Legespiel.' },
     ]);
   };
   const res = await request(app)
@@ -242,68 +236,49 @@ test('POST is platform-aware and localized: prompt targets the round platforms, 
   assert.equal(res.status, 200);
 
   const prompt = JSON.parse(sentBody).messages[0].content;
-  assert.match(prompt, /Only recommend games available on these platforms: .*ps/);
-  assert.match(prompt, /analog/);
   assert.match(prompt, /Write each "reason" in German/);
+  // No platform dimension in the prompt anymore.
+  assert.doesNotMatch(prompt, /platform/i);
 
-  // The switch item is dropped (not a platform this round plays on); the rest are
-  // tagged and get a store-search link on their own platform.
-  assert.deepEqual(res.body.items.map((i) => i.title), ['Ratchet & Clank', 'Azul']);
-  assert.equal(res.body.items[0].platform, 'ps');
-  assert.ok(res.body.items[0].url.startsWith('https://store.playstation.com/'));
-  assert.equal(res.body.items[1].platform, 'analog');
-  assert.ok(res.body.items[1].url.startsWith('https://boardgamegeek.com/'));
+  assert.deepEqual(res.body.items, [
+    { title: 'Ratchet & Clank', reason: 'Bunter Plattformer.' },
+    { title: 'Azul', reason: 'Elegantes Legespiel.' },
+  ]);
   assert.equal(res.body.locale, 'de');
 });
 
-test('buildProfile derives the platform set; digital present wins, analog-only stays analog', () => {
-  const digital = {
+test('buildProfile aggregates a member-anonymous taste profile without platform/type (#242)', () => {
+  const round = {
     games: [
-      { id: '1', title: 'A', type: 'digital', platform: 'ps' },
-      { id: '2', title: 'B', type: 'analog', platform: 'analog' },
-      { id: '3', title: 'C', type: 'digital', platform: 'steam', retired: true }, // retired ignored
+      { id: '1', title: 'A', minPlayers: 2, maxPlayers: 4 },
+      { id: '2', title: 'B', minPlayers: 2, maxPlayers: 4 },
+      { id: '3', title: 'C', retired: true }, // retired ignored
     ],
     members: [],
     sessions: [],
   };
-  assert.deepEqual(rec.buildProfile(digital).platforms, ['ps', 'analog']);
-
-  const analog = {
-    games: [
-      { id: '1', title: 'A', type: 'analog', platform: 'analog' },
-      { id: '2', title: 'B', type: 'digital' }, // legacy: no platform, digital -> not targetable
-    ],
-    members: [],
-    sessions: [],
-  };
-  assert.deepEqual(rec.buildProfile(analog).platforms, ['analog']);
+  const profile = rec.buildProfile(round);
+  assert.deepEqual(profile.owned, ['A', 'B']);
+  assert.equal(profile.typicalPlayers, '2-4');
+  // The retired platform/type/duration dimensions are gone from the profile.
+  assert.equal('platforms' in profile, false);
+  assert.equal('favoriteType' in profile, false);
+  assert.equal('favoriteDuration' in profile, false);
 });
 
-test('parseItems validates the platform against the target set and dedupes titles', () => {
+test('parseItems keeps title+reason, filters owned, and dedupes titles (#242)', () => {
   const data = {
     content: [
       {
         type: 'text',
         text: JSON.stringify([
-          { title: 'Hades', platform: 'steam', reason: 'a' },
-          { title: 'Hades', platform: 'ps', reason: 'dupe title, dropped' },
-          { title: 'Nope', platform: 'xbox', reason: 'not a target, dropped' },
-          { title: 'Owned', platform: 'ps', reason: 'owned, dropped' },
+          { title: 'Hades', reason: 'a' },
+          { title: 'Hades', reason: 'dupe title, dropped' },
+          { title: 'Owned', reason: 'owned, dropped' },
         ]),
       },
     ],
   };
-  const items = rec.parseItems(data, ['owned'], ['ps', 'steam']);
-  assert.deepEqual(items.map((i) => i.title), ['Hades']);
-  assert.equal(items[0].platform, 'steam');
-  assert.ok(items[0].url.startsWith('https://store.steampowered.com/'));
-});
-
-test('platformSearchUrl builds a search link per platform (and null for other)', () => {
-  assert.match(rec.platformSearchUrl('analog', 'Catan'), /^https:\/\/boardgamegeek\.com\/.*q=Catan$/);
-  assert.match(rec.platformSearchUrl('ps', 'Gran Turismo'), /store\.playstation\.com\/.*\/search\/Gran%20Turismo$/);
-  assert.match(rec.platformSearchUrl('steam', 'Hades'), /store\.steampowered\.com\/search\/\?term=Hades$/);
-  assert.match(rec.platformSearchUrl('xbox', 'Forza'), /microsoft\.com\/.*q=Forza$/);
-  assert.match(rec.platformSearchUrl('switch', 'Mario'), /nintendo\.com\/search\/\?q=Mario$/);
-  assert.equal(rec.platformSearchUrl('other', 'x'), null);
+  const items = rec.parseItems(data, ['owned']);
+  assert.deepEqual(items, [{ title: 'Hades', reason: 'a' }]);
 });

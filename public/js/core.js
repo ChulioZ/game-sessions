@@ -152,7 +152,7 @@ let gamesSort = 'avg';
 // Regal filter state – kept for the running session, scoped to one round.
 // Reset (along with gamesSort) when a different round's Regal is opened.
 // `tags` is a tri-state Map<tagId, 'include'|'exclude'> (#241); absence = ignore.
-let regalFilters = { type: 'all', durations: new Set(), tags: new Map(), query: '' };
+let regalFilters = { tags: new Map(), query: '' };
 let regalFiltersRid = null;
 
 // Tri-state custom-tag filter (#241), shared by the Regal and start-session tag
@@ -520,20 +520,10 @@ function makeMemberLink(el, rid, mid) {
   });
 }
 
-// Tabler icon class for a game type: digital -> gamepad, analog -> dice.
-const typeIcon = (type) => (type === 'digital' ? 'ti-device-gamepad-2' : 'ti-dice-3');
-
-const typeTag = (type) =>
-  type === 'digital'
-    ? `<span class="tag tag--digital"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i> ${t('type.digital')}</span>`
-    : `<span class="tag tag--analog"><i class="ti ti-dice-3" aria-hidden="true"></i> ${t('type.analog')}</span>`;
-
-// Games from before the duration feature have duration null -> no tag.
-const durationTag = (duration) => {
-  if (!['short', 'medium', 'long'].includes(duration)) return '';
-  const icon = { short: 'ti-bolt', medium: 'ti-clock', long: 'ti-hourglass' }[duration];
-  return `<span class="tag tag--duration"><i class="ti ${icon}" aria-hidden="true"></i> ${t('duration.' + duration)}</span>`;
-};
+// Neutral game icon shown on a card/thumbnail that has no cover image. Since
+// games no longer carry a platform/type (#242), one generic glyph stands in for
+// every game (`ti-dice-3` is declared in the bundled tabler-icons subset).
+const GAME_ICON = 'ti-dice-3';
 
 // Plain localized player-count text ("2–4 Personen"), or '' when the game
 // predates the player-count feature (one/both fields missing). The plain form is
@@ -553,15 +543,3 @@ const playersTag = (min, max) => {
   return `<span class="tag tag--players"><i class="ti ti-users" aria-hidden="true"></i> ${text}</span>`;
 };
 
-// Icon-only badges for the compact card overlay; the full localized word
-// stays available as a tooltip.
-const typeBadge = (type) =>
-  type === 'digital'
-    ? `<span class="img-badge" title="${t('type.digital')}"><i class="ti ti-device-gamepad-2" aria-hidden="true"></i></span>`
-    : `<span class="img-badge" title="${t('type.analog')}"><i class="ti ti-dice-3" aria-hidden="true"></i></span>`;
-
-const durationBadge = (duration) => {
-  if (!['short', 'medium', 'long'].includes(duration)) return '';
-  const icon = { short: 'ti-bolt', medium: 'ti-clock', long: 'ti-hourglass' }[duration];
-  return `<span class="img-badge" title="${t('duration.' + duration)}"><i class="ti ${icon}" aria-hidden="true"></i></span>`;
-};

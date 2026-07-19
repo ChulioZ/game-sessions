@@ -42,9 +42,7 @@ const frontendGlobals = {
   readClipboardImage: 'readonly', shuffled: 'readonly', iconText: 'readonly',
   createCoverLoader: 'readonly',
   makeGameLink: 'readonly', makeMemberLink: 'readonly',
-  typeIcon: 'readonly', typeTag: 'readonly',
-  durationTag: 'readonly', playersTag: 'readonly', playersText: 'readonly', typeBadge: 'readonly',
-  durationBadge: 'readonly',
+  GAME_ICON: 'readonly', playersTag: 'readonly', playersText: 'readonly',
   // account.js (issue #138): onboarding + token wiring, shared with core.js api()
   accountsMode: 'writable', accountUser: 'writable',
   SA_ACCESS: 'readonly', SA_REFRESH: 'readonly', saStore: 'readonly',
@@ -73,14 +71,11 @@ const frontendGlobals = {
   renderBuyNext: 'readonly', generateBuyNext: 'readonly',
   renderRegalTab: 'readonly', renderChronikTab: 'readonly', renderPokaleTab: 'readonly',
   activeSheet: 'writable', closeSheet: 'readonly', startDirectSession: 'readonly',
-  showLinkProvider: 'readonly', attachLookup: 'readonly', searchProvider: 'readonly',
-  scoreHit: 'readonly', providerLabel: 'readonly', lookupProviderType: 'readonly',
+  showLinkProvider: 'readonly', showLegacyMigrate: 'readonly', attachLookup: 'readonly',
+  searchProvider: 'readonly',
+  scoreHit: 'readonly', providerLabel: 'readonly',
   providerLogo: 'readonly', PROVIDER_LOGOS: 'readonly',
   PROVIDER_LABELS: 'readonly', LOOKUP_PROVIDERS: 'readonly', MAX_SUGGESTIONS: 'readonly',
-  PLATFORM_IDS: 'readonly', PLATFORM_PROVIDER: 'readonly', providerPlatform: 'readonly',
-  platformProvider: 'readonly',
-  platformType: 'readonly', platformLogo: 'readonly', platformIcon: 'readonly',
-  platformTag: 'readonly', gamePlatform: 'readonly',
   // views-member.js
   showMember: 'readonly', memberStats: 'readonly',
   // views-session.js

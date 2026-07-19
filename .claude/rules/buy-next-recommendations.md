@@ -24,11 +24,14 @@ in issue #42. The design decisions aren't obvious from the code alone:
   that recommends both game types with one mechanism.
 
 - **The payload is a taste profile, not raw data.** The route aggregates
-  top/bottom-rated titles, favoured duration/player-count/type, and the
-  current collection (so it isn't re-suggested) — **never member names or
-  ids**. This is a deliberate, user-authorised exception to the "no cloud
-  services unless asked" default; keep the anonymization when touching this
-  route, it's a privacy feature, not a nicety.
+  top/bottom-rated titles, the typical player-count range, and the current
+  collection (so it isn't re-suggested) — **never member names or ids**. (Since
+  #242 the profile no longer carries a platform/duration/type dimension — those
+  fields were retired from the game model, so the buy-next call is a generic
+  board-or-digital recommender with no per-platform targeting or store links.)
+  This is a deliberate, user-authorised exception to the "no cloud services
+  unless asked" default; keep the anonymization when touching this route, it's a
+  privacy feature, not a nicety.
 
 - **Results are a history, not a single cache slot.** Runs are appended to
   `round.recommendationRuns` (newest first, issue #115) rather than

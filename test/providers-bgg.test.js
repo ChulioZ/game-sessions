@@ -102,7 +102,7 @@ const CATAN = {
   },
 };
 
-test('parseProduct normalizes a BGG item (analog, players, bucketed duration, cover, url)', () => {
+test('parseProduct normalizes a BGG item (analog, players, cover, url)', () => {
   const d = bgg.parseProduct(CATAN, '13');
   assert.deepEqual(d, {
     provider: 'bgg',
@@ -111,7 +111,6 @@ test('parseProduct normalizes a BGG item (analog, players, bucketed duration, co
     minPlayers: 3,
     maxPlayers: 4,
     type: 'analog',
-    duration: 'long', // avg(60,120) = 90 -> long
     imageUrl: 'https://cf.geekdo-images.com/abc__itemrep/img/x/pic9156909.png',
     url: 'https://boardgamegeek.com/boardgame/13/catan',
   });
@@ -123,7 +122,6 @@ test('parseProduct falls back to a constructed BGG url and never throws on a mis
   assert.equal(d.title, null);
   assert.equal(d.minPlayers, null);
   assert.equal(d.type, 'analog');
-  assert.equal(d.duration, null);
   assert.equal(d.imageUrl, null);
   assert.equal(d.url, 'https://boardgamegeek.com/boardgame/13');
   // A totally empty response is handled the same way.
@@ -134,20 +132,6 @@ test('parseProduct treats BGG "0"/unknown numbers as null', () => {
   const d = bgg.parseProduct({ item: { name: 'X', minplayers: '0', maxplayers: '0', minplaytime: '0', maxplaytime: '0' } }, '1');
   assert.equal(d.minPlayers, null);
   assert.equal(d.maxPlayers, null);
-  assert.equal(d.duration, null);
-});
-
-// --- bucketDuration ------------------------------------------------------
-
-test('bucketDuration maps average play time to short/medium/long', () => {
-  assert.equal(bgg.bucketDuration(10, 20), 'short'); // avg 15
-  assert.equal(bgg.bucketDuration(20, 40), 'medium'); // avg 30 (boundary -> medium)
-  assert.equal(bgg.bucketDuration(40, 70), 'medium'); // avg 55
-  assert.equal(bgg.bucketDuration(60, 60), 'medium'); // avg 60 (boundary -> medium)
-  assert.equal(bgg.bucketDuration(60, 120), 'long'); // avg 90
-  assert.equal(bgg.bucketDuration('45', undefined), 'medium'); // single value, string
-  assert.equal(bgg.bucketDuration(0, 0), null);
-  assert.equal(bgg.bucketDuration(undefined, undefined), null);
 });
 
 // --- pickImage -----------------------------------------------------------

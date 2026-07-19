@@ -79,7 +79,7 @@ test('pickImage prefers header_image then falls back to capsule_image', () => {
   assert.equal(steam.pickImage(null), null);
 });
 
-test('parseAppDetails maps a successful entry (digital, players, long duration)', () => {
+test('parseAppDetails maps a successful entry (digital, players)', () => {
   const json = {
     292030: {
       success: true,
@@ -96,7 +96,6 @@ test('parseAppDetails maps a successful entry (digital, players, long duration)'
   assert.equal(d.externalId, '292030');
   assert.equal(d.title, 'The Witcher 3: Wild Hunt');
   assert.equal(d.type, 'digital');
-  assert.equal(d.duration, 'long'); // Steam has no play-time; digital default
   assert.equal(d.minPlayers, 1);
   assert.equal(d.maxPlayers, 1);
   assert.equal(d.imageUrl, 'https://shared.akamai.steamstatic.com/apps/292030/header.jpg');
@@ -110,7 +109,6 @@ test('parseAppDetails still returns a usable object for a failed/missing entry',
   assert.equal(d.title, null);
   assert.equal(d.imageUrl, null);
   assert.equal(d.type, 'digital');
-  assert.equal(d.duration, 'long');
   assert.equal(d.minPlayers, null);
   assert.equal(d.maxPlayers, null);
   assert.equal(d.url, 'https://store.steampowered.com/app/999/');

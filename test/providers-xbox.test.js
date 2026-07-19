@@ -99,13 +99,12 @@ test('parseSearch dedupes by BigCatalogId and skips entries missing id or title'
   assert.deepEqual(out, [{ providerId: 'ID1', title: 'A', thumbnail: null }]);
 });
 
-test('parseDetail maps a product to digital detail (players, long duration, xbox url)', () => {
+test('parseDetail maps a product to digital detail (players, xbox url)', () => {
   const d = xbox.parseDetail(DETAIL_JSON, '9N683TDT5M7R');
   assert.equal(d.provider, 'xbox');
   assert.equal(d.externalId, '9N683TDT5M7R');
   assert.equal(d.title, 'Halo: Campaign Evolved');
   assert.equal(d.type, 'digital');
-  assert.equal(d.duration, 'long'); // Microsoft Store has no play-time; digital default
   assert.equal(d.minPlayers, 1); // SinglePlayer floors the minimum at 1
   assert.equal(d.maxPlayers, 4); // widest coop bound
   assert.equal(d.imageUrl, 'https://store-images.s-microsoft.com/image/boxart'); // BoxArt preferred
@@ -119,7 +118,6 @@ test('parseDetail still returns a usable object for a missing product', () => {
   assert.equal(d.title, null);
   assert.equal(d.imageUrl, null);
   assert.equal(d.type, 'digital');
-  assert.equal(d.duration, 'long');
   assert.equal(d.minPlayers, null);
   assert.equal(d.maxPlayers, null);
   assert.equal(d.url, 'https://www.xbox.com/de-de/games/store/_/999');
