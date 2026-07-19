@@ -1,4 +1,4 @@
-/* Spieleabend – core: DOM helpers, API, small utilities, stats,
+/* Spielwirbel – core: DOM helpers, API, small utilities, stats,
    design application. Part of the frontend; all files share one global script
    scope. Load order: see index.html. */
 

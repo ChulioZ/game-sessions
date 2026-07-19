@@ -1,4 +1,4 @@
-/* Spieleabend – buy-next: local "play these again" recommendations (issue #101,
+/* Spielwirbel – buy-next: local "play these again" recommendations (issue #101,
    Layer A). Pure and dependency-free, so it works both as a shared-scope
    frontend script (browser global) and as a CommonJS module the test suite can
    require. Load order: see index.html. */

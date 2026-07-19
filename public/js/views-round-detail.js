@@ -1,4 +1,4 @@
-/* Spieleabend – views: a round's game detail screen, the design/background
+/* Spielwirbel – views: a round's game detail screen, the design/background
    picker (THEMES) and the shared sheet open/close helpers. Loaded after
    views-round.js; shares one global script scope. */
 

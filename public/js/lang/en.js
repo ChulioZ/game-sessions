@@ -1,7 +1,7 @@
 /* English translations. Registers into the global I18N (see js/i18n.js). */
 
 I18N.en = {
-  'app.title': 'Spieleabend',
+  'app.title': 'Spielwirbel',
   'nav.home': 'Home',
   'common.back': 'Back',
   'common.delete': 'Delete',
@@ -347,7 +347,7 @@ I18N.en = {
   'theme.schiefer': 'Slate',
   'theme.pfirsich': 'Peach',
 
-  'home.onboard.title': 'Welcome to Spieleabend!',
+  'home.onboard.title': 'Welcome to Spielwirbel!',
   'home.onboard.sub': 'Create your first round below and get everyone to the table.',
 
   'auth.email': 'E-mail',
@@ -355,12 +355,12 @@ I18N.en = {
   'auth.logout': 'Log out',
   'auth.backToLogin': 'Back to login',
   'auth.login.title': 'Welcome back',
-  'auth.login.sub': 'Log in to your Spieleabend.',
+  'auth.login.sub': 'Log in to Spielwirbel.',
   'auth.login.submit': 'Log in',
   'auth.login.forgot': 'Forgot password?',
   'auth.login.toRegister': 'Create an account',
   'auth.register.title': 'Create your account',
-  'auth.register.sub': 'Start your own Spieleabend.',
+  'auth.register.sub': 'Start your own Spielwirbel.',
   'auth.register.pwHint': 'At least 8 characters.',
   'auth.register.submit': 'Sign up',
   'auth.register.toLogin': 'Already have an account? Log in',

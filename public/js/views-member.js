@@ -1,4 +1,4 @@
-/* Spieleabend – view: member detail page. Shows one round member's stats and
+/* Spielwirbel – view: member detail page. Shows one round member's stats and
    lets the user edit their name and avatar color. Part of the frontend; all
    files share one global script scope (load order: see index.html). */
 

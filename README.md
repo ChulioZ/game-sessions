@@ -1,4 +1,4 @@
-# 🎲 Spieleabend (Game Night)
+# 🎲 Spielwirbel
 
 [![CI](https://github.com/ChulioZ/game-sessions/actions/workflows/ci.yml/badge.svg)](https://github.com/ChulioZ/game-sessions/actions/workflows/ci.yml)
 [![Lint](https://github.com/ChulioZ/game-sessions/actions/workflows/lint.yml/badge.svg)](https://github.com/ChulioZ/game-sessions/actions/workflows/lint.yml)

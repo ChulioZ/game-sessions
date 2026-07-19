@@ -1,4 +1,4 @@
-/* Spieleabend – views: the round hub (Start / Regal / Chronik / Pokale dock)
+/* Spielwirbel – views: the round hub (Start / Regal / Chronik / Pokale dock)
    and the Start tab (launchpad + buy-next). The other round concerns live in
    sibling files loaded right after this one: views-round-tabs.js (Regal /
    Chronik / Pokale / retired), views-round-detail.js (game detail, design,

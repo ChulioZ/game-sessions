@@ -100,8 +100,8 @@ router.post('/register', async (req, res) => {
   const link = `${baseUrl()}/verify-email?uid=${user.id}&token=${verifyRaw}`;
   await sendSafe({
     to: email,
-    subject: 'Spieleabend: E-Mail-Adresse bestätigen / Confirm your e-mail',
-    text: `Hallo!\n\nBitte bestätige deine E-Mail-Adresse für Spieleabend, indem du diesen Link öffnest (gültig 24 Stunden):\n${link}\n\nFalls du dich nicht registriert hast, ignoriere diese E-Mail einfach.\n\n---\n\nHi!\n\nPlease confirm your e-mail address for Spieleabend by opening this link (valid for 24 hours):\n${link}\n\nIf you didn't sign up, simply ignore this e-mail.`,
+    subject: 'Spielwirbel: E-Mail-Adresse bestätigen / Confirm your e-mail',
+    text: `Hallo!\n\nBitte bestätige deine E-Mail-Adresse für Spielwirbel, indem du diesen Link öffnest (gültig 24 Stunden):\n${link}\n\nFalls du dich nicht registriert hast, ignoriere diese E-Mail einfach.\n\n---\n\nHi!\n\nPlease confirm your e-mail address for Spielwirbel by opening this link (valid for 24 hours):\n${link}\n\nIf you didn't sign up, simply ignore this e-mail.`,
   });
   res.json({ ok: true });
 });
@@ -219,8 +219,8 @@ router.post('/forgot-password', async (req, res) => {
     const link = `${baseUrl()}/reset-password?uid=${user.id}&token=${raw}`;
     await sendSafe({
       to: user.email,
-      subject: 'Spieleabend: Passwort zurücksetzen / Reset your password',
-      text: `Hallo!\n\nDu (oder jemand anderes) hast das Zurücksetzen deines Spieleabend-Passworts angefordert. Öffne diesen Link (gültig 1 Stunde):\n${link}\n\nFalls du das nicht warst, ignoriere diese E-Mail — dein Passwort bleibt unverändert.\n\n---\n\nHi!\n\nYou (or someone else) requested a password reset for Spieleabend. Open this link (valid for 1 hour):\n${link}\n\nIf this wasn't you, ignore this e-mail — your password stays unchanged.`,
+      subject: 'Spielwirbel: Passwort zurücksetzen / Reset your password',
+      text: `Hallo!\n\nDu (oder jemand anderes) hast das Zurücksetzen deines Spielwirbel-Passworts angefordert. Öffne diesen Link (gültig 1 Stunde):\n${link}\n\nFalls du das nicht warst, ignoriere diese E-Mail — dein Passwort bleibt unverändert.\n\n---\n\nHi!\n\nYou (or someone else) requested a password reset for Spielwirbel. Open this link (valid for 1 hour):\n${link}\n\nIf this wasn't you, ignore this e-mail — your password stays unchanged.`,
     });
   }
   // Identical response either way — no probing for accounts here either.
