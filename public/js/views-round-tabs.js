@@ -1,4 +1,4 @@
-/* Spieleabend – views: the round hub's non-Start tabs — Regal (games library),
+/* Spielwirbel – views: the round hub's non-Start tabs — Regal (games library),
    Chronik (session history), Pokale (trophies) and the retired-games screen.
    Loaded after views-round.js; shares one global script scope. */
 

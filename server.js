@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * Spieleabend – small local server.
+ * Spielwirbel – small local server.
  *
  * Persistence: the default is a single file data/data.json (see lib/store.js);
  * set DATABASE_URL to use PostgreSQL instead (see lib/repo/, issue #127).
@@ -31,7 +31,7 @@ const PORT = process.env.PORT || 3000;
 // the JSON backend's init() is a no-op), then listen.
 repo.init().then(() => {
   app.listen(PORT, () => {
-    console.log(`\n  🎲  Spieleabend running at  http://localhost:${PORT}\n`);
+    console.log(`\n  🎲  Spielwirbel running at  http://localhost:${PORT}\n`);
     console.log(`      Persistence:          ${process.env.DATABASE_URL ? 'PostgreSQL (DATABASE_URL)' : DATA_FILE}`);
     console.log(`      Images are stored in: ${imagesLocation}\n`);
   });

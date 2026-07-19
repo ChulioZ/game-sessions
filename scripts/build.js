@@ -99,7 +99,7 @@ function rewriteRefs(text, manifest) {
 // new service-worker cache and `activate` drops the stale one automatically.
 function deriveCache(manifest) {
   const digest = sha8(Object.values(manifest).sort().join('\n'));
-  return `spieleabend-shell-${digest}`;
+  return `spielwirbel-shell-${digest}`;
 }
 
 function build({ srcDir = DEFAULT_SRC, outDir = DEFAULT_OUT } = {}) {

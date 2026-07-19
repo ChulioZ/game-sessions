@@ -1,4 +1,4 @@
-/* Spieleabend – ranking: tie-aware podium places. Pure and dependency-free, so
+/* Spielwirbel – ranking: tie-aware podium places. Pure and dependency-free, so
    it works both as a shared-scope frontend script (browser global) and as a
    CommonJS module the test suite can require. Load order: see index.html. */
 

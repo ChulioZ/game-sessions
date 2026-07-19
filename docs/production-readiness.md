@@ -415,8 +415,13 @@ liability limits, account termination). Lawyer-drafted for launch.
 > `.com`, DENIC for `.de`, registry bootstrap via `rdap.org` for `.app`) and is
 > **not a trademark clearance**. A DPMA (German) + EUIPO (EU) register search
 > in the relevant Nice classes, by an attorney, is required before committing.
-> No rebrand has happened — "Spieleabend" remains `app.title`/`<title>` as of
-> this writing.
+> Rebranded to **"Spielwirbel"** on 2026-07-19 (issue #147): `app.title`/`<title>`
+> and all brand-facing text now read "Spielwirbel", and `spielwirbel.de`/`.com`/
+> `.app` are registered. The scope was deliberately the lightweight one (a
+> Claude-assisted availability search, no attorney); a **formal DPMA + EUIPO
+> clearance remains deferred** — still advisable before brand spend and
+> effectively mandatory before a paid tier (see below and #173). The analysis
+> that follows is kept as the rationale for why the old generic name was dropped.
 
 **Current brand.** "Spieleabend" is **generic German for "game night."** As a
 trademark it is descriptive → not distinctive → effectively unregistrable and

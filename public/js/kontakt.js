@@ -11,7 +11,7 @@
 (function () {
   const STR = {
     de: {
-      docTitle: 'Kontakt · Spieleabend',
+      docTitle: 'Kontakt · Spielwirbel',
       title: 'Kontakt',
       intro: 'Schreib uns über dieses Formular — wir antworten dir per E-Mail.',
       name: 'Name (optional)',
@@ -28,7 +28,7 @@
       back: '← Zur App',
     },
     en: {
-      docTitle: 'Contact · Spieleabend',
+      docTitle: 'Contact · Spielwirbel',
       title: 'Contact',
       intro: 'Write to us with this form — we reply by e-mail.',
       name: 'Name (optional)',

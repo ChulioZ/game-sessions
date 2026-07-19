@@ -1,7 +1,7 @@
 {
   "name": "game-sessions",
   "version": "1.0.0",
-  "description": "Spieleabend: a small, local-only web app to manage games, run voting sessions and track ratings.",
+  "description": "Spielwirbel: a web app to manage games, run voting sessions and track ratings.",
   "type": "commonjs",
   "main": "server.js",
   "license": "PolyForm-Noncommercial-1.0.0",

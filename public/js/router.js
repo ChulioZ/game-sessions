@@ -1,4 +1,4 @@
-/* Spieleabend – client-side routing. Maps the URL to a view and back, so a
+/* Spielwirbel – client-side routing. Maps the URL to a view and back, so a
    reload keeps the current screen and stable views are shareable by link.
    Part of the frontend; all files share one global script scope (load order:
    see index.html). Uses the History API (clean paths, no hash); the server

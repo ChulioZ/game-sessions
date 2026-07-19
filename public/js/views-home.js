@@ -1,4 +1,4 @@
-/* Spieleabend – views: home (lobby), new round.
+/* Spielwirbel – views: home (lobby), new round.
    Part of the frontend; all files share one global script scope. */
 
 // =================== Home: lobby ===================
