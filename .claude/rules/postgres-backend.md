@@ -29,11 +29,30 @@ Non-obvious things that cost effort — keep them:
 - **A single transaction runs on ONE connection — no concurrent queries on it.**
   Inside `tx(tenant, fn)`/`qt` (a `knex.transaction`), `await` queries **one at a
   time**; firing them concurrently on the same `trx` errors. That's why
-  `childrenOf` awaits its three SELECTs sequentially. `getRound`/`listRounds` use
-  `Promise.all`, but only across **independent `qt()` calls** — each
-  `knex.transaction()` checks out its **own** pooled connection, so they truly
-  parallelize (and each carries its own tenant `set_config`). Never `Promise.all`
-  builders sharing one `trx`.
+  `childrenOf` awaits its three SELECTs sequentially. Independent `qt()` calls
+  *do* parallelize (each `knex.transaction()` checks out its own pooled
+  connection, each with its own tenant `set_config`) — but never `Promise.all`
+  builders sharing one `trx`. The hot reads use no transaction at all anymore —
+  see the single-round-trip bullet below (#203).
+
+- **The hot reads (`listRounds`/`getRound`/`listActivities`) are ONE statement =
+  ONE round trip — don't rewrite them back onto `qt()`/`tx()`.** (#203) Every
+  `qt()` costs BEGIN + set_config + statement + COMMIT = 4 round trips on its
+  own connection; the reads used to fan out over several of those, measuring
+  ~9 RTTs of wall latency per `GET /api/rounds` (the ~1s hosted round loads).
+  The `READ_SQL` statements collapse each read to one round trip: a
+  **materialized CTE** runs `set_config('app.tenant_id', ?, true)` and every
+  subquery correlates on the CTE's **return value** — a real dataflow
+  dependency, so the executor must run set_config before any RLS-checked scan
+  (`current_setting` then sees the tenant), and the transaction-local setting
+  dies at statement end (nothing leaks to the pooled connection). If that
+  ordering ever broke, RLS fails **closed** (zero rows, loud) — never
+  cross-tenant data. `READ_SQL` is exported so `test/repo.postgres.test.js`
+  can prove the ordering under FORCE RLS as a **non-superuser** — CI's
+  superuser connection bypasses RLS, so only that plain-role probe would catch
+  a break. The `(tenant_id, seq)` child indexes (migration
+  `20260719180000_tenant_read_indexes.js`) serve the tenant-wide list read at
+  multi-tenant scale.
 
 - **Backend parity of *absent* keys.** The JSON model omits some keys until
   written (a fresh round has no `recommendationRuns`; a fresh member no `color`).

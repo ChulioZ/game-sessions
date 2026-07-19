@@ -103,6 +103,27 @@ if (!process.env.DATABASE_URL) {
         const scoped = await probe.query('SELECT id FROM rounds');
         await probe.query('COMMIT');
         assert.deepEqual(scoped.rows.map((r) => r.id), [round.id]);
+
+        // The single-round-trip reads (#203) embed set_config in the statement
+        // itself (READ_SQL): the materialized CTE runs it and every subquery
+        // correlates on its return value, so the RLS scans must see the tenant.
+        // Prove that ordering under FORCE RLS as a non-superuser, with NO prior
+        // setting on the connection — the exact texts the repo executes.
+        const { READ_SQL } = require('../lib/repo/postgres');
+        const native = (sql) => { let i = 0; return sql.replace(/\?/g, () => `$${++i}`); };
+        const list = await probe.query(native(READ_SQL.list), ['rls-probe']);
+        assert.deepEqual(list.rows[0].rounds.map((r) => r.id), [round.id]);
+        assert.equal(list.rows[0].members.length, 1);
+        const one = await probe.query(native(READ_SQL.round), ['rls-probe', round.id, round.id, round.id, round.id]);
+        assert.equal(one.rows[0].round.id, round.id);
+        assert.equal(one.rows[0].members[0].data.name, 'M');
+        const feed = await probe.query(native(READ_SQL.activities), ['rls-probe', round.id, round.id]);
+        assert.equal(feed.rows[0].round.id, round.id);
+        assert.deepEqual(feed.rows[0].acts, []);
+        // The statement-embedded setting must die WITH the statement: a plain
+        // follow-up on the same connection is back to fail-closed zero rows.
+        const after = await probe.query('SELECT count(*)::int AS n FROM rounds');
+        assert.equal(after.rows[0].n, 0);
       } finally {
         await probe.end();
       }
