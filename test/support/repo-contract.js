@@ -66,36 +66,6 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.getRound(T, round.id), null);
   });
 
-  test('importRounds inserts full rounds preserving ids, references and shapes', async () => {
-    // A whole round with fixed ids and every field kind (nested votes map, arrays,
-    // background, recommendationRuns) — importRounds must round-trip it exactly.
-    const round = {
-      id: 'rnd_imported_1',
-      name: 'Imported',
-      members: [{ id: 'mem_a', name: 'A', color: '#1d9e75' }, { id: 'mem_b', name: 'B' }],
-      games: [{
-        id: 'game_x', title: 'X', platform: 'analog', type: 'analog', duration: 'medium',
-        minPlayers: 1, maxPlayers: 4, image: '/uploads/x.jpg', retired: false, retiredAt: null,
-      }],
-      sessions: [{
-        id: 'sess_1', createdAt: 't', gameIds: ['game_x'], votes: { mem_a: { game_x: { rating: 4 } } },
-        chosenGameId: 'game_x', chosenAt: 't', finished: true, finishedAt: 't', winnerIds: ['mem_b'],
-        cancelled: false, cancelledAt: null, done: true,
-      }],
-      activities: [{ id: 'act_1', type: 'game_added', at: 't', gameId: 'game_x', title: 'X' }],
-      background: { type: 'theme', page: 'p', accent: 'a' },
-      recommendationRuns: [{ id: 'run_1', items: [{ title: 'Y' }] }],
-    };
-    assert.equal(await repo.importRounds(T, [round]), 1);
-    // Every id, nested reference, and field kind survives the round-trip. The
-    // activity feed is stored but served via listActivities, not on the round.
-    const { activities, ...roundSansFeed } = round;
-    assert.deepEqual(await repo.getRound(T, 'rnd_imported_1'), roundSansFeed);
-    assert.deepEqual(await repo.listActivities(T, 'rnd_imported_1'), activities);
-    // …and lands in the importing tenant, invisible to others.
-    assert.equal(await repo.getRound(OTHER, 'rnd_imported_1'), null);
-  });
-
   test('createRound import copies only active games (title/type/image) + logs them', async () => {
     const src = await freshRound();
     const active = await repo.createGame(T, src.id, gameFields({ title: 'Catan', minPlayers: 3, image: '/uploads/a.jpg' }));
@@ -371,15 +341,13 @@ module.exports = function repoContract(repo) {
     assert.deepEqual(again.refreshTokens, []);
   });
 
-  test('importUsers preserves ids; updateMember links and unlinks a user', async () => {
-    const fixed = { id: 'usr_fixed_1', ...userFields({ email: 'fixed@example.com' }) };
-    assert.equal(await repo.importUsers([fixed]), 1);
-    assert.deepEqual(await repo.getUserById('usr_fixed_1'), fixed);
+  test('updateMember links and unlinks a user', async () => {
+    const user = await repo.createUser(userFields({ email: 'fixed@example.com' }));
 
     const round = await freshRound();
     const mid = round.members[0].id;
-    const linked = await repo.updateMember(T, round.id, mid, { userId: 'usr_fixed_1' });
-    assert.equal(linked.userId, 'usr_fixed_1');
+    const linked = await repo.updateMember(T, round.id, mid, { userId: user.id });
+    assert.equal(linked.userId, user.id);
     const unlinked = await repo.updateMember(T, round.id, mid, { userId: null });
     assert.equal(unlinked.userId, null);
   });

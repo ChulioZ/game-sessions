@@ -46,11 +46,7 @@ Everything is configured with the same env vars documented in
    endpoint (managed Postgres over the internet requires TLS); over the project's
    **private** network it is usually not needed. Start with it set; drop it only
    if the driver reports the server doesn't support SSL.
-4. *(Optional)* migrate your existing localhost `data/data.json` into the new DB
-   with the server **stopped**, ids preserved: `DATABASE_URL=… npm run
-   migrate:postgres` (see `scripts/migrate-json-to-postgres.js`). Skip it for a
-   fresh start.
-5. *(Optional hardening, #136)* the round tables are protected by **Row-Level
+4. *(Optional hardening, #136)* the round tables are protected by **Row-Level
    Security**, but Postgres **superusers bypass RLS entirely** — and Railway's
    default `postgres` user is one. The app's own queries are tenant-filtered
    either way; for the database-level backstop to actually bind, run the app as

@@ -265,7 +265,6 @@ public/
 scripts/
   build.js           optional cache-busting build: mirrors public/ into dist/
                      with content-hashed, minified js/css (npm run build)
-  migrate-json-to-postgres.js  one-off data.json → PostgreSQL import
 test/                automated tests (node --test + supertest)
 data/                all user data (git-ignored)
   data.json          created on first run
@@ -309,11 +308,6 @@ Enable buy-next AI suggestions: `ANTHROPIC_API_KEY=sk-ant-… npm start`
 Use PostgreSQL instead of the JSON file: `DATABASE_URL=postgres://… npm start` (the
 app creates its schema on first start; add `DATABASE_SSL=true` for managed Postgres
 that requires TLS). Unset, it uses `DATA_DIR/data.json` as before.
-
-Migrate an existing `data/data.json` into a fresh Postgres database (one-off, with
-the server **stopped**): `DATABASE_URL=postgres://… npm run migrate:postgres`. It
-copies every round into Postgres preserving ids, and refuses to run against a
-non-empty target. See `scripts/migrate-json-to-postgres.js`.
 
 Store cover images in S3-compatible object storage instead of on local disk (for
 a stateless, scalable app tier): `S3_BUCKET=my-bucket npm start`. Set `S3_ENDPOINT`

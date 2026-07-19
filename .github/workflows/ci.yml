@@ -69,8 +69,6 @@ jobs:
           node-version: 24.x
           cache: npm
       - run: npm ci
-        # Both PG specs share the one service-container database, so run them
-        # serially (--test-concurrency=1); each truncates before it runs.
-      - run: node --test --test-concurrency=1 test/repo.postgres.test.js test/migrate.postgres.test.js
+      - run: node --test test/repo.postgres.test.js
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/gamesessions
