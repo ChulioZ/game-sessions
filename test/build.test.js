@@ -70,8 +70,8 @@ test('service worker precaches the hashed shell with a content-derived cache', (
 
   const cacheName = sw.match(/const CACHE = '([^']*)';/)[1];
   assert.equal(cacheName, cache);
-  assert.match(cacheName, /^spieleabend-shell-[0-9a-f]{8}$/);
-  assert.notEqual(cacheName, 'spieleabend-shell-v3', 'cache name is derived, not the source literal');
+  assert.match(cacheName, /^spielwirbel-shell-[0-9a-f]{8}$/);
+  assert.notEqual(cacheName, 'spielwirbel-shell-v1', 'cache name is derived, not the source literal');
 });
 
 test('login.html reference is rewritten too', () => {

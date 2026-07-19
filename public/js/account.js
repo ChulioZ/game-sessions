@@ -1,4 +1,4 @@
-/* Spieleabend – account/onboarding (issue #138): the in-app "way in" for the
+/* Spielwirbel – account/onboarding (issue #138): the in-app "way in" for the
    token-first account backend (issue #135). Renders the auth screens (login,
    register, e-mail-verification landing, forgot/reset password), stores the
    access/refresh tokens, and boots the app in one of two modes:

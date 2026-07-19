@@ -1,7 +1,7 @@
 /* German translations. Registers into the global I18N (see js/i18n.js). */
 
 I18N.de = {
-  'app.title': 'Spieleabend',
+  'app.title': 'Spielwirbel',
   'nav.home': 'Start',
   'common.back': 'Zurück',
   'common.delete': 'Löschen',
@@ -347,7 +347,7 @@ I18N.de = {
   'theme.schiefer': 'Schiefer',
   'theme.pfirsich': 'Pfirsich',
 
-  'home.onboard.title': 'Willkommen beim Spieleabend!',
+  'home.onboard.title': 'Willkommen bei Spielwirbel!',
   'home.onboard.sub': 'Erstelle unten deine erste Runde und hol alle an den Tisch.',
 
   'auth.email': 'E-Mail',
@@ -355,12 +355,12 @@ I18N.de = {
   'auth.logout': 'Abmelden',
   'auth.backToLogin': 'Zurück zur Anmeldung',
   'auth.login.title': 'Willkommen zurück',
-  'auth.login.sub': 'Melde dich bei deinem Spieleabend an.',
+  'auth.login.sub': 'Melde dich bei Spielwirbel an.',
   'auth.login.submit': 'Anmelden',
   'auth.login.forgot': 'Passwort vergessen?',
   'auth.login.toRegister': 'Konto erstellen',
   'auth.register.title': 'Konto erstellen',
-  'auth.register.sub': 'Starte deinen eigenen Spieleabend.',
+  'auth.register.sub': 'Starte deinen eigenen Spielwirbel.',
   'auth.register.pwHint': 'Mindestens 8 Zeichen.',
   'auth.register.submit': 'Registrieren',
   'auth.register.toLogin': 'Schon ein Konto? Anmelden',

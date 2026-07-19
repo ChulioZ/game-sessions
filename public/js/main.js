@@ -1,4 +1,4 @@
-/* Spieleabend – bootstrap (loads last). */
+/* Spielwirbel – bootstrap (loads last). */
 
 'use strict';
 

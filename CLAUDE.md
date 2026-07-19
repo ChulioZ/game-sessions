@@ -128,8 +128,9 @@ an open question, not a settled one — see the Architecture section below.
 - The core entity (a voting/play session) is called **"Session"** — in code
   (`sessions`, `…/sessions` routes) *and* in both UI languages. Don't
   reintroduce "Spielabend", "game night", or "Abend" for it. The app brand
-  "Spieleabend" (`app.title`, `<title>`) names the product, not the entity,
-  and is the one intentional exception.
+  "Spielwirbel" (`app.title`, `<title>`) names the product, not the entity,
+  and is the one intentional exception (it replaced the earlier working name
+  "Spieleabend" in the #147 rebrand — don't reintroduce that either).
 - There is intentionally **no one-time migration code** in the backend; the live
   `data.json` is fully up to date. For a future schema change, migrate the data
   once (with the server stopped, see `.claude/rules/`) rather than keeping

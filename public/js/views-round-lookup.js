@@ -1,4 +1,4 @@
-/* Spieleabend – views: the add-game / link-provider search-as-you-type lookup
+/* Spielwirbel – views: the add-game / link-provider search-as-you-type lookup
    plumbing (provider + platform helpers, attachLookup), the add-game and
    link-provider sheets, and starting a session directly from a game. Loaded
    after views-round.js; shares one global script scope. */
