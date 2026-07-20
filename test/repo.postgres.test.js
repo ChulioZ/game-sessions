@@ -318,6 +318,19 @@ if (!process.env.DATABASE_URL) {
         //    pooled connection is back to fail-closed.
         const after = await probe.query('SELECT count(*)::int AS n FROM games');
         assert.equal(after.rows[0].n, 0);
+
+        // 4. The same trap for the one-time cover purge (#172): it clears covers
+        //    with an UPDATE, so running it under the admin escape would match
+        //    zero rows and report a clean sweep that changed nothing. Asserted
+        //    here because the contract suite's connection is a superuser and
+        //    bypasses RLS entirely, so only a plain role can catch it.
+        await probe.query('BEGIN');
+        await probe.query("SELECT set_config('app.tenant_id', 'esc-a', true)");
+        const scoped = await probe.query(
+          "UPDATE games SET data = data || '{\"image\":null}'::jsonb WHERE data->>'image' = '/uploads/esc-a.jpg'"
+        );
+        assert.equal(scoped.rowCount, 1, 'the tenant-scoped path purgeAllCovers uses must update');
+        await probe.query('ROLLBACK');
       } finally {
         await probe.end();
       }

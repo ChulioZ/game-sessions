@@ -7,8 +7,17 @@ the `lib/repo/` seam. Routes and `lib/upload.js` go through `lib/storage` —
 `serve` handler mounted at `/uploads` in `lib/app.js`. Both backends satisfy the
 same contract, so nothing else changes when the backend does.
 
-**The non-obvious decision — keep it:** the stored `image` value stays a
-**same-origin `/uploads/<key>` path for both backends**, and the S3 backend
+> **Scope note (#172, 2026-07-20):** everything below is about images **we
+> host** — i.e. members' own uploads. Since #172 a **provider** cover is no
+> longer downloaded at all: it is hotlinked, and `game.image` then holds the
+> provider's own `https://…` URL. So `image` has **two** shapes now, and the
+> "always same-origin" claim below holds only for the uploads. See
+> `.claude/rules/provider-cover-hotlinking.md` — in particular for why
+> `storage.remove()` must ignore anything that isn't a `/uploads/` path.
+
+**The non-obvious decision — keep it:** the stored `image` value for an
+**uploaded** cover stays a **same-origin `/uploads/<key>` path for both
+backends**, and the S3 backend
 **streams objects back through the app** (`GET /uploads/<key>` → `GetObjectCommand`
 → pipe). Do **not** "simplify" this to storing a public bucket/CDN URL in `image`
 and pointing the frontend at it directly. That path looks cheaper but breaks

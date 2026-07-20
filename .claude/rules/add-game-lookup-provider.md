@@ -180,12 +180,20 @@ it in `afterEach` — the provider calls the global `fetch`, so this fully isola
 it. See `test/providers-psstore.test.js`, `test/lookup.test.js`, and the
 cover-download tests in `test/games.test.js`.
 
-**Cover downloads are host-allowlisted (SSRF guard):** `POST …/games` only
-downloads an `imageUrl` whose host a provider vouches for
+**Cover URLs are host-allowlisted:** `POST …/games` only accepts an `imageUrl`
+whose host a provider vouches for
 (`imageHostAllowed` / `isAllowedImageUrl`, aggregated in
 `lib/providers/index.js` from each provider's own `IMAGE_HOSTS` — Sony's
 `playstation.net`, Steam's `steamstatic.com`, Nintendo's `nintendo.com`,
 Xbox's `s-microsoft.com`, BGG's `geekdo-images.com`). Keep that guard when
-adding providers; never fetch arbitrary client-supplied URLs. The same
-`IMAGE_HOSTS` list feeds the CSP `img-src` allowlist — see
-`.claude/rules/security-middleware.md`.
+adding providers. The same `IMAGE_HOSTS` list feeds the CSP `img-src` allowlist
+— see `.claude/rules/security-middleware.md`.
+
+**Since #172 the server no longer downloads cover bytes at all:** a provider
+cover is **hotlinked** (the allowlisted URL is stored in `game.image` and the
+browser loads it from the provider), because re-hosting third-party box art on a
+public service needs a licence we don't hold. So the allowlist now gates what may
+be *stored and rendered* rather than what may be *fetched*, and `img-src` is what
+makes saved covers display at all. Adding a provider means its `IMAGE_HOSTS` must
+be right, or its games' covers are CSP-blocked with no error but a console
+violation. See `.claude/rules/provider-cover-hotlinking.md`.

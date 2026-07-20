@@ -8,22 +8,12 @@ const express = require('express');
 const { z } = require('zod');
 const storage = require('../lib/storage');
 const { upload, saveUploadedImage } = require('../lib/upload');
-const { getProvider, isAllowedImageUrl } = require('../lib/providers');
+const { getProvider, providerCoverUrl } = require('../lib/providers');
 const { validateBody } = require('../lib/validate');
 const quota = require('../lib/quota');
 const { trackEvent } = require('../lib/observability');
 
 const router = express.Router({ mergeParams: true });
-
-const IMG_TIMEOUT_MS = 10000;
-const MAX_IMG_BYTES = 10 * 1024 * 1024; // mirror the multer upload limit
-
-const EXT_BY_MIME = {
-  'image/jpeg': '.jpg',
-  'image/png': '.png',
-  'image/gif': '.gif',
-  'image/webp': '.webp',
-};
 
 // A player count sent as a form field: parseInt (NaN if unparseable), never a
 // hard field error — the superRefine below owns the messages so they stay the
@@ -67,29 +57,6 @@ const updateGameSchema = z.object({
   title: z.preprocess((v) => String(v).trim(), z.string().min(1, 'Title is missing')).optional(),
 });
 
-// Download a provider cover image into storage and return its /uploads path, or
-// null on any failure (never throws — a missing cover must not block adding the
-// game). The host is allowlisted by the provider layer (SSRF guard).
-async function downloadCover(url) {
-  if (!url || !isAllowedImageUrl(url)) return null;
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), IMG_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal });
-    if (!res.ok) return null;
-    const mime = (res.headers.get('content-type') || '').split(';')[0].trim();
-    const ext = EXT_BY_MIME[mime];
-    if (!ext) return null; // not an image type we store
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length === 0 || buf.length > MAX_IMG_BYTES) return null;
-    return storage.save(buf, ext);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
 // Build the optional { provider, externalId, url } source link from POST fields,
 // or null when no known provider is referenced.
 function buildSource(body) {
@@ -126,15 +93,15 @@ router.post('/', upload.single('image'), async (req, res) => {
   if (tagIds.some((x) => !roundTagIds.has(x)))
     return res.status(400).json({ error: 'Unknown tag' });
 
-  // Cover: an uploaded file wins; otherwise pull a provider image URL (if given
-  // and host-allowlisted) into storage so only the /uploads path is stored. The
-  // upload is verified by content (magic bytes), not the client mimetype.
+  // Cover: an uploaded file wins and is stored by us (verified by content —
+  // magic bytes — not the client mimetype). A provider image URL is instead
+  // stored as-is and hotlinked, never re-hosted (#172).
   let image = null;
   if (req.file) {
     image = await saveUploadedImage(req.file);
     if (!image) return res.status(400).json({ error: 'Uploaded file is not a supported image' });
   } else if (req.body.imageUrl) {
-    image = await downloadCover(req.body.imageUrl);
+    image = providerCoverUrl(req.body.imageUrl);
   }
 
   const game = await req.repo.createGame(req.params.rid, {
@@ -199,8 +166,9 @@ router.patch('/:gid', upload.single('image'), async (req, res) => {
   if (source) patch.source = source;
 
   // Image: a new upload replaces the old file; removeImage clears it; otherwise
-  // a provider imageUrl (host-allowlisted) is downloaded server-side. The old
-  // file is deleted unless another game still references it.
+  // a provider imageUrl (host-allowlisted) is stored as a hotlink (#172). The
+  // old cover is deleted unless another game still references it — and only
+  // when we actually hosted it (storage.remove ignores hotlinked URLs).
   const oldImage = game.image;
   let newImage = oldImage;
   if (req.file) {
@@ -210,8 +178,8 @@ router.patch('/:gid', upload.single('image'), async (req, res) => {
   } else if (b.removeImage === 'true' || b.removeImage === true) {
     newImage = null;
   } else if (b.imageUrl) {
-    const downloaded = await downloadCover(b.imageUrl);
-    if (downloaded) newImage = downloaded; // a failed/blocked download keeps the old cover
+    const linked = providerCoverUrl(b.imageUrl);
+    if (linked) newImage = linked; // an untrusted/malformed URL keeps the old cover
   }
   if (newImage !== oldImage) patch.image = newImage;
 

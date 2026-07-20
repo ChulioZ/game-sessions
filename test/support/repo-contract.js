@@ -443,6 +443,41 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.isImageReferenced(T, '/uploads/ok.jpg'), true);
   });
 
+  test('purgeAllCovers clears every cover and source link across tenants (#172)', async () => {
+    const mine = await freshRound();
+    const src = { provider: 'bgg', externalId: '13', url: 'https://boardgamegeek.com/boardgame/13' };
+    const hosted = await repo.createGame(T, mine.id, gameFields({ title: 'Hosted', image: '/uploads/a.jpg', source: src }));
+    // A hotlinked cover goes too — the sweep is deliberately blunt.
+    const linked = await repo.createGame(T, mine.id, gameFields({ title: 'Linked', image: 'https://cf.geekdo-images.com/x/p.jpg' }));
+    // A game that has neither must not be counted.
+    const bare = await repo.createGame(T, mine.id, gameFields({ title: 'Bare' }));
+
+    const theirs = await repo.createRound(OTHER, { name: 'Their round', members: ['Zoe'] });
+    const alien = await repo.createGame(OTHER, theirs.id, gameFields({ title: 'Theirs', image: '/uploads/t.jpg', source: src }));
+
+    // Counts are relative: earlier cases in this suite have left covers behind,
+    // and the sweep is global. What pins totality down is the repeat below.
+    const swept = await repo.purgeAllCovers();
+    assert.ok(swept.images >= 4, `expected at least 4 covers cleared, got ${swept.images}`);
+    assert.ok(swept.sources >= 2, `expected at least 2 links cleared, got ${swept.sources}`);
+
+    const after = await repo.getRound(T, mine.id);
+    const byId = (id) => after.games.find((g) => g.id === id);
+    assert.equal(byId(hosted.id).image, null);
+    assert.equal(byId(hosted.id).source, null);
+    assert.equal(byId(linked.id).image, null);
+    assert.equal(byId(bare.id).image, null);
+    // Cross-tenant: the sweep is global by design.
+    const afterOther = await repo.getRound(OTHER, theirs.id);
+    assert.equal(afterOther.games.find((g) => g.id === alien.id).image, null);
+    assert.equal(afterOther.games.find((g) => g.id === alien.id).source, null);
+
+    // Nothing is left to clear, so a repeat is an honest no-op.
+    assert.deepEqual(await repo.purgeAllCovers(), { images: 0, sources: 0 });
+    // Non-cover data is untouched.
+    assert.equal(byId(hosted.id).title, 'Hosted');
+  });
+
   test('logModeration appends and listModeration returns newest first', async () => {
     const a = await repo.logModeration({ action: 'takedown', target: '/uploads/a.jpg', reason: 'notice 1', at: '2026-07-20T10:00:00.000Z' });
     assert.match(a.id, /^[0-9a-f]{16}$/);

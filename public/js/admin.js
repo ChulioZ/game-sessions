@@ -169,6 +169,42 @@
     }
   });
 
+  // ---- cover purge (one-time, #172) ----------------------------------------
+
+  $('purgeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!window.confirm(
+      'Wirklich ALLE Cover und Provider-Verknüpfungen aller Tenants löschen? '
+      + 'Das lässt sich nicht rückgängig machen.',
+    )) return;
+
+    const button = $('purgeForm').querySelector('button');
+    button.disabled = true;
+    try {
+      const out = await api('/covers/purge', {
+        method: 'POST',
+        body: JSON.stringify({
+          reason: $('purgeReason').value,
+          confirm: $('purgeConfirm').value,
+        }),
+      });
+      const failed = out.objectsFailed ? ' — Objekte konnten NICHT gelöscht werden' : '';
+      show(
+        $('purgeMsg'),
+        `Bereinigt: ${out.images} Cover, ${out.sources} Verknüpfung(en), `
+        + `${out.objects} Objekt(e) gelöscht${failed}.`,
+        out.objectsFailed ? 'err' : 'ok',
+      );
+      $('purgeReason').value = '';
+      $('purgeConfirm').value = '';
+      loadLog();
+    } catch (err) {
+      show($('purgeMsg'), message(err), 'err');
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   // ---- users ---------------------------------------------------------------
 
   async function loadUsers() {

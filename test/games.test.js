@@ -174,116 +174,36 @@ test('POST games stores a BoardGameGeek source link', async () => {
   });
 });
 
-test('POST games downloads a cover from the BoardGameGeek image host', async () => {
-  const realFetch = global.fetch;
-  global.fetch = async () => ({
-    ok: true,
-    status: 200,
-    headers: { get: () => 'image/jpeg' },
-    arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
-  });
-  try {
-    const round = await createRound(request);
-    const res = await addGame(round.id, {
-      title: 'Catan',
-      imageUrl: 'https://cf.geekdo-images.com/x/pic.jpg',
-    });
-    assert.equal(res.status, 201);
-    assert.match(res.body.image, /^\/uploads\/[0-9a-f]+\.jpg$/);
-    assert.ok(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(res.body.image))));
-  } finally {
-    global.fetch = realFetch;
-  }
-});
+// Provider cover art is HOTLINKED, never re-hosted (#172): the provider's own
+// https URL is what gets stored, and the server must not fetch a single byte.
+// One case per provider image host, so the allowlist stays covered.
+const COVER_HOSTS = [
+  ['BoardGameGeek', 'https://cf.geekdo-images.com/x/pic.jpg'],
+  ['Steam', 'https://cdn.akamai.steamstatic.com/steam/apps/570/header.jpg'],
+  ['Nintendo', 'https://www.nintendo.com/eu/media/images/mk8_square.jpg'],
+  ['Xbox', 'https://store-images.s-microsoft.com/image/apps.9999.infinite.jpg'],
+  ['PlayStation', 'https://image.api.playstation.com/vulcan/witcher.png'],
+];
 
-test('POST games downloads a cover from the Steam image host', async () => {
-  const realFetch = global.fetch;
-  global.fetch = async () => ({
-    ok: true,
-    status: 200,
-    headers: { get: () => 'image/jpeg' },
-    arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
+for (const [label, imageUrl] of COVER_HOSTS) {
+  test(`POST games stores a ${label} cover as a hotlink without downloading it`, async () => {
+    const realFetch = global.fetch;
+    let called = false;
+    global.fetch = async () => { called = true; throw new Error('must not download a cover'); };
+    try {
+      const round = await createRound(request);
+      const res = await addGame(round.id, { title: `Cover via ${label}`, imageUrl });
+      assert.equal(res.status, 201);
+      // Stored verbatim, so the browser fetches it from the provider.
+      assert.equal(res.body.image, imageUrl);
+      assert.equal(called, false, 'the server must not fetch the cover');
+      // ...and nothing of ours was written for it.
+      assert.equal(fs.readdirSync(store.UPLOAD_DIR).length, 0);
+    } finally {
+      global.fetch = realFetch;
+    }
   });
-  try {
-    const round = await createRound(request);
-    const res = await addGame(round.id, {
-      title: 'Stardew Valley',
-      imageUrl: 'https://shared.akamai.steamstatic.com/apps/413150/header.jpg',
-    });
-    assert.equal(res.status, 201);
-    assert.match(res.body.image, /^\/uploads\/[0-9a-f]+\.jpg$/);
-    assert.ok(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(res.body.image))));
-  } finally {
-    global.fetch = realFetch;
-  }
-});
-
-test('POST games downloads a cover from the Nintendo image host', async () => {
-  const realFetch = global.fetch;
-  global.fetch = async () => ({
-    ok: true,
-    status: 200,
-    headers: { get: () => 'image/jpeg' },
-    arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
-  });
-  try {
-    const round = await createRound(request);
-    const res = await addGame(round.id, {
-      title: 'Mario Kart 8 Deluxe',
-      imageUrl: 'https://www.nintendo.com/eu/media/images/mk8_square.jpg',
-    });
-    assert.equal(res.status, 201);
-    assert.match(res.body.image, /^\/uploads\/[0-9a-f]+\.jpg$/);
-    assert.ok(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(res.body.image))));
-  } finally {
-    global.fetch = realFetch;
-  }
-});
-
-test('POST games downloads a cover from the Xbox image host', async () => {
-  const realFetch = global.fetch;
-  global.fetch = async () => ({
-    ok: true,
-    status: 200,
-    headers: { get: () => 'image/jpeg' },
-    arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
-  });
-  try {
-    const round = await createRound(request);
-    const res = await addGame(round.id, {
-      title: 'Halo Infinite',
-      imageUrl: 'https://store-images.s-microsoft.com/image/apps.9999.infinite.jpg',
-    });
-    assert.equal(res.status, 201);
-    assert.match(res.body.image, /^\/uploads\/[0-9a-f]+\.jpg$/);
-    assert.ok(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(res.body.image))));
-  } finally {
-    global.fetch = realFetch;
-  }
-});
-
-test('POST games downloads a cover from an allowlisted host', async () => {
-  const realFetch = global.fetch;
-  global.fetch = async () => ({
-    ok: true,
-    status: 200,
-    headers: { get: () => 'image/png' },
-    arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
-  });
-  try {
-    const round = await createRound(request);
-    const res = await addGame(round.id, {
-      title: 'The Witcher 3',
-      imageUrl: 'https://image.api.playstation.com/vulcan/witcher.png',
-    });
-    assert.equal(res.status, 201);
-    assert.match(res.body.image, /^\/uploads\/[0-9a-f]+\.png$/);
-    const file = path.join(store.UPLOAD_DIR, path.basename(res.body.image));
-    assert.ok(fs.existsSync(file));
-  } finally {
-    global.fetch = realFetch;
-  }
-});
+}
 
 test('POST games does not download a cover from a non-allowlisted host', async () => {
   const realFetch = global.fetch;
@@ -336,14 +256,10 @@ test('PATCH ignores an invalid source and does not clobber the field', async () 
   assert.equal(res.body.title, 'Renamed'); // other fields still applied
 });
 
-test('PATCH downloads a cover from an allowlisted imageUrl', async () => {
+test('PATCH stores an allowlisted imageUrl as a hotlink without downloading it', async () => {
   const realFetch = global.fetch;
-  global.fetch = async () => ({
-    ok: true,
-    status: 200,
-    headers: { get: () => 'image/jpeg' },
-    arrayBuffer: async () => new Uint8Array([1, 2, 3, 4]).buffer,
-  });
+  let called = false;
+  global.fetch = async () => { called = true; throw new Error('must not download a cover'); };
   try {
     const round = await createRound(request);
     const game = (await addGame(round.id)).body;
@@ -351,8 +267,9 @@ test('PATCH downloads a cover from an allowlisted imageUrl', async () => {
       .patch(`/api/rounds/${round.id}/games/${game.id}`)
       .send({ imageUrl: 'https://cf.geekdo-images.com/x/pic.jpg' });
     assert.equal(res.status, 200);
-    assert.match(res.body.image, /^\/uploads\/[0-9a-f]+\.jpg$/);
-    assert.ok(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(res.body.image))));
+    assert.equal(res.body.image, 'https://cf.geekdo-images.com/x/pic.jpg');
+    assert.equal(called, false, 'the server must not fetch the cover');
+    assert.equal(fs.readdirSync(store.UPLOAD_DIR).length, 0);
   } finally {
     global.fetch = realFetch;
   }

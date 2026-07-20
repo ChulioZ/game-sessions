@@ -38,6 +38,12 @@ code and documentation are in English.
   view). The lookup is optional — manual entry works exactly as before, and the
   app degrades gracefully when a source is unreachable (one provider failing
   still shows the others' results).
+  **Provider cover art is hotlinked, not copied:** the picture is loaded straight
+  from the store's own servers rather than downloaded onto this instance, because
+  re-hosting third-party box art on a public service needs a licence we don't
+  have (issue #172). Your own uploaded covers are stored normally. One
+  consequence to expect: if a store moves or removes an image, that cover stops
+  showing — re-link the game or upload your own picture.
   Details can be edited inline on the game's detail page. A game added by hand
   (with no source link) can be **linked to a provider after the fact** from its
   detail page: search the providers, pick the match, and choose which differing
@@ -219,7 +225,7 @@ routes/
                                              404 unless ADMIN_PASSWORD)
   lookup.js          /api/lookup            (search/game — provider proxy: PS Store, BGG, Steam, Nintendo, Xbox)
   rounds.js          /api/rounds            (list, detail, create, delete)
-  games.js           …/games                (add [+cover download/source],
+  games.js           …/games                (add [+cover hotlink/source],
                                              edit [+link to provider],
                                              retire/restore, delete)
   members.js         …/members              (edit name / avatar color)
@@ -365,6 +371,12 @@ reference, leaving the rest of the data intact); suspend or restore an account
 without deleting anything, so evidence survives; and read the log of those actions
 that a DSA Art. 17 statement of reasons needs. Suspension takes effect immediately
 — existing access tokens stop working, not just new logins.
+
+The same page carries a **one-time** "Alle Cover zurücksetzen" action (issue
+#172): it clears every game's cover and provider link across all tenants and
+deletes every object in the bucket, including orphaned ones. It exists only to
+retire the provider covers this instance re-hosted under the old behaviour, is
+guarded by a typed confirmation phrase, and is scheduled for removal once used.
 
 Data-subject requests (issue #273) are handled from the same Konten card:
 **Exportieren** downloads everything held for one account as JSON (its rounds

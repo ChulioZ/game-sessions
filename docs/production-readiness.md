@@ -184,8 +184,11 @@ gate #129; token-first accounts #135; tenant-scoped authorization #136, see
 hardened uploads — content-sniff/re-encode, safe extension derived from the
 detected type, not `originalname` (#133).
 
-**Already strong, kept:** the cover-image download SSRF allowlist (see
+**Already strong, kept:** the cover-image host allowlist (see
 [`.claude/rules/add-game-lookup-provider.md`](../.claude/rules/add-game-lookup-provider.md))
+— since #172 it gates what may be *stored and hotlinked* rather than downloaded,
+and the server no longer fetches cover bytes at all (see
+[`.claude/rules/provider-cover-hotlinking.md`](../.claude/rules/provider-cover-hotlinking.md))
 and `.env`-only secrets management (see
 [`.claude/rules/no-reading-env-files.md`](../.claude/rules/no-reading-env-files.md))
 — extend the same discipline to any new user-supplied-URL fetch.
