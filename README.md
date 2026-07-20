@@ -186,6 +186,8 @@ lib/
     s3.js            S3-compatible object storage, used when S3_BUCKET set
   upload.js          multer image-upload config (persists via lib/storage)
   auth.js            shared-password gate (active when AUTH_PASSWORD is set)
+  admin.js           operator gate for the moderation surface (separate
+                     ADMIN_PASSWORD; 404s unless set — issue #268)
   accounts.js        user-account primitives: Argon2id passwords, access/refresh
                      tokens (issue #135; off unless ACCOUNTS_ENABLED)
   mail.js            outbound e-mail (Brevo when BREVO_API_KEY is set, else
@@ -210,6 +212,10 @@ routes/
                                              e-mail, login, refresh, logout,
                                              forgot/reset password, me —
                                              404 unless ACCOUNTS_ENABLED)
+  admin.js           /api/admin             (operator moderation: image→tenant
+                                             lookup, takedown, account
+                                             suspend/restore, action log —
+                                             404 unless ADMIN_PASSWORD)
   lookup.js          /api/lookup            (search/game — provider proxy: PS Store, BGG, Steam, Nintendo, Xbox)
   rounds.js          /api/rounds            (list, detail, create, delete)
   games.js           …/games                (add [+cover download/source],
@@ -224,6 +230,7 @@ routes/
 public/
   index.html
   login.html         standalone login page (shown only when AUTH_PASSWORD is set)
+  admin.html         standalone operator moderation page (needs ADMIN_PASSWORD)
   styles.css
   manifest.webmanifest  PWA manifest (installable app metadata + icons)
   sw.js              service worker: precache the app shell, offline fallback
@@ -232,6 +239,8 @@ public/
   js/
     login.js         login.html's own script — an IIFE, not part of the
                      shared global scope below (only loaded by login.html)
+    admin.js         admin.html's own script — likewise an IIFE outside the
+                     shared scope, so no privileged code ships in the SPA
     i18n.js          translation engine (t(), locale detection)
     lang/en.js       English strings
     lang/de.js       German strings
@@ -346,6 +355,21 @@ production) the shared-password gate above is unchanged. Enabling accounts in
 production is a deliberate step (it replaces the shared gate and starts sending
 mail); *inviting other people into a shared tenant is still follow-up work (#207),
 as are roles (#137)*.
+
+Operator moderation (issue #268): setting `ADMIN_PASSWORD` exposes `/admin.html`
+— a small standalone operator page (plus `/api/admin`) for acting on an abuse
+notice: resolve a reported `/uploads/…` cover image to the game, round, tenant and
+account behind it; take the image down (deletes the object *and* clears every
+reference, leaving the rest of the data intact); suspend or restore an account
+without deleting anything, so evidence survives; and read the log of those actions
+that a DSA Art. 17 statement of reasons needs. Suspension takes effect immediately
+— existing access tokens stop working, not just new logins.
+
+`ADMIN_PASSWORD` must be a **separate** secret from `AUTH_PASSWORD`: the latter is
+shared with everyone using the instance, while these powers cross tenant
+boundaries. Optionally set `ADMIN_SESSION_SECRET` to sign the admin cookie
+(otherwise `SESSION_SECRET`, then the password itself). Leave `ADMIN_PASSWORD`
+unset — the default — and the entire surface `404`s.
 
 Observability: logs go to stdout as structured JSON; set `LOG_LEVEL`
 (`silent`/`error`/`warn`/`info`, default `info`) to tune verbosity, and

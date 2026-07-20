@@ -389,6 +389,91 @@ module.exports = function repoContract(repo) {
     assert.deepEqual(again.refreshTokens, []);
   });
 
+  /* ------------------------------- Moderation ------------------------------- */
+  /*
+   * The operator methods (#268) are the one deliberately CROSS-TENANT read path:
+   * an abuse notice names an image, not a tenant. So unlike every other case in
+   * this suite, these assert that a lookup DOES see tenant OTHER's row — that is
+   * the feature, and on Postgres it is what proves the read-only RLS admin
+   * escape (migration 20260720140000) actually works under FORCE RLS.
+   */
+
+  test('findImageOwner resolves an image to its game/round/tenant, across tenants', async () => {
+    const mine = await freshRound();
+    await repo.createGame(T, mine.id, gameFields({ title: 'Mine', image: '/uploads/mine.jpg' }));
+
+    const theirs = await repo.createRound(OTHER, { name: 'Their round', members: ['Zoe'] });
+    await repo.createGame(OTHER, theirs.id, gameFields({ title: 'Theirs', image: '/uploads/theirs.jpg' }));
+
+    const own = await repo.findImageOwner('/uploads/mine.jpg');
+    assert.equal(own.tenantId, T);
+    assert.equal(own.roundId, mine.id);
+    assert.equal(own.roundName, 'R');
+    assert.equal(own.gameTitle, 'Mine');
+    assert.equal(own.image, '/uploads/mine.jpg');
+
+    // The point of the operator lookup: another tenant's object resolves too.
+    const other = await repo.findImageOwner('/uploads/theirs.jpg');
+    assert.equal(other.tenantId, OTHER);
+    assert.equal(other.gameTitle, 'Theirs');
+
+    assert.equal(await repo.findImageOwner('/uploads/nobody.jpg'), null);
+  });
+
+  test('takedownImage clears the cover across tenants and reports the count', async () => {
+    const mine = await freshRound();
+    const g1 = await repo.createGame(T, mine.id, gameFields({ title: 'One', image: '/uploads/bad.jpg' }));
+    const theirs = await repo.createRound(OTHER, { name: 'Their round', members: ['Zoe'] });
+    await repo.createGame(OTHER, theirs.id, gameFields({ title: 'Two', image: '/uploads/bad.jpg' }));
+    // An unrelated cover must survive.
+    const keep = await repo.createGame(T, mine.id, gameFields({ title: 'Keep', image: '/uploads/ok.jpg' }));
+
+    assert.equal(await repo.takedownImage('/uploads/bad.jpg'), 2);
+
+    const after = await repo.getRound(T, mine.id);
+    assert.equal(after.games.find((g) => g.id === g1.id).image, null);
+    assert.equal(after.games.find((g) => g.id === keep.id).image, '/uploads/ok.jpg');
+    const afterOther = await repo.getRound(OTHER, theirs.id);
+    assert.equal(afterOther.games[0].image, null);
+
+    // Nothing references it any more, so a repeat is an honest no-op.
+    assert.equal(await repo.takedownImage('/uploads/bad.jpg'), 0);
+    assert.equal(await repo.findImageOwner('/uploads/bad.jpg'), null);
+    // The takedown must not have widened writes: the untouched game is intact.
+    assert.equal(await repo.isImageReferenced(T, '/uploads/ok.jpg'), true);
+  });
+
+  test('logModeration appends and listModeration returns newest first', async () => {
+    const a = await repo.logModeration({ action: 'takedown', target: '/uploads/a.jpg', reason: 'notice 1', at: '2026-07-20T10:00:00.000Z' });
+    assert.match(a.id, /^[0-9a-f]{16}$/);
+    await repo.logModeration({ action: 'user_disabled', target: 'u1', reason: 'notice 2', at: '2026-07-20T11:00:00.000Z' });
+
+    const log = await repo.listModeration(10);
+    assert.equal(log.length, 2);
+    assert.equal(log[0].action, 'user_disabled'); // newest first
+    assert.equal(log[1].action, 'takedown');
+    assert.equal(log[1].reason, 'notice 1');
+
+    assert.equal((await repo.listModeration(1)).length, 1);
+  });
+
+  // The suite shares one store across cases, so assert on the delta, not on an
+  // absolute count — other tests have already created users by now.
+  test('listUsers returns every user for the operator account list', async () => {
+    const before = await repo.listUsers();
+    // userFields() mints a random e-mail; don't hardcode one, or a re-run
+    // against a persistent database hits 'email_taken' and silently inserts
+    // nothing.
+    const u1 = await repo.createUser(userFields());
+    const u2 = await repo.createUser(userFields());
+    const after = await repo.listUsers();
+    assert.equal(after.length, before.length + 2);
+    const ids = after.map((u) => u.id);
+    assert.ok(ids.includes(u1.id) && ids.includes(u2.id));
+    // Full stored shape, so the route knows what it must strip before responding.
+    assert.deepEqual(after.find((u) => u.id === u1.id), u1);
+  });
+
   test('updateMember links and unlinks a user', async () => {
     const user = await repo.createUser(userFields({ email: 'fixed@example.com' }));
 

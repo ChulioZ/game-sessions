@@ -86,6 +86,13 @@ router.post('/register', async (req, res) => {
     verification: { tokenHash: accounts.hashToken(verifyRaw), expiresAt: iso(Date.now() + accounts.VERIFY_TTL_MS) },
     reset: null,
     refreshTokens: [],
+    // Operator suspension (#268). Always present (null when unset) so both
+    // backends round-trip identically — see .claude/rules/postgres-backend.md
+    // on absent-key parity. Users predating #268 have no key, which reads as
+    // falsy = not suspended, so nothing needs migrating.
+    disabled: false,
+    disabledAt: null,
+    disabledReason: null,
   });
 
   if (user === 'email_taken') {
@@ -167,6 +174,9 @@ router.post('/login', async (req, res) => {
   }
   // Only revealed after the correct password, so it leaks nothing to outsiders.
   if (!user.emailVerified) return res.status(403).json({ error: 'email_not_verified' });
+  // Same placement, same reason: an operator-suspended account (#268) is only
+  // told so once it has proven it owns the address.
+  if (user.disabled) return res.status(403).json({ error: 'account_disabled' });
 
   const tokens = await issueTokens(user);
   // Mirror the access token into a cookie so browser-native /uploads GETs (cover
@@ -184,6 +194,9 @@ router.post('/refresh', async (req, res) => {
   if (!entry || Date.parse(entry.expiresAt) <= Date.now()) {
     return res.status(401).json({ error: 'invalid_refresh_token' });
   }
+  // A suspended account (#268) must not be able to mint a fresh access token —
+  // otherwise its 30-day refresh token would outlive the suspension entirely.
+  if (user.disabled) return res.status(403).json({ error: 'account_disabled' });
   // Rotate: the presented token is spent; issueTokens persists the replacement.
   user.refreshTokens = user.refreshTokens.filter((t) => t !== entry);
   const tokens = await issueTokens(user);

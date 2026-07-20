@@ -134,4 +134,84 @@ if (!process.env.DATABASE_URL) {
       await admin.end();
     }
   });
+
+  // The moderation admin escape (#268) must be probed through a PLAIN ROLE for
+  // the same reason as above: this test file's own connection is a superuser and
+  // bypasses RLS entirely, so the cross-tenant assertions in the shared contract
+  // suite would pass even if the policy change were completely broken. Only this
+  // probe can catch that — and a break would surface as "operator lookup finds
+  // nothing" on a hardened deploy while CI stayed green.
+  //
+  // Two halves, and the second is the security-critical one:
+  //   1. app.admin='on' WIDENS READS across tenants (USING).
+  //   2. It does NOT widen writes — WITH CHECK stays tenant-matched, so an
+  //      operator read can never turn into a cross-tenant write.
+  test('the moderation admin escape widens reads only, never writes', async () => {
+    const assert = require('node:assert/strict');
+    const a = await repo.createRound('esc-a', { name: 'A round', members: ['M'] });
+    await repo.createGame('esc-a', a.id, {
+      title: 'A game', minPlayers: 1, maxPlayers: 2, image: '/uploads/esc-a.jpg', source: null,
+    });
+    const b = await repo.createRound('esc-b', { name: 'B round', members: ['N'] });
+    await repo.createGame('esc-b', b.id, {
+      title: 'B game', minPlayers: 1, maxPlayers: 2, image: '/uploads/esc-b.jpg', source: null,
+    });
+
+    const admin = new Client({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    await admin.connect();
+    try {
+      await admin.query('DROP ROLE IF EXISTS gs_esc_probe');
+      await admin.query("CREATE ROLE gs_esc_probe LOGIN PASSWORD 'probe'");
+      await admin.query('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gs_esc_probe');
+      await admin.query('GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO gs_esc_probe');
+
+      const url = new URL(process.env.DATABASE_URL);
+      url.username = 'gs_esc_probe';
+      url.password = 'probe';
+      const probe = new Client({
+        connectionString: url.toString(),
+        ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+      });
+      await probe.connect();
+      try {
+        // Baseline: still fail-closed without either setting.
+        const closed = await probe.query('SELECT count(*)::int AS n FROM games');
+        assert.equal(closed.rows[0].n, 0);
+
+        // 1. With the admin flag, a cross-tenant read sees BOTH tenants' rows —
+        //    this is what makes findImageOwner work on a hardened deploy.
+        await probe.query('BEGIN');
+        await probe.query("SELECT set_config('app.admin', 'on', true)");
+        const seen = await probe.query(
+          "SELECT tenant_id FROM games WHERE data->>'image' IN ('/uploads/esc-a.jpg', '/uploads/esc-b.jpg') ORDER BY tenant_id"
+        );
+        assert.deepEqual(seen.rows.map((r) => r.tenant_id), ['esc-a', 'esc-b']);
+
+        // 2. …but the SAME transaction may not write across tenants: WITH CHECK
+        //    deliberately has no admin escape, so an insert for another tenant is
+        //    refused even with the flag set.
+        await assert.rejects(
+          () => probe.query("INSERT INTO rounds(id, tenant_id, name) VALUES ('esc_x', 'esc-a', 'X')"),
+          /row-level security/,
+          'the admin flag must NOT permit a cross-tenant insert'
+        );
+        await probe.query('ROLLBACK');
+
+        // 3. The flag is transaction-local: the next statement on the same
+        //    pooled connection is back to fail-closed.
+        const after = await probe.query('SELECT count(*)::int AS n FROM games');
+        assert.equal(after.rows[0].n, 0);
+      } finally {
+        await probe.end();
+      }
+    } finally {
+      await admin.query('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM gs_esc_probe').catch(() => {});
+      await admin.query('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM gs_esc_probe').catch(() => {});
+      await admin.query('DROP ROLE IF EXISTS gs_esc_probe').catch(() => {});
+      await admin.end();
+    }
+  });
 }

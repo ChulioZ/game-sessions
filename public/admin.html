@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Moderation · Spielwirbel</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#14161c" />
+  <link rel="icon" href="/icons/icon-192.png" sizes="192x192" type="image/png" />
+  <!-- Standalone operator moderation surface (issue #268), intentionally
+       independent of the SPA — it must not ship privileged code inside the
+       bundle every ordinary user loads, and it needs no app state.
+
+       German only, deliberately: this follows login.html's precedent for a
+       standalone page outside the i18n system. It is an OPERATOR tool with a
+       single (German-speaking) audience, not user-facing product UI, so it is
+       not covered by CLAUDE.md's "never hard-code user-facing text" rule and
+       adds no lang/*.js key-parity obligation.
+
+       No manifest link on purpose (unlike login.html): this must never be
+       installable or offline-cached as part of the app. Inline styles are
+       allowed by the CSP (style-src 'unsafe-inline'); the script must be an
+       external file because script-src is 'self' only. -->
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; background: #14161c; color: #e8eaf0;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      padding: 1.5rem; line-height: 1.5;
+    }
+    .wrap { max-width: 780px; margin: 0 auto; }
+    .card {
+      background: #1e222c; border: 1px solid #2c3240; border-radius: 16px;
+      padding: 1.5rem; margin-bottom: 1.25rem;
+    }
+    .card--login { max-width: 340px; margin: 12vh auto 0; }
+    h1 { font-size: 1.2rem; margin: 0 0 0.35rem; }
+    h2 { font-size: 1rem; margin: 0 0 0.9rem; color: #aab2c4; font-weight: 600; }
+    .sub { color: #8b93a6; font-size: 0.85rem; margin: 0 0 1.5rem; }
+    label { display: block; font-size: 0.85rem; margin: 0.9rem 0 0.4rem; color: #aab2c4; }
+    input, textarea {
+      width: 100%; padding: 0.65rem 0.8rem; font-size: 0.95rem; border-radius: 10px;
+      border: 1px solid #2c3240; background: #14161c; color: #e8eaf0;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus { outline: 2px solid #6c7ae0; outline-offset: 1px; }
+    textarea { resize: vertical; min-height: 4.5rem; }
+    button {
+      margin-top: 1rem; padding: 0.65rem 1.1rem; font-size: 0.95rem; font-weight: 600;
+      border: 0; border-radius: 10px; background: #6c7ae0; color: #fff; cursor: pointer;
+    }
+    button:disabled { opacity: 0.55; cursor: default; }
+    button.danger { background: #b4443f; }
+    button.ghost { background: #2c3240; }
+    button.small { margin: 0; padding: 0.4rem 0.7rem; font-size: 0.8rem; }
+    .row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+    .msg { margin-top: 1rem; font-size: 0.87rem; padding: 0.7rem 0.85rem; border-radius: 10px; }
+    .msg[hidden] { display: none; }
+    .msg--err { color: #ffb4b4; background: rgba(180, 68, 63, 0.18); }
+    .msg--ok { color: #a9e6b6; background: rgba(66, 148, 92, 0.18); }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; margin: 0.5rem 0 0; }
+    dt { color: #8b93a6; font-size: 0.85rem; }
+    dd { margin: 0; font-size: 0.9rem; word-break: break-all; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+    th, td { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid #2c3240; vertical-align: top; }
+    th { color: #8b93a6; font-weight: 600; }
+    .pill { font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: #2c3240; }
+    .pill--off { background: rgba(180, 68, 63, 0.3); color: #ffb4b4; }
+    .scroll { overflow-x: auto; }
+    code { background: #14161c; padding: 0.1rem 0.35rem; border-radius: 6px; font-size: 0.85em; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- Login -->
+  <form class="card card--login" id="loginForm">
+    <h1>Moderation</h1>
+    <p class="sub">Operator-Zugang</p>
+    <label for="password">Admin-Passwort</label>
+    <input id="password" type="password" autocomplete="current-password" autofocus required />
+    <button type="submit">Anmelden</button>
+    <p class="msg msg--err" id="loginError" role="alert" hidden></p>
+  </form>
+
+  <!-- Panel -->
+  <div class="wrap" id="panel" hidden>
+    <div class="row" style="justify-content: space-between; margin-bottom: 1.25rem;">
+      <h1 style="margin: 0;">Moderation</h1>
+      <button class="ghost small" id="logout">Abmelden</button>
+    </div>
+
+    <section class="card">
+      <h2>Bild zuordnen</h2>
+      <form id="lookupForm">
+        <label for="image">Bildpfad</label>
+        <input id="image" placeholder="/uploads/abc123.jpg" required />
+        <button type="submit">Suchen</button>
+      </form>
+      <div id="lookupResult" hidden></div>
+      <p class="msg msg--err" id="lookupError" role="alert" hidden></p>
+    </section>
+
+    <section class="card" id="takedownCard" hidden>
+      <h2>Entfernen</h2>
+      <p class="sub" style="margin-bottom: 0;">
+        Löscht das Objekt und entfernt die Referenz aus jedem Spiel. Nicht umkehrbar.
+      </p>
+      <form id="takedownForm">
+        <label for="takedownReason">Begründung (wird protokolliert)</label>
+        <textarea id="takedownReason" required placeholder="z. B. Meldung vom 20.07.2026, rechtswidriger Inhalt"></textarea>
+        <button type="submit" class="danger">Endgültig entfernen</button>
+      </form>
+      <p class="msg" id="takedownMsg" role="alert" hidden></p>
+    </section>
+
+    <section class="card">
+      <h2>Konten</h2>
+      <div class="scroll"><table id="usersTable"><tbody></tbody></table></div>
+      <p class="msg msg--err" id="usersError" role="alert" hidden></p>
+    </section>
+
+    <section class="card">
+      <h2>Protokoll</h2>
+      <div class="scroll"><table id="logTable"><tbody></tbody></table></div>
+    </section>
+  </div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>
