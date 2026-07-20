@@ -359,6 +359,169 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.setTagIcon(T, 'missing', plain.id, 'star'), null);
   });
 
+  test('moveGames reparents every game and merges tags by name (#253)', async () => {
+    const src = await freshRound({ name: 'Source' });
+    const dst = await freshRound({ name: 'Target' });
+
+    const outside = await repo.addTag(T, src.id, 'Outside', 'tent');
+    const party = await repo.addTag(T, src.id, 'Party', 'confetti');
+    const unused = await repo.addTag(T, src.id, 'Unused');
+    // Same tag by name (different case + padding) already on the target: reused,
+    // not duplicated. 'Party' has no match there, so it is created.
+    const dstOutside = await repo.addTag(T, dst.id, '  oUTSIDE  '.trim());
+
+    const tagged = await repo.createGame(T, src.id, gameFields({ title: 'Tagged', tagIds: [outside.id, party.id] }));
+    const plain = await repo.createGame(T, src.id, gameFields({ title: 'Plain', image: '/uploads/a.jpg' }));
+    const archived = await repo.createGame(T, src.id, gameFields({ title: 'Archived' }));
+    await repo.retireGame(T, src.id, archived.id, true);
+    await repo.createGame(T, dst.id, gameFields({ title: 'Keeper' }));
+
+    const result = await repo.moveGames(T, src.id, dst.id);
+    assert.deepEqual(result, { movedGames: 3, mergedTags: 1, createdTags: 1 });
+
+    const after = await repo.getRound(T, src.id);
+    const target = await repo.getRound(T, dst.id);
+    assert.deepEqual(after.games, []); // source left in place, now empty
+    assert.equal(after.name, 'Source');
+    // Moved games are APPENDED, keeping their order, after the target's own.
+    assert.deepEqual(target.games.map((g) => g.title), ['Keeper', 'Tagged', 'Plain', 'Archived']);
+
+    // A true reparent: ids, covers and archived state survive.
+    assert.equal(target.games.find((g) => g.title === 'Plain').id, plain.id);
+    assert.equal(target.games.find((g) => g.title === 'Plain').image, '/uploads/a.jpg');
+    assert.equal(target.games.find((g) => g.title === 'Archived').retired, true);
+
+    // The reused tag keeps the TARGET's id AND its own spelling — matching is
+    // case-insensitive, but the target round is never renamed by the move. The
+    // unmatched source tag becomes a fresh tag there; the unused one is skipped.
+    assert.deepEqual(target.tags.map((tg) => tg.name), ['oUTSIDE', 'Party']);
+    const created = target.tags.find((tg) => tg.name === 'Party');
+    assert.equal(target.tags[0].id, dstOutside.id);
+    assert.notEqual(created.id, party.id);
+    assert.deepEqual(target.games.find((g) => g.id === tagged.id).tagIds, [dstOutside.id, created.id]);
+
+    // An icon rides along with a newly created tag, but a REUSED one is never
+    // restyled — same rule addTag applies to a duplicate name (#255). ('Outside'
+    // carries 'tent' in the source; the target's same-named tag has no icon.)
+    assert.equal(created.icon, 'confetti');
+    assert.equal('icon' in target.tags[0], false);
+    // The source keeps its own tag list, including the one no moved game used —
+    // an unused round tag is not invalid and is never cleaned up here.
+    assert.deepEqual((await repo.getRound(T, src.id)).tags.map((tg) => tg.id), [outside.id, party.id, unused.id]);
+
+    // One bulk entry per round, not one per game.
+    const outFeed = await repo.listActivities(T, src.id);
+    const inFeed = await repo.listActivities(T, dst.id);
+    const movedOut = outFeed.filter((a) => a.type === 'games_moved_out');
+    const movedIn = inFeed.filter((a) => a.type === 'games_moved_in');
+    assert.equal(movedOut.length, 1);
+    assert.equal(movedIn.length, 1);
+    assert.equal(movedOut[0].count, 3);
+    assert.equal(movedOut[0].roundId, dst.id);
+    assert.equal(movedOut[0].roundName, 'Target');
+    assert.equal(movedIn[0].roundName, 'Source');
+  });
+
+  test('moveGames scrubs the source round\'s sessions and leaves the target\'s alone', async () => {
+    const src = await freshRound();
+    const dst = await freshRound();
+    const moved = await repo.createGame(T, src.id, gameFields({ title: 'Moved' }));
+    const stays = await repo.createGame(T, dst.id, gameFields({ title: 'Stays' }));
+    const mid = src.members[0].id;
+
+    const session = await repo.createSession(T, src.id, {
+      createdAt: 't', gameIds: [moved.id], votes: { [mid]: { [moved.id]: 5 } },
+      chosenGameId: moved.id, chosenAt: 't', finished: true, finishedAt: 't',
+      winnerIds: [mid], cancelled: false, cancelledAt: null, done: true,
+    });
+    const kept = await repo.createSession(T, dst.id, {
+      createdAt: 't', gameIds: [stays.id], votes: { [dst.members[0].id]: { [stays.id]: 4 } },
+      chosenGameId: stays.id, chosenAt: 't', finished: true, finishedAt: 't',
+      winnerIds: [], cancelled: false, cancelledAt: null, done: true,
+    });
+
+    await repo.moveGames(T, src.id, dst.id);
+
+    // The session held only the moved game, so it is dropped outright — exactly
+    // what deleteGame does with a session left holding nothing.
+    const after = await repo.getRound(T, src.id);
+    assert.deepEqual(after.sessions, []);
+    assert.equal(session.gameIds.length, 1); // it really did hold just the one
+
+    // The target's own history is untouched by the move.
+    const target = await repo.getRound(T, dst.id);
+    const survivor = target.sessions.find((s) => s.id === kept.id);
+    assert.deepEqual(survivor.gameIds, [stays.id]);
+    assert.equal(survivor.chosenGameId, stays.id);
+    assert.equal(survivor.finished, true);
+  });
+
+  test('moveGames partially scrubs a session that keeps another game', async () => {
+    const src = await freshRound();
+    const dst = await freshRound();
+    // A session referencing an id that isn't a game of this round ('ghost' —
+    // the shape a session can be left in) survives the move, so this exercises
+    // the scrub path rather than the drop-the-session path above.
+    const a = await repo.createGame(T, src.id, gameFields({ title: 'A' }));
+    const mid = src.members[0].id;
+    await repo.createSession(T, src.id, {
+      createdAt: 't', gameIds: [a.id, 'ghost'], votes: { [mid]: { [a.id]: 3, ghost: 2 } },
+      chosenGameId: a.id, chosenAt: 't', finished: true, finishedAt: 't',
+      winnerIds: [mid], cancelled: false, cancelledAt: null, done: true,
+    });
+
+    await repo.moveGames(T, src.id, dst.id);
+
+    // 'ghost' keeps the session alive, so it is scrubbed rather than dropped:
+    // the moved game leaves gameIds and every vote map, and the choice + finish
+    // state it carried is reset.
+    const [session] = (await repo.getRound(T, src.id)).sessions;
+    assert.deepEqual(session.gameIds, ['ghost']);
+    assert.deepEqual(session.votes[mid], { ghost: 2 });
+    assert.equal(session.chosenGameId, null);
+    assert.equal(session.chosenAt, null);
+    assert.equal(session.finished, false);
+    assert.equal(session.finishedAt, null);
+    assert.deepEqual(session.winnerIds, []);
+  });
+
+  test('moveGames refuses a missing, identical or over-quota target', async () => {
+    const src = await freshRound();
+    const dst = await freshRound();
+
+    assert.equal(await repo.moveGames(T, 'missing', dst.id), null);
+    assert.equal(await repo.moveGames(T, src.id, 'missing'), null);
+    assert.equal(await repo.moveGames(T, src.id, src.id), 'same_round');
+    // Identity is decided BEFORE the round lookup, so a missing id answers the
+    // same either way — the two backends check in that order or they diverge.
+    assert.equal(await repo.moveGames(T, 'missing', 'missing'), 'same_round');
+
+    const tag = await repo.addTag(T, src.id, 'Solo');
+    await repo.createGame(T, src.id, gameFields({ title: 'One', tagIds: [tag.id] }));
+    await repo.createGame(T, src.id, gameFields({ title: 'Two' }));
+
+    // Both caps refuse ATOMICALLY — nothing moves, no tag is created.
+    assert.equal(await repo.moveGames(T, src.id, dst.id, { maxGames: 1, maxTags: 99 }), 'quota_games');
+    assert.equal(await repo.moveGames(T, src.id, dst.id, { maxGames: 99, maxTags: 0 }), 'quota_tags');
+    const untouched = await repo.getRound(T, dst.id);
+    assert.deepEqual(untouched.games, []);
+    assert.equal('tags' in untouched, false); // still absent, not an empty array
+    assert.equal((await repo.getRound(T, src.id)).games.length, 2);
+
+    // Within the caps it goes through.
+    const ok = await repo.moveGames(T, src.id, dst.id, { maxGames: 2, maxTags: 1 });
+    assert.deepEqual(ok, { movedGames: 2, mergedTags: 0, createdTags: 1 });
+  });
+
+  test('moveGames on an empty source round is a no-op with no feed entry', async () => {
+    const src = await freshRound();
+    const dst = await freshRound();
+    const result = await repo.moveGames(T, src.id, dst.id);
+    assert.deepEqual(result, { movedGames: 0, mergedTags: 0, createdTags: 0 });
+    assert.deepEqual(await repo.listActivities(T, src.id), []);
+    assert.deepEqual(await repo.listActivities(T, dst.id), []);
+  });
+
   test('listActivities serves the feed; rounds no longer embed it', async () => {
     const round = await freshRound();
     assert.equal('activities' in round, false); // not on the created round…
@@ -429,6 +592,7 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.updateGame(OTHER, round.id, game.id, { title: 'evil' }), null);
     assert.equal(await repo.retireGame(OTHER, round.id, game.id, true), null);
     assert.equal(await repo.deleteGame(OTHER, round.id, game.id), null);
+    assert.equal(await repo.moveGames(OTHER, round.id, 'anywhere', null), null);
     assert.equal(await repo.updateMember(OTHER, round.id, mid, { name: 'evil' }), null);
     assert.equal(await repo.createSession(OTHER, round.id, { createdAt: 't', gameIds: [game.id], votes: {} }), null);
     assert.equal(await repo.setSessionChoice(OTHER, round.id, session.id, game.id), null);

@@ -57,6 +57,11 @@ const updateGameSchema = z.object({
   title: z.preprocess((v) => String(v).trim(), z.string().min(1, 'Title is missing')).optional(),
 });
 
+// Move-all-games body (#253): just the round to move into.
+const moveGamesSchema = z.object({
+  targetRoundId: z.preprocess((v) => String(v || '').trim(), z.string().min(1, 'targetRoundId is missing')),
+});
+
 // Build the optional { provider, externalId, url } source link from POST fields,
 // or null when no known provider is referenced.
 function buildSource(body) {
@@ -115,6 +120,45 @@ router.post('/', upload.single('image'), async (req, res) => {
   if (!game) return res.status(404).json({ error: 'Round not found' });
   trackEvent('game_added', { tenantId: req.tenantId });
   res.status(201).json(game);
+});
+
+// Move EVERY game (active + archived) of this round into another round, merging
+// the two rounds' tags by name (#253). Both rounds are looked up through the
+// tenant-scoped req.repo, which is what makes "another round of the same user"
+// enforce itself: a round of any other tenant is simply not found.
+//
+// Registered before the '/:gid' handlers below; it is a POST on a single
+// segment, so it can't collide with the two-segment '/:gid/retire|complete'.
+router.post('/move-to', async (req, res) => {
+  const round = await req.repo.getRound(req.params.rid);
+  if (!round) return res.status(404).json({ error: 'Round not found' });
+
+  const body = validateBody(moveGamesSchema, req, res);
+  if (!body) return;
+  if (body.targetRoundId === req.params.rid)
+    return res.status(400).json({ error: 'Target round must be a different round' });
+
+  const target = await req.repo.getRound(body.targetRoundId);
+  if (!target) return res.status(404).json({ error: 'Target round not found' });
+
+  // Per-tenant caps (#139), inert outside the public multi-tenant mode. Passed
+  // down rather than checked here: the number of tags the move would create is
+  // only known once the data layer has built the tag remap, and the refusal has
+  // to be atomic with the move itself.
+  const limits = quota.enforced()
+    ? { maxGames: quota.gamesPerRound(), maxTags: quota.tagsPerRound() }
+    : null;
+
+  const result = await req.repo.moveGames(req.params.rid, body.targetRoundId, limits);
+  if (result === null) return res.status(404).json({ error: 'Round not found' });
+  if (result === 'same_round')
+    return res.status(400).json({ error: 'Target round must be a different round' });
+  if (result === 'quota_games')
+    return res.status(403).json({ error: 'quota_games', limit: limits.maxGames });
+  if (result === 'quota_tags')
+    return res.status(403).json({ error: 'quota_tags', limit: limits.maxTags });
+
+  res.json(result);
 });
 
 // Edit game details. Accepts any subset of title, min/max players, the cover

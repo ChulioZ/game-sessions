@@ -93,6 +93,8 @@ I18N.de = {
   'activity.gameCompleted': '„{title}“ durchgespielt',
   'activity.gameUncompleted': '„{title}“ wieder aufgenommen',
   'activity.gameDeleted': '„{title}“ endgültig gelöscht',
+  'activity.gamesMovedOut': '{n} Spiele nach „{round}“ verschoben',
+  'activity.gamesMovedIn': '{n} Spiele aus „{round}“ übernommen',
 
   'games.title': 'Spiele ({n})',
   'games.empty': 'Noch keine Spiele. Füge euer erstes Spiel hinzu!',
@@ -108,6 +110,18 @@ I18N.de = {
   'games.completed': '„{title}“ als durchgespielt markiert',
   'games.search': 'Spiele suchen',
   'games.noMatch': 'Keine Spiele passen zu „{q}“.',
+
+  'moveGames.link': 'Spiele verschieben',
+  'moveGames.title': 'Alle Spiele verschieben',
+  'moveGames.intro': 'Verschiebt alle {n} Spiele dieser Runde — auch die archivierten — in eine andere Runde. Tags mit gleichem Namen werden zusammengeführt.',
+  'moveGames.pick': 'Verschieben nach',
+  'moveGames.empty': 'Du hast keine andere Runde, in die du diese Spiele verschieben könntest.',
+  'moveGames.noGames': 'Diese Runde hat keine Spiele zum Verschieben.',
+  'moveGames.confirm': 'Alle {n} Spiele nach „{round}“ verschieben? Die Session-Historie dieser Runde geht dabei verloren.',
+  'moveGames.submit': 'Spiele verschieben',
+  'moveGames.toast.done': '{n} Spiele verschoben',
+  'moveGames.toast.quotaGames': 'In der Zielrunde ist kein Platz für so viele Spiele.',
+  'moveGames.toast.quotaTags': 'Tag-Limit der Zielrunde erreicht.',
 
   'retired.link': 'Aussortiert ({n})',
   'retired.crumb': 'Aussortiert',

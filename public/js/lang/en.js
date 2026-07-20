@@ -93,6 +93,8 @@ I18N.en = {
   'activity.gameCompleted': '“{title}” completed',
   'activity.gameUncompleted': '“{title}” brought back',
   'activity.gameDeleted': '“{title}” permanently deleted',
+  'activity.gamesMovedOut': '{n} games moved to “{round}”',
+  'activity.gamesMovedIn': '{n} games taken over from “{round}”',
 
   'games.title': 'Games ({n})',
   'games.empty': 'No games yet. Add your first one!',
@@ -108,6 +110,18 @@ I18N.en = {
   'games.completed': '“{title}” marked as completed',
   'games.search': 'Search games',
   'games.noMatch': 'No games match “{q}”.',
+
+  'moveGames.link': 'Move games',
+  'moveGames.title': 'Move all games',
+  'moveGames.intro': 'Moves all {n} games of this round — including the archived ones — into another round. Tags with the same name are merged.',
+  'moveGames.pick': 'Move into',
+  'moveGames.empty': 'You have no other round to move these games into.',
+  'moveGames.noGames': 'This round has no games to move.',
+  'moveGames.confirm': 'Move all {n} games into “{round}”? The session history of this round is lost in the process.',
+  'moveGames.submit': 'Move games',
+  'moveGames.toast.done': '{n} games moved',
+  'moveGames.toast.quotaGames': 'The target round does not have room for that many games.',
+  'moveGames.toast.quotaTags': 'Tag limit of the target round reached.',
 
   'retired.link': 'Retired ({n})',
   'retired.crumb': 'Retired',

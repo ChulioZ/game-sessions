@@ -163,7 +163,86 @@ function renderRegalTab(round, activeGames) {
   const completedBtn = h(`<button class="link-btn"><i class="ti ti-circle-check" aria-hidden="true"></i> ${esc(t('completed.link', { n: completedGames.length }))}</button>`);
   completedBtn.addEventListener('click', () => showCompleted(round.id));
   foot.appendChild(completedBtn);
+
+  // Consolidate two rounds (#253). Gated on the WHOLE shelf, not activeGames:
+  // archived games move too, so a round with nothing but retired games must
+  // still offer this. Hidden entirely when there is nothing to move.
+  if (round.games.length) {
+    const moveBtn = h(`<button class="link-btn"><i class="ti ti-arrow-right" aria-hidden="true"></i> ${esc(t('moveGames.link'))}</button>`);
+    moveBtn.addEventListener('click', () => showMoveGames(round));
+    foot.appendChild(moveBtn);
+  }
   app.appendChild(foot);
+}
+
+// Move every game of this round into another of the user's rounds (#253). The
+// target list is fetched BEFORE the sheet opens, so it never renders an empty
+// picker or a loading state — a user with only this one round gets a plain
+// explanation instead.
+async function showMoveGames(round) {
+  let rounds;
+  try {
+    rounds = await api('GET', '/api/rounds');
+  } catch (e) {
+    toast(e.message);
+    return;
+  }
+  const others = rounds.filter((r) => r.id !== round.id);
+  const n = round.games.length;
+
+  closeSheet();
+  const backdrop = h(`<div class="sheet-backdrop sheet-backdrop--center">
+      <div class="sheet sheet--dialog" role="dialog" aria-modal="true" aria-label="${esc(t('moveGames.title'))}">
+        <div class="sheet__head">
+          <h2>${esc(t('moveGames.title'))}</h2>
+          <button class="sheet__close" aria-label="${esc(t('common.close'))}"><i class="ti ti-x" aria-hidden="true"></i></button>
+        </div>
+        ${others.length
+          ? `<p class="muted">${esc(t('moveGames.intro', { n }))}</p>
+             <div class="field">
+               <label for="moveTarget">${esc(t('moveGames.pick'))}</label>
+               <select id="moveTarget" class="input">
+                 ${others.map((r) => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('')}
+               </select>
+             </div>
+             <div class="toolbar sheet__actions">
+               <button id="moveGo" class="btn btn--primary btn--lg"><i class="ti ti-arrow-right" aria-hidden="true"></i> ${esc(t('moveGames.submit'))}</button>
+             </div>`
+          : `<p class="muted">${esc(t('moveGames.empty'))}</p>`}
+      </div>
+    </div>`);
+  const form = backdrop.querySelector('.sheet');
+  document.body.appendChild(backdrop);
+
+  const onKey = (e) => { if (e.key === 'Escape') closeSheet(); };
+  document.addEventListener('keydown', onKey, true);
+  activeSheet = { el: backdrop, onKey };
+  backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) closeSheet(); });
+  form.querySelector('.sheet__close').addEventListener('click', closeSheet);
+
+  const go = form.querySelector('#moveGo');
+  if (!go) return;
+  go.addEventListener('click', async () => {
+    const select = form.querySelector('#moveTarget');
+    const targetId = select.value;
+    const targetName = (others.find((r) => r.id === targetId) || {}).name || '';
+    // The source round's sessions do not survive the move, so this one confirms.
+    if (!confirm(t('moveGames.confirm', { n, round: targetName }))) return;
+    go.disabled = true;
+    try {
+      const res = await api('POST', `/api/rounds/${round.id}/games/move-to`, { targetRoundId: targetId });
+      closeSheet();
+      toast(t('moveGames.toast.done', { n: res.movedGames }));
+      showRound(round.id, 'regal');
+    } catch (e) {
+      go.disabled = false;
+      const msg =
+        e.message === 'quota_games' ? t('moveGames.toast.quotaGames')
+          : e.message === 'quota_tags' ? t('moveGames.toast.quotaTags')
+            : e.message;
+      toast(msg);
+    }
+  });
 }
 
 // --- Chronik tab: one timeline of sessions and shelf changes. The activity
@@ -186,6 +265,10 @@ function renderChronikTab(round, activities) {
       game_completed: { icon: 'ti-circle-check', text: t('activity.gameCompleted', { title: a.title }) },
       game_uncompleted: { icon: 'ti-arrow-back-up', text: t('activity.gameUncompleted', { title: a.title }) },
       game_deleted: { icon: 'ti-trash', text: t('activity.gameDeleted', { title: a.title }) },
+      // One bulk entry per side of a whole-shelf move (#253) — these carry a
+      // count and the other round's name, not a game title.
+      games_moved_out: { icon: 'ti-arrow-right', text: t('activity.gamesMovedOut', { n: a.count, round: a.roundName }) },
+      games_moved_in: { icon: 'ti-arrow-left', text: t('activity.gamesMovedIn', { n: a.count, round: a.roundName }) },
     }[a.type];
     if (!meta) return;
     entries.push({ kind: 'activity', at: a.at, id: a.id, gameId: a.gameId, type: a.type, ...meta });

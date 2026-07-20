@@ -95,6 +95,72 @@ test('games-per-round cap', async (t) => {
   });
 });
 
+// Moving a whole shelf is the one write that can blow past BOTH caps at once,
+// and it has to refuse atomically — a half-moved round has no undo.
+test('moving all games respects the target round\'s caps (#253)', async (t) => {
+  const a = await makeAccount('move-a@example.com');
+  const mk = async (name) => (await request(app).post('/api/rounds').set(auth(a.token))
+    .send({ name, members: ['Alice'] })).body.id;
+  const src = await mk('Source');
+  const dst = await mk('Target');
+
+  const addGame = (rid, title) => request(app).post(`/api/rounds/${rid}/games`).set(auth(a.token))
+    .field('title', title).field('minPlayers', '1').field('maxPlayers', '4');
+
+  await t.test('refuses over the games cap without moving anything', async () => {
+    // MAX_GAMES_PER_ROUND is 2: two in the source, one already in the target.
+    await addGame(src, 'S1');
+    await addGame(src, 'S2');
+    await addGame(dst, 'D1');
+
+    const res = await request(app).post(`/api/rounds/${src}/games/move-to`).set(auth(a.token))
+      .send({ targetRoundId: dst });
+    assert.equal(res.status, 403);
+    assert.equal(res.body.error, 'quota_games');
+    assert.equal(res.body.limit, 2);
+
+    // Atomic: the source still holds both, the target still holds only its own.
+    const s = await request(app).get(`/api/rounds/${src}`).set(auth(a.token));
+    const d = await request(app).get(`/api/rounds/${dst}`).set(auth(a.token));
+    assert.equal(s.body.games.length, 2);
+    assert.equal(d.body.games.length, 1);
+  });
+
+  // Its own account: MAX_ROUNDS_PER_TENANT is 2, and the pair above already
+  // uses both of a's slots.
+  await t.test('refuses over the tags cap without creating a tag', async () => {
+    const b = await makeAccount('move-b@example.com');
+    const mkB = async (name) => (await request(app).post('/api/rounds').set(auth(b.token))
+      .send({ name, members: ['Alice'] })).body.id;
+    const from = await mkB('From');
+    const into = await mkB('Into');
+
+    // MAX_TAGS_PER_ROUND is 2; the source's two tags would both have to be
+    // created in the target on top of the two it already has.
+    for (const name of ['A', 'B']) {
+      await request(app).post(`/api/rounds/${into}/tags`).set(auth(b.token)).send({ name });
+    }
+    const tags = [];
+    for (const name of ['X', 'Y']) {
+      tags.push((await request(app).post(`/api/rounds/${from}/tags`).set(auth(b.token)).send({ name })).body.id);
+    }
+    const game = (await request(app).post(`/api/rounds/${from}/games`).set(auth(b.token))
+      .field('title', 'Tagged').field('minPlayers', '1').field('maxPlayers', '4')
+      .field('tagIds', tags[0]).field('tagIds', tags[1])).body;
+    assert.deepEqual(game.tagIds, tags);
+
+    const res = await request(app).post(`/api/rounds/${from}/games/move-to`).set(auth(b.token))
+      .send({ targetRoundId: into });
+    assert.equal(res.status, 403);
+    assert.equal(res.body.error, 'quota_tags');
+    assert.equal(res.body.limit, 2);
+
+    const d = await request(app).get(`/api/rounds/${into}`).set(auth(b.token));
+    assert.equal(d.body.tags.length, 2); // nothing created
+    assert.equal(d.body.games.length, 0); // nothing moved
+  });
+});
+
 test('tags-per-round cap (#238)', async (t) => {
   const a = await makeAccount('tags-a@example.com');
   const round = await request(app).post('/api/rounds').set(auth(a.token))

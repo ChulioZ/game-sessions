@@ -72,7 +72,7 @@ const frontendGlobals = {
   showRound: 'readonly', showRetired: 'readonly', showCompleted: 'readonly',
   showArchive: 'readonly', ARCHIVES: 'readonly', THEMES: 'readonly',
   showBackground: 'readonly', showGameDetail: 'readonly', showAddGame: 'readonly',
-  showTags: 'readonly',
+  showTags: 'readonly', showMoveGames: 'readonly',
   HUB_TABS: 'readonly', renderHubDock: 'readonly', renderStartTab: 'readonly',
   renderRegalTab: 'readonly', renderChronikTab: 'readonly', renderPokaleTab: 'readonly',
   activeSheet: 'writable', closeSheet: 'readonly', startDirectSession: 'readonly',

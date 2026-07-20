@@ -524,3 +524,79 @@ test('PATCH rejects a spoofed image upload and keeps the old cover', async () =>
   assert.equal(detail.body.games.find((g) => g.id === game.id).image, cover);
   assert.ok(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(cover))));
 });
+
+// --- Move all games to another round (#253) ---------------------------------
+
+test('POST games/move-to reparents every game and merges tags by name', async () => {
+  const src = await createRound(request);
+  const dst = await createRound(request);
+
+  const srcTag = (await request(app).post(`/api/rounds/${src.id}/tags`).send({ name: 'Party' })).body;
+  // Same tag by name (different case) already on the target — reused, not duplicated.
+  const dstTag = (await request(app).post(`/api/rounds/${dst.id}/tags`).send({ name: 'party' })).body;
+  const soloTag = (await request(app).post(`/api/rounds/${src.id}/tags`).send({ name: 'Solo' })).body;
+
+  // Built inline rather than via addGame(): multipart repeats `tagIds` per value.
+  const tagged = (await request(app).post(`/api/rounds/${src.id}/games`)
+    .field('title', 'Uno').field('minPlayers', '2').field('maxPlayers', '4')
+    .field('tagIds', srcTag.id).field('tagIds', soloTag.id)).body;
+  const archived = (await addGame(src.id, { title: 'Old' })).body;
+  await request(app).post(`/api/rounds/${src.id}/games/${archived.id}/retire`).send({});
+
+  const res = await request(app).post(`/api/rounds/${src.id}/games/move-to`).send({ targetRoundId: dst.id });
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, { movedGames: 2, mergedTags: 1, createdTags: 1 });
+
+  // Source is emptied but still there; the archived game moved along with the rest.
+  const after = (await request(app).get(`/api/rounds/${src.id}`)).body;
+  assert.deepEqual(after.games, []);
+  const target = (await request(app).get(`/api/rounds/${dst.id}`)).body;
+  assert.deepEqual(target.games.map((g) => g.title).sort(), ['Old', 'Uno']);
+  assert.equal(target.games.find((g) => g.title === 'Old').retired, true);
+
+  // The moved game keeps its id and is remapped onto the TARGET's tag ids.
+  const moved = target.games.find((g) => g.id === tagged.id);
+  assert.ok(moved);
+  const createdTag = target.tags.find((tg) => tg.name === 'Solo');
+  assert.deepEqual(moved.tagIds, [dstTag.id, createdTag.id]);
+
+  // One bulk feed entry per round, naming the other side.
+  const outFeed = (await request(app).get(`/api/rounds/${src.id}/activities`)).body;
+  const inFeed = (await request(app).get(`/api/rounds/${dst.id}/activities`)).body;
+  assert.equal(outFeed.filter((a) => a.type === 'games_moved_out').length, 1);
+  assert.equal(inFeed.filter((a) => a.type === 'games_moved_in').length, 1);
+  assert.equal(inFeed.find((a) => a.type === 'games_moved_in').count, 2);
+});
+
+test('POST games/move-to rejects a missing, blank or identical target', async () => {
+  const src = await createRound(request);
+
+  const missing = await request(app).post(`/api/rounds/${src.id}/games/move-to`).send({ targetRoundId: 'nope' });
+  assert.equal(missing.status, 404);
+  assert.equal(missing.body.error, 'Target round not found');
+
+  const same = await request(app).post(`/api/rounds/${src.id}/games/move-to`).send({ targetRoundId: src.id });
+  assert.equal(same.status, 400);
+
+  assert.equal((await request(app).post(`/api/rounds/${src.id}/games/move-to`).send({})).status, 400);
+  assert.equal((await request(app).post('/api/rounds/nope/games/move-to').send({ targetRoundId: src.id })).status, 404);
+});
+
+test('POST games/move-to scrubs the source round\'s session history', async () => {
+  const src = await createRound(request);
+  const dst = await createRound(request);
+  const game = (await addGame(src.id, { title: 'Uno' })).body;
+
+  const session = await request(app).post(`/api/rounds/${src.id}/sessions`).send({ gameIds: [game.id] });
+  assert.equal(session.status, 201);
+
+  await request(app).post(`/api/rounds/${src.id}/games/move-to`).send({ targetRoundId: dst.id });
+
+  // The session held only the moved game, so it is gone entirely — the same
+  // rule permanently deleting a game already follows.
+  const after = (await request(app).get(`/api/rounds/${src.id}`)).body;
+  assert.deepEqual(after.sessions, []);
+  // The game itself survives the move in the target round.
+  const target = (await request(app).get(`/api/rounds/${dst.id}`)).body;
+  assert.equal(target.games[0].id, game.id);
+});
