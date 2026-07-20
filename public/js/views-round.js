@@ -107,7 +107,7 @@ function renderStartTab(round, activeGames) {
     .forEach((session) => {
       const game = session.chosenGameId && round.games.find((g) => g.id === session.chosenGameId);
       const when = fmtDateTime(session.chosenAt || session.createdAt);
-      const imgStyle = game && game.image ? ` style="background-image:url('${game.image}')"` : '';
+      const imgStyle = game && game.image ? ` style="background-image:url('${coverUrl(game.image, COVER_THUMB)}')"` : '';
       const fallback = game
         ? coverPlaceholder(game)
         : '<i class="ti ti-tornado" aria-hidden="true"></i>';
@@ -149,7 +149,7 @@ function renderStartTab(round, activeGames) {
       .filter(Boolean);
     const sst = gameStatsForSession(round, lastPlayed, game.id);
     const when = fmtDateTime(lastPlayed.createdAt);
-    const imgStyle = game.image ? ` style="background-image:url('${game.image}')"` : '';
+    const imgStyle = game.image ? ` style="background-image:url('${coverUrl(game.image, COVER_THUMB)}')"` : '';
     const fallback = coverPlaceholder(game);
     const pill =
       sst.avg !== null

@@ -289,6 +289,7 @@ public/
     account.js       onboarding + auth UI (login/register/verify/reset), token wiring
     ranking.js       tie-aware podium places ("1, 2, 2, 4")
     cover.js         deterministic per-title gradient for games with no cover
+    cover-size.js    rewrites provider cover URLs to a frame-appropriate size
     lookup-group.js  collapses same-title provider hits into one multi-badge row
     feedback.js      top-bar feedback button + submission sheet (issue #260)
     views-home.js    lobby + new round

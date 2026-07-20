@@ -62,6 +62,8 @@ const frontendGlobals = {
   // (also CommonJS modules for tests — hence `module`)
   computePlaces: 'readonly', groupLookupHits: 'readonly', module: 'readonly',
   gameHue: 'readonly', coverPlaceholder: 'readonly',
+  coverUrl: 'readonly', COVER_THUMB: 'readonly', COVER_CARD: 'readonly',
+  COVER_HERO: 'readonly', COVER_RESIZERS: 'readonly',
   providerMatchCover: 'readonly',
   TAG_ICONS: 'readonly', tagIconClass: 'readonly',
   // views-home.js

@@ -76,7 +76,7 @@ function showStartSession(round) {
     const thumbs = games
       .slice(0, 6)
       .map((g) => {
-        const style = g.image ? ` style="background-image:url('${g.image}')"` : '';
+        const style = g.image ? ` style="background-image:url('${coverUrl(g.image, COVER_THUMB)}')"` : '';
         const fb = coverPlaceholder(g);
         return `<span class="pool-thumb"${style} title="${esc(g.title)}">${fb}</span>`;
       })
@@ -211,7 +211,7 @@ function startVoting(round, session, games, members) {
     const current = votes[member.id][game.id] || { rating: null, retire: false };
     const color = memberColor(round, member.id);
 
-    const imgStyle = game.image ? `style="background-image:url('${game.image}')"` : '';
+    const imgStyle = game.image ? `style="background-image:url('${coverUrl(game.image, COVER_HERO)}')"` : '';
     const fallback = coverPlaceholder(game);
 
     app.innerHTML = '';
@@ -415,7 +415,7 @@ async function showResults(round, session, gamesHint, reveal) {
     arranged.forEach((r) => {
       const place = r.place;
       const g = r.game;
-      const imgStyle = g.image ? ` style="background-image:url('${g.image}')"` : '';
+      const imgStyle = g.image ? ` style="background-image:url('${coverUrl(g.image, COVER_THUMB)}')"` : '';
       const fb = coverPlaceholder(g);
       const col = h(`<div class="result-podium__col result-podium__col--${place}">
              ${place === 1 ? '<i class="ti ti-crown result-podium__crown" aria-hidden="true"></i>' : ''}
@@ -478,7 +478,7 @@ async function showResults(round, session, gamesHint, reveal) {
 
   rows.forEach((r) => {
     const g = r.game;
-    const imgStyle = g.image ? `style="background-image:url('${g.image}')"` : '';
+    const imgStyle = g.image ? `style="background-image:url('${coverUrl(g.image, COVER_THUMB)}')"` : '';
     const fallback = coverPlaceholder(g);
     const bars = r.dist
       .map((c, n) => {

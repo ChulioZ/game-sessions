@@ -100,7 +100,7 @@ function renderRegalTab(round, activeGames) {
              <div class="game-card__title">${esc(g.title)}</div>
            </div>
          </div>`);
-      if (g.image) loadCover(gc, g.image, gc.querySelector('.game-card__img'));
+      if (g.image) loadCover(gc, coverUrl(g.image, COVER_CARD), gc.querySelector('.game-card__img'));
       gc.addEventListener('click', () => showGameDetail(rid, g.id));
       cardById[g.id] = gc;
     });
@@ -332,7 +332,7 @@ function renderChronikTab(round, activities) {
            <div class="session-card__meta">${parts.join(' · ')}</div>
          </div>
        </button>`);
-    if (chosen && chosen.image) loadCover(card.querySelector('.session-card__img'), chosen.image);
+    if (chosen && chosen.image) loadCover(card.querySelector('.session-card__img'), coverUrl(chosen.image, COVER_THUMB));
     card.addEventListener('click', () => showResults(round, s));
     return card;
   }
@@ -693,7 +693,7 @@ async function showArchive(rid, kind) {
              <button class="btn btn--danger" data-act="delete"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t(`${kind}.delete`))}</button>
            </div>
          </div>`);
-      if (g.image) loadCover(row.querySelector('.archive-row__img'), g.image);
+      if (g.image) loadCover(row.querySelector('.archive-row__img'), coverUrl(g.image, COVER_THUMB));
       row.querySelector('[data-act="restore"]').addEventListener('click', async () => {
         try {
           await api('POST', a.endpoint(rid, g.id), a.body);

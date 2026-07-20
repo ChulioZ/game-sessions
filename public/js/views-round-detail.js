@@ -209,7 +209,7 @@ async function showGameDetail(rid, gameId) {
   ]);
 
   const st = gameStats(round, gameId);
-  const imgStyle = game.image ? `style="background-image:url('${game.image}')"` : '';
+  const imgStyle = game.image ? `style="background-image:url('${coverUrl(game.image, COVER_HERO)}')"` : '';
   const fallback = coverPlaceholder(game);
   app.innerHTML = '';
 
