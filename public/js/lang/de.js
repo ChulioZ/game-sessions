@@ -109,9 +109,9 @@ I18N.de = {
   'games.search': 'Spiele suchen',
   'games.noMatch': 'Keine Spiele passen zu „{q}“.',
 
-  'retired.link': 'Archiv ({n})',
-  'retired.crumb': 'Archiv',
-  'retired.title': 'Das Archiv',
+  'retired.link': 'Aussortiert ({n})',
+  'retired.crumb': 'Aussortiert',
+  'retired.title': 'Aussortiert',
   'retired.empty': 'Es wurde noch kein Spiel aussortiert.',
   'retired.at': 'Im Ruhestand seit {when}',
   'retired.restore': 'Comeback',

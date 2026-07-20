@@ -109,9 +109,9 @@ I18N.en = {
   'games.search': 'Search games',
   'games.noMatch': 'No games match “{q}”.',
 
-  'retired.link': 'Archive ({n})',
-  'retired.crumb': 'Archive',
-  'retired.title': 'The archive',
+  'retired.link': 'Retired ({n})',
+  'retired.crumb': 'Retired',
+  'retired.title': 'Retired',
   'retired.empty': 'No game has been retired yet.',
   'retired.at': 'Retired since {when}',
   'retired.restore': 'Comeback',
