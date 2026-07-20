@@ -75,6 +75,8 @@
     .status__label { color: #8b93a6; font-size: 0.78rem; margin-bottom: 0.3rem; }
     .status__note { color: #8b93a6; font-size: 0.78rem; margin-top: 0.3rem; }
     .scroll { overflow-x: auto; }
+    /* "100 von 342" (#288) — a card must never hide entries silently. */
+    .count { margin: -0.4rem 0 0.9rem; }
     code { background: #14161c; padding: 0.1rem 0.35rem; border-radius: 6px; font-size: 0.85em; }
     [hidden] { display: none !important; }
   </style>
@@ -139,13 +141,24 @@
 
     <section class="card">
       <h2>Feedback</h2>
+      <p class="sub count" id="feedbackCount" hidden></p>
       <div class="scroll"><table id="feedbackTable"><tbody></tbody></table></div>
+      <div class="row" style="margin-top: 1rem;">
+        <button class="ghost small" id="feedbackMore" hidden>Mehr laden</button>
+        <button class="ghost small" id="feedbackCsv">CSV herunterladen</button>
+      </div>
       <p class="msg msg--err" id="feedbackError" role="alert" hidden></p>
     </section>
 
     <section class="card">
       <h2>Protokoll</h2>
+      <p class="sub count" id="logCount" hidden></p>
       <div class="scroll"><table id="logTable"><tbody></tbody></table></div>
+      <div class="row" style="margin-top: 1rem;">
+        <button class="ghost small" id="logMore" hidden>Mehr laden</button>
+        <button class="ghost small" id="logCsv">CSV herunterladen</button>
+      </div>
+      <p class="msg msg--err" id="logError" role="alert" hidden></p>
     </section>
   </div>
 

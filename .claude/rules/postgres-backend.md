@@ -54,6 +54,17 @@ Non-obvious things that cost effort — keep them:
   `20260719180000_tenant_read_indexes.js`) serve the tenant-wide list read at
   multi-tenant scale.
 
+- **`count()` comes back as a STRING — coerce it, or the backends silently
+  disagree.** Postgres `count(*)` is a `bigint`, and pg refuses to parse bigints
+  into JS numbers (they exceed 2^53), so knex hands back `{ n: '3' }`. The JSON
+  backend's equivalent is `arr.length`, a real number. Return the raw value and
+  `countFeedback()` answers `'3'` on one backend and `3` on the other — which
+  passes any `==`-ish glance, renders fine in the panel as "100 von 342", and
+  only breaks where something does arithmetic or a strict compare. `lib/repo/
+  postgres.js` funnels every such read through one `count(table)` helper that
+  does the `Number()`; the contract suite asserts `typeof === 'number'` so a new
+  count method that skips the helper fails loudly (#288).
+
 - **Backend parity of *absent* keys.** The JSON model omits some keys until
   written (a fresh round has no `tags`; a fresh member no `color`).
   Postgres matches this: `tags` defaults to **NULL** and `assemble`

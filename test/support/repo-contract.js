@@ -761,6 +761,38 @@ module.exports = function repoContract(repo) {
     assert.equal((await repo.listModeration(1)).length, 1);
   });
 
+  // Paging (#288). The two backends page from opposite ends internally — JSON
+  // reverses an append-ordered array, Postgres runs orderBy('seq','desc') — so
+  // an offset applied to the wrong end is exactly the kind of split only a
+  // contract test catches. Asserted on identifiable entries, not just lengths.
+  // This suite shares state across its cases, so everything below is relative to
+  // the count on entry rather than an absolute total.
+  test('listModeration pages backwards through history with (limit, offset)', async () => {
+    const before = await repo.countModeration();
+    for (const n of [1, 2, 3]) {
+      await repo.logModeration({
+        action: 'takedown', target: `/uploads/p${n}.jpg`, reason: `page ${n}`,
+        at: `2026-07-20T1${n}:00:00.000Z`,
+      });
+    }
+    assert.equal(await repo.countModeration(), before + 3);
+
+    // The three newest are ours, newest first.
+    assert.deepEqual((await repo.listModeration(2, 0)).map((e) => e.reason), ['page 3', 'page 2']);
+    assert.equal((await repo.listModeration(1, 2))[0].reason, 'page 1');
+
+    // Offsetting past the end is an empty page — not an error, and not a
+    // wrapped-around one.
+    assert.deepEqual(await repo.listModeration(2, before + 3), []);
+
+    // Paging must partition: walking the whole log a page at a time yields every
+    // entry exactly once, in the same order one big read gives.
+    const whole = await repo.listModeration(before + 3, 0);
+    const walked = [];
+    for (let off = 0; off < before + 3; off += 2) walked.push(...await repo.listModeration(2, off));
+    assert.deepEqual(walked.map((e) => e.id), whole.map((e) => e.id));
+  });
+
   // Feedback (#260) is global and un-scoped like the moderation log, so it is
   // covered here rather than among the tenant-isolation cases — there is no
   // tenant argument to isolate on. The submitter's tenant rides along inside
@@ -792,6 +824,27 @@ module.exports = function repoContract(repo) {
     assert.equal(entries[1].context.email, undefined);
 
     assert.equal((await repo.listFeedback(1)).length, 1);
+  });
+
+  test('listFeedback pages and countFeedback totals the whole set (#288)', async () => {
+    const before = await repo.countFeedback();
+    for (const n of [1, 2, 3]) {
+      await repo.createFeedback({
+        message: `paged ${n}`,
+        context: { path: '/', locale: 'de', tenantId: T },
+        createdAt: `2026-07-20T1${n}:00:00.000Z`,
+      });
+    }
+    assert.equal(await repo.countFeedback(), before + 3);
+
+    assert.deepEqual((await repo.listFeedback(2, 0)).map((f) => f.message), ['paged 3', 'paged 2']);
+    assert.equal((await repo.listFeedback(1, 2))[0].message, 'paged 1');
+    assert.deepEqual(await repo.listFeedback(2, before + 3), []);
+
+    // A count is a plain JS number on both backends — Postgres count() is a
+    // bigint that pg returns as a string, so a missing coercion would split the
+    // backends here rather than anywhere visible.
+    assert.equal(typeof (await repo.countFeedback()), 'number');
   });
 
   // The operator panel's "did this deploy migrate?" field (#274). Both backends

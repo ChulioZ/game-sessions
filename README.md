@@ -219,6 +219,9 @@ lib/
                      tokens (issue #135; off unless ACCOUNTS_ENABLED)
   mail.js            outbound e-mail (Brevo when BREVO_API_KEY is set, else
                      logged to an in-memory outbox)
+  csv.js             RFC 4180 CSV writer for the operator panel's exports
+                     (issue #288) — quotes every field, so a feedback message
+                     with commas/quotes/newlines cannot corrupt the file
   observability.js   structured logging, /healthz, central error handler
   status.js          derived instance configuration for the operator panel's
                      status card (issue #274) — booleans/enums only, never a
@@ -432,6 +435,16 @@ tenant each message came from — plus the sender's address on the messages wher
 they opted in to be contacted. It is read-only, and it lives behind
 `ADMIN_PASSWORD` rather than getting a credential of its own. Tune how often one
 IP may submit with `FEEDBACK_RATE_LIMIT_MAX` (per 15 min, default 10).
+
+Both the Feedback and the Protokoll card page rather than truncate (issue #288):
+each shows how much of the whole it is displaying (`100 von 342`), loads older
+entries on demand with **Mehr laden**, and offers a **CSV herunterladen** button
+that exports *every* entry — not just the loaded page — as a UTF-8 CSV (BOM
+included, so Excel renders umlauts correctly). Previously both stopped silently
+at the newest 100, which for the moderation log — the record backing an Art. 17
+statement of reasons — was the wrong failure mode. The exports need no reason and
+write no log entry: unlike the account export, they disclose nothing the operator
+cannot already read by scrolling the card.
 
 `ADMIN_PASSWORD` must be a **separate** secret from `AUTH_PASSWORD`: the latter is
 shared with everyone using the instance, while these powers cross tenant

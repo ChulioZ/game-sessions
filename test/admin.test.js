@@ -61,6 +61,10 @@ test('the admin gate refuses everything without a valid operator session', async
       ['post', '/api/admin/takedown'],
       ['get', '/api/admin/users'],
       ['get', '/api/admin/log'],
+      ['get', '/api/admin/feedback'],
+      // The exports must be no more reachable than the cards they mirror (#288).
+      ['get', '/api/admin/log.csv'],
+      ['get', '/api/admin/feedback.csv'],
     ]) {
       const res = await request(app)[method](path).send({});
       assert.equal(res.status, 401, `${method} ${path}`);
@@ -466,6 +470,96 @@ test('the status endpoint reports the running instance without leaking secrets (
   });
 });
 
+// Issue #288: both list cards page and export. The property that matters is that
+// the CSV holds EVERY entry while the card holds one page — and that a hostile
+// feedback message cannot corrupt the file.
+test('the list cards page and export the full set', async (t) => {
+  const cookie = await adminCookie();
+
+  // Seeded through the repo rather than POST /api/feedback: that route sits
+  // behind the app's own gate (accounts are on in this file), and what is under
+  // test here is the admin read side, not the submit path.
+  //
+  // One message carrying every character that breaks a naive CSV writer at once.
+  const NASTY = 'Erste Zeile, mit Komma\nzweite mit "Anführungszeichen"\r\nund Umlauten: Grüße';
+  assert.equal(await repo.countFeedback(), 0, 'this test assumes it owns the feedback table');
+  await repo.createFeedback({
+    message: NASTY,
+    context: { path: '/round/x', locale: 'de', tenantId: 'tenant-a' },
+    createdAt: '2026-07-20T10:00:00.000Z',
+  });
+  for (let i = 0; i < 4; i += 1) {
+    await repo.createFeedback({
+      message: `Nachricht ${i}`,
+      context: { path: '/', locale: 'de', tenantId: 'tenant-a' },
+      createdAt: `2026-07-20T1${i + 1}:00:00.000Z`,
+    });
+  }
+
+  await t.test('the list route reports a total alongside the page', async () => {
+    const res = await request(app).get('/api/admin/feedback?limit=2').set('Cookie', cookie);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.entries.length, 2);
+    assert.equal(res.body.total, 5);
+  });
+
+  await t.test('offset walks the whole set exactly once', async () => {
+    const seen = [];
+    for (let offset = 0; offset < 5; offset += 2) {
+      const res = await request(app)
+        .get(`/api/admin/feedback?limit=2&offset=${offset}`).set('Cookie', cookie);
+      seen.push(...res.body.entries.map((f) => f.message));
+    }
+    assert.equal(seen.length, 5);
+    assert.equal(new Set(seen).size, 5, 'a page repeated or skipped an entry');
+    // Newest first: the four plain messages precede the nasty one, which was
+    // submitted first.
+    assert.equal(seen[4], NASTY);
+  });
+
+  await t.test('the CSV holds every entry, BOM-prefixed and correctly escaped', async () => {
+    const res = await request(app).get('/api/admin/feedback.csv').set('Cookie', cookie);
+    assert.equal(res.status, 200);
+    assert.match(res.headers['content-type'], /text\/csv/);
+    assert.match(res.headers['content-type'], /charset=utf-8/);
+    assert.match(res.headers['content-disposition'], /attachment; filename="spielwirbel-feedback-\d{4}-\d{2}-\d{2}\.csv"/);
+
+    // The BOM is the very first character, or Excel mis-decodes the umlauts.
+    assert.equal(res.text[0], '﻿');
+    // Every entry is present, not just the default 100-row page's worth.
+    for (let i = 0; i < 4; i += 1) assert.ok(res.text.includes(`Nachricht ${i}`), `missing ${i}`);
+    // The nasty message survived intact — quotes doubled, newlines kept inside
+    // the field. Counting records is what proves the newline did not end the row.
+    assert.ok(res.text.includes('"Anführungszeichen"""') || res.text.includes('""Anführungszeichen""'));
+    assert.ok(res.text.includes('Grüße'));
+
+    // Header + 5 records. A broken escaper yields more, because the embedded
+    // newlines each start a spurious row.
+    assert.equal(countCsvRecords(res.text), 6);
+  });
+
+  await t.test('the log export carries the reason column', async () => {
+    const res = await request(app).get('/api/admin/log.csv').set('Cookie', cookie);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /"Zeitpunkt","Aktion","Ziel","Spiel","E-Mail","Tenant","Begründung"/);
+  });
+});
+
+// Count top-level CSV records by scanning outside quoted fields, so a newline
+// inside a properly quoted value does not count as a record separator.
+function countCsvRecords(text) {
+  let quoted = false;
+  let records = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i];
+    if (c === '"') {
+      if (quoted && text[i + 1] === '"') i += 1;
+      else quoted = !quoted;
+    } else if (!quoted && c === '\r' && text[i + 1] === '\n') { records += 1; i += 1; }
+  }
+  return records;
+}
+
 test('with no ADMIN_PASSWORD the whole surface 404s', async () => {
   const saved = process.env.ADMIN_PASSWORD;
   delete process.env.ADMIN_PASSWORD;
@@ -484,6 +578,13 @@ test('with no ADMIN_PASSWORD the whole surface 404s', async () => {
 
     const users = await request(plain).get('/api/admin/users');
     assert.equal(users.status, 404);
+
+    // Including the exports — an un-opted-in instance must not hand out its
+    // feedback inbox or action log either (#288).
+    for (const path of ['/api/admin/log.csv', '/api/admin/feedback.csv']) {
+      const csv = await request(plain).get(path);
+      assert.equal(csv.status, 404, path);
+    }
   } finally {
     process.env.ADMIN_PASSWORD = saved;
   }

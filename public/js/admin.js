@@ -449,67 +449,132 @@
     }
   }
 
+  // ---- paged list cards (#288) ---------------------------------------------
+
+  // Feedback and Protokoll are the same card twice — newest-first, read-only,
+  // paged, exportable — so they share one builder rather than two near-identical
+  // loaders that drift apart. Returns reload(), which every action that changes
+  // the underlying data already calls.
+  //
+  // Both used to render only the newest 100 with nothing saying so. For the
+  // Protokoll in particular that is the wrong failure mode: it is the record
+  // backing Art. 17 statements of reasons, so the total is always shown, even
+  // when a single page covers it.
+  const PAGE = 100;
+
+  function listCard(opts) {
+    const body = $(opts.table).querySelector('tbody');
+    const countEl = $(opts.count);
+    const moreBtn = $(opts.more);
+    const errorEl = $(opts.error);
+    let loaded = 0;
+
+    // append=false restarts from the newest entry; append=true fetches the next
+    // page and adds it below what is already rendered.
+    async function load(append) {
+      if (!append) loaded = 0;
+      let entries;
+      let total;
+      try {
+        ({ entries, total } = await api(`${opts.path}?limit=${PAGE}&offset=${loaded}`));
+      } catch (err) {
+        show(errorEl, message(err), 'err');
+        return;
+      }
+
+      if (!append) {
+        body.replaceChildren();
+        hide(errorEl);
+        const head = document.createElement('tr');
+        opts.headers.forEach((h) => cell(head, h, { head: true }));
+        body.appendChild(head);
+      }
+
+      loaded += entries.length;
+
+      if (!total) {
+        const row = document.createElement('tr');
+        cell(row, opts.empty, { colSpan: opts.headers.length });
+        body.appendChild(row);
+      } else {
+        for (const entry of entries) body.appendChild(opts.row(entry));
+      }
+
+      countEl.textContent = `${loaded} von ${total}`;
+      countEl.hidden = !total;
+      // Hidden rather than disabled once everything is loaded: a dead button is
+      // noise on a card that is now complete.
+      moreBtn.hidden = loaded >= total;
+    }
+
+    // The full set, not just the loaded pages — the reason the download exists.
+    // Follows exportUser()'s object-URL precedent, including the deferred revoke.
+    async function downloadCsv() {
+      const button = $(opts.csv);
+      button.disabled = true;
+      try {
+        const res = await fetch(`/api/admin${opts.path}.csv`);
+        if (!res.ok) {
+          const failed = await res.json().catch(() => ({}));
+          throw new Error(failed.error || `HTTP ${res.status}`);
+        }
+        const url = URL.createObjectURL(await res.blob());
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `spielwirbel-${opts.name}-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        // Revoked on the next tick, not inline — see exportUser().
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+        hide(errorEl);
+      } catch (err) {
+        show(errorEl, message(err), 'err');
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    moreBtn.addEventListener('click', () => load(true));
+    $(opts.csv).addEventListener('click', downloadCsv);
+    return () => load(false);
+  }
+
   // ---- log -----------------------------------------------------------------
 
-  async function loadLog() {
-    const body = $('logTable').querySelector('tbody');
-    body.replaceChildren();
-    let entries;
-    try {
-      ({ entries } = await api('/log'));
-    } catch {
-      return; // the users panel already surfaces a dead session
-    }
-
-    const head = document.createElement('tr');
-    ['Zeitpunkt', 'Aktion', 'Ziel', 'Begründung'].forEach((h) => cell(head, h, { head: true }));
-    body.appendChild(head);
-
-    if (!entries.length) {
-      const row = document.createElement('tr');
-      cell(row, 'Noch keine Einträge.', { colSpan: 4 });
-      body.appendChild(row);
-      return;
-    }
-
-    for (const e of entries) {
+  const loadLog = listCard({
+    path: '/log',
+    name: 'protokoll',
+    table: 'logTable',
+    count: 'logCount',
+    more: 'logMore',
+    csv: 'logCsv',
+    error: 'logError',
+    headers: ['Zeitpunkt', 'Aktion', 'Ziel', 'Begründung'],
+    empty: 'Noch keine Einträge.',
+    row: (e) => {
       const row = document.createElement('tr');
       cell(row, fmt(e.at));
       cell(row, e.action);
       cell(row, e.gameTitle ? `${e.gameTitle} (${e.target})` : e.email || e.target);
       cell(row, e.reason || '—');
-      body.appendChild(row);
-    }
-  }
+      return row;
+    },
+  });
 
   // ---- feedback (#260) -----------------------------------------------------
 
   // In-app user feedback, newest first. Read-only: there is no action to take
   // here beyond reading, so unlike the accounts table this renders no buttons.
-  async function loadFeedback() {
-    const body = $('feedbackTable').querySelector('tbody');
-    body.replaceChildren();
-    hide($('feedbackError'));
-    let entries;
-    try {
-      ({ entries } = await api('/feedback'));
-    } catch (err) {
-      show($('feedbackError'), message(err), 'err');
-      return;
-    }
-
-    const head = document.createElement('tr');
-    ['Zeitpunkt', 'Nachricht', 'Kontext', 'Kontakt'].forEach((h) => cell(head, h, { head: true }));
-    body.appendChild(head);
-
-    if (!entries.length) {
-      const row = document.createElement('tr');
-      cell(row, 'Noch kein Feedback.', { colSpan: 4 });
-      body.appendChild(row);
-      return;
-    }
-
-    for (const f of entries) {
+  const loadFeedback = listCard({
+    path: '/feedback',
+    name: 'feedback',
+    table: 'feedbackTable',
+    count: 'feedbackCount',
+    more: 'feedbackMore',
+    csv: 'feedbackCsv',
+    error: 'feedbackError',
+    headers: ['Zeitpunkt', 'Nachricht', 'Kontext', 'Kontakt'],
+    empty: 'Noch kein Feedback.',
+    row: (f) => {
       const ctx = f.context || {};
       const row = document.createElement('tr');
       cell(row, fmt(f.createdAt));
@@ -521,9 +586,9 @@
       // Only present when the submitter explicitly opted in; anonymous is the
       // default, so an em dash here is the normal case, not missing data.
       cell(row, ctx.email || '—');
-      body.appendChild(row);
-    }
-  }
+      return row;
+    },
+  });
 
   // ---- boot ----------------------------------------------------------------
 

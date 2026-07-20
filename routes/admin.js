@@ -26,6 +26,7 @@ const admin = require('../lib/admin');
 const repo = require('../lib/repo');
 const storage = require('../lib/storage');
 const { instanceStatus } = require('../lib/status');
+const { CSV_BOM, toCsv } = require('../lib/csv');
 const { logger } = require('../lib/observability');
 
 const router = express.Router();
@@ -301,12 +302,68 @@ router.post('/users/:uid/erase', async (req, res) => {
   res.json({ ok: true, rounds: result.rounds, imagesRemoved: removed, imagesFailed: failed, entry });
 });
 
+/* ------------------------------ paging & export ---------------------------- */
+
+// Both list routes below page with the same (limit, offset) and report a total,
+// so the panel can say "100 von 342" instead of silently truncating (#288).
+const pageParams = (req) => ({
+  limit: Math.min(Math.max(Number(req.query.limit) || 100, 1), 500),
+  offset: Math.max(Number(req.query.offset) || 0, 0),
+});
+
+// Stream a full export as a CSV attachment. `count` then `list(total)` reads the
+// whole set rather than one page — these are operator-sized tables (the panel's
+// own inbox and action log), not user data at scale, and the point of the
+// download is precisely the entries the card cannot show.
+//
+// Deliberately NO reason parameter and NO logModeration entry, unlike the write
+// actions and the GDPR export above: this discloses nothing the operator cannot
+// already read by scrolling the card, to the same operator, and viewing the card
+// requires no reason either. See issue #288's Notes.
+// Headroom on the read: `count` and `list` are two statements, so an entry
+// arriving between them would make `list(total)` return the newest `total` of a
+// now-larger set — silently dropping the OLDEST row from the export. Harmless
+// when nothing raced (asking for more than exists just returns everything), and
+// it keeps a concurrent submission from quietly truncating the action log.
+const CSV_HEADROOM = 100;
+
+async function sendCsv(res, { name, columns, count, list }) {
+  const total = await count();
+  const rows = total ? await list(total + CSV_HEADROOM) : [];
+  const date = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="spielwirbel-${name}-${date}.csv"`);
+  res.send(CSV_BOM + toCsv(columns, rows));
+}
+
 /* ----------------------------------- log ----------------------------------- */
 
 // The action record backing Art. 17 statements of reasons. Newest first.
 router.get('/log', async (req, res) => {
-  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
-  res.json({ entries: await repo.listModeration(limit) });
+  const { limit, offset } = pageParams(req);
+  res.json({
+    entries: await repo.listModeration(limit, offset),
+    total: await repo.countModeration(),
+  });
+});
+
+const LOG_COLUMNS = [
+  ['Zeitpunkt', (e) => e.at],
+  ['Aktion', (e) => e.action],
+  ['Ziel', (e) => e.target],
+  ['Spiel', (e) => e.gameTitle],
+  ['E-Mail', (e) => e.email],
+  ['Tenant', (e) => e.tenantId],
+  ['Begründung', (e) => e.reason],
+];
+
+router.get('/log.csv', async (req, res) => {
+  await sendCsv(res, {
+    name: 'protokoll',
+    columns: LOG_COLUMNS,
+    count: () => repo.countModeration(),
+    list: (total) => repo.listModeration(total),
+  });
 });
 
 /* -------------------------------- feedback --------------------------------- */
@@ -320,8 +377,31 @@ router.get('/log', async (req, res) => {
 // from the module-level `repo` — req.repo does not exist on this router and
 // listFeedback is deliberately absent from TENANT_METHODS.
 router.get('/feedback', async (req, res) => {
-  const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
-  res.json({ entries: await repo.listFeedback(limit) });
+  const { limit, offset } = pageParams(req);
+  res.json({
+    entries: await repo.listFeedback(limit, offset),
+    total: await repo.countFeedback(),
+  });
+});
+
+// `context` is flattened into columns rather than dumped as JSON into one cell —
+// the whole point of a CSV is that the operator can sort and filter on these.
+const FEEDBACK_COLUMNS = [
+  ['Zeitpunkt', (f) => f.createdAt],
+  ['Nachricht', (f) => f.message],
+  ['Pfad', (f) => (f.context || {}).path],
+  ['Sprache', (f) => (f.context || {}).locale],
+  ['Tenant', (f) => (f.context || {}).tenantId],
+  ['E-Mail', (f) => (f.context || {}).email],
+];
+
+router.get('/feedback.csv', async (req, res) => {
+  await sendCsv(res, {
+    name: 'feedback',
+    columns: FEEDBACK_COLUMNS,
+    count: () => repo.countFeedback(),
+    list: (total) => repo.listFeedback(total),
+  });
 });
 
 module.exports = router;
