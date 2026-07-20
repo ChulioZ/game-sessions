@@ -54,8 +54,10 @@ const frontendGlobals = {
   showLogin: 'readonly', showRegister: 'readonly', showForgot: 'readonly',
   showAuthDone: 'readonly', renderVerifyLanding: 'readonly',
   renderResetLanding: 'readonly', setupAccountUi: 'readonly',
-  // ranking.js + lookup-group.js (also CommonJS modules for tests — hence `module`)
+  // ranking.js + lookup-group.js + cover.js (also CommonJS modules for tests —
+  // hence `module`)
   computePlaces: 'readonly', groupLookupHits: 'readonly', module: 'readonly',
+  gameHue: 'readonly', coverPlaceholder: 'readonly',
   // views-home.js
   showHome: 'readonly', showNewRound: 'readonly',
   // views-round.js (hub + Start tab) and its siblings loaded right after it:

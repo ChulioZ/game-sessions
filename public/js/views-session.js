@@ -77,9 +77,7 @@ function showStartSession(round) {
       .slice(0, 6)
       .map((g) => {
         const style = g.image ? ` style="background-image:url('${g.image}')"` : '';
-        const fb = g.image
-          ? ''
-          : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`;
+        const fb = coverPlaceholder(g);
         return `<span class="pool-thumb"${style} title="${esc(g.title)}">${fb}</span>`;
       })
       .join('');
@@ -214,9 +212,7 @@ function startVoting(round, session, games, members) {
     const color = memberColor(round, member.id);
 
     const imgStyle = game.image ? `style="background-image:url('${game.image}')"` : '';
-    const fallback = game.image
-      ? ''
-      : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`;
+    const fallback = coverPlaceholder(game);
 
     app.innerHTML = '';
     const card = h(`<div class="vote vote--split">
@@ -420,9 +416,7 @@ async function showResults(round, session, gamesHint, reveal) {
       const place = r.place;
       const g = r.game;
       const imgStyle = g.image ? ` style="background-image:url('${g.image}')"` : '';
-      const fb = g.image
-        ? ''
-        : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`;
+      const fb = coverPlaceholder(g);
       const col = h(`<div class="result-podium__col result-podium__col--${place}">
              ${place === 1 ? '<i class="ti ti-crown result-podium__crown" aria-hidden="true"></i>' : ''}
              <span class="result-podium__img"${imgStyle}>${fb}</span>
@@ -485,9 +479,7 @@ async function showResults(round, session, gamesHint, reveal) {
   rows.forEach((r) => {
     const g = r.game;
     const imgStyle = g.image ? `style="background-image:url('${g.image}')"` : '';
-    const fallback = g.image
-      ? ''
-      : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`;
+    const fallback = coverPlaceholder(g);
     const bars = r.dist
       .map((c, n) => {
         const hpx = 4 + Math.round((c / maxBar) * 24);

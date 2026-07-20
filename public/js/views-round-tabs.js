@@ -85,9 +85,7 @@ function renderRegalTab(round, activeGames) {
     const loadCover = createCoverLoader();
     const cardById = {};
     activeGames.forEach((g) => {
-      const fallback = g.image
-        ? ''
-        : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`;
+      const fallback = coverPlaceholder(g);
       const avg = avgMap[g.id];
       const scorePill =
         avg !== null
@@ -217,7 +215,7 @@ function renderChronikTab(round, activities) {
 
     // Thumbnail: the chosen game's cover, or an icon for the session's state.
     const thumbIcon = chosen
-      ? chosen.image ? '' : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`
+      ? coverPlaceholder(chosen)
       : `<i class="ti ${s.cancelled ? 'ti-x' : 'ti-cards'}" aria-hidden="true"></i>`;
 
     // Headline is the chosen game (with a rating pill); the date leads only
@@ -557,9 +555,7 @@ async function showRetired(rid) {
     const list = h('<div class="archive-list"></div>');
     const loadCover = createCoverLoader(); // lazy archive thumbs (#198)
     games.forEach((g) => {
-      const fallback = g.image
-        ? ''
-        : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`;
+      const fallback = coverPlaceholder(g);
       const when = g.retiredAt ? fmtDateTime(g.retiredAt) : '?';
       const row = h(`<div class="archive-row">
            <div class="archive-row__img">${fallback}</div>

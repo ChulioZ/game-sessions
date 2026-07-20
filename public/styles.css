@@ -211,6 +211,8 @@ h1, h2, h3 { font-family: var(--font-display); }
   padding: 14px 16px;
 }
 .ticket__img {
+  position: relative; /* anchors + clips the .cover-ph gradient layer (#256) */
+  overflow: hidden;
   width: 56px;
   height: 56px;
   border-radius: 12px;
@@ -755,6 +757,8 @@ h1, h2, h3 { font-family: var(--font-display); }
 }
 .session-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
 .session-card__img {
+  position: relative; /* anchors + clips the .cover-ph gradient layer (#256) */
+  overflow: hidden;
   width: 54px;
   height: 54px;
   border-radius: 12px;
@@ -841,6 +845,60 @@ h1, h2, h3 { font-family: var(--font-display); }
 .game-card__badges,
 .gd-img__edit {
   z-index: 2;
+}
+
+/* ---- "No cover yet" placeholder (#256) ----
+   Games without a cover used to render as a flat --sunken box with one grey
+   glyph, so a shelf of them read as a row of identical empty rectangles. Now
+   every such frame gets a deterministic two-stop gradient, built by
+   coverPlaceholder() in core.js which sets --cover-h from a hash of the title
+   — same game, same colour; different games, visibly different colours.
+
+   Both stops derive from --brand (per .claude/rules/theme-derived-colors.md),
+   so the placeholders follow the round's design instead of fighting it. The
+   base rule below is the fallback: a theme-derived light→dark brand wash with
+   no per-game hue variety. Browsers with relative colour syntax additionally
+   rotate the hue by --cover-h, which is what actually makes two games differ.
+   Kept as a fallback pair rather than a hard requirement so an older engine
+   degrades to "tasteful but uniform", never to an unstyled box. */
+.cover-ph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: color-mix(in srgb, var(--brand-dark) 55%, #fff);
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand) 26%, var(--page-bg)),
+    color-mix(in srgb, var(--brand) 60%, var(--page-bg))
+  );
+}
+/* --cover-h is UNITLESS: inside oklch(from …) the `h` channel is a <number> of
+   degrees, so `calc(h + 40deg)` is a type error the browser drops silently —
+   the gradient computes to `none` and every card is a flat box again, with no
+   console error to point at the cause. Keep the value unitless on both sides. */
+/* --cover-h (0–359) is re-centred to roughly ±80° around the round's own accent
+   rather than used as an absolute hue: a full 360° spin makes every round look
+   the same (the brand hue stops mattering) and puts cold blues on a warm theme.
+   A band keeps two games clearly different while the whole shelf still reads as
+   belonging to this round's design. */
+@supports (color: oklch(from red l c h)) {
+  .cover-ph {
+    --cover-shift: calc((var(--cover-h, 180) - 180) * 0.45);
+    color: oklch(from var(--brand) 0.99 calc(c * 0.18) calc(h + var(--cover-shift)));
+    background-image: linear-gradient(
+      135deg,
+      oklch(from var(--brand) 0.82 calc(c * 0.55) calc(h + var(--cover-shift))),
+      oklch(from var(--brand) 0.58 calc(c * 0.85) calc(h + var(--cover-shift) + 42))
+    );
+  }
+}
+/* The glyph is decoration on a coloured field, not content — keep it subdued so
+   the title stays the thing you read on a card. */
+.cover-ph .ti {
+  opacity: 0.72;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.18));
 }
 .game-card--clickable { cursor: pointer; transition: box-shadow 0.15s ease, transform 0.08s ease; }
 .game-card--clickable:hover { box-shadow: var(--shadow); transform: translateY(-2px) rotate(-0.3deg); }
@@ -1136,6 +1194,8 @@ body.auth-screen .crumbs { display: none; }
   align-items: center;
 }
 .result-row__img {
+  position: relative; /* anchors + clips the .cover-ph gradient layer (#256) */
+  overflow: hidden;
   width: 64px; height: 64px; border-radius: 12px;
   background: var(--sunken) center/cover no-repeat;
   display: flex; align-items: center; justify-content: center; font-size: 28px;
@@ -1392,6 +1452,32 @@ body.auth-screen .crumbs { display: none; }
 }
 .gd-img--edit:hover .gd-img__edit,
 .gd-img--edit:focus-visible .gd-img__edit { opacity: 1; }
+
+/* ---- Game detail: the "nothing here yet" panel (#256) ----
+   Shown instead of the score ring, the dashed chips and the empty related-
+   sessions list when a game has no cover, rating, session or tag. One solid
+   surface with a clear invitation reads as intentional, where the same page
+   made of four near-empty widgets read as broken. Tinted off --brand so it
+   belongs to the round's design (.claude/rules/theme-derived-colors.md). */
+.gd-onboard {
+  margin-top: 18px;
+  padding: 20px;
+  border-radius: var(--radius);
+  background: var(--brand-tint-soft);
+  border: 1px solid var(--brand-edge);
+}
+.gd-onboard__head { display: flex; gap: 14px; align-items: flex-start; }
+.gd-onboard__icon { font-size: 26px; color: var(--brand-dark); flex: none; line-height: 1.2; }
+.gd-onboard h3 { margin: 0 0 4px; font-size: 19px; }
+.gd-onboard p { margin: 0; max-width: 62ch; line-height: 1.55; }
+.gd-onboard__acts { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 0 40px; }
+@media (max-width: 520px) {
+  .gd-onboard__acts { margin-left: 0; }
+  .gd-onboard__act { flex: 1 1 100%; justify-content: center; }
+}
+/* With no stats column the head is just cover + title, so let the title block
+   sit beside a full-width-ish cover instead of stretching across the page. */
+.gd-head--sparse .gd-info { min-width: 200px; }
 
 /* Member detail page: big avatar + editable name, color picker, stats. */
 .member-head { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
@@ -1939,6 +2025,8 @@ kbd {
 .pool-hint__text { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
 .pool-thumbs { display: inline-flex; }
 .pool-thumb {
+  position: relative; /* anchors + clips the .cover-ph gradient layer (#256) */
+  overflow: hidden;
   width: 38px;
   height: 38px;
   border-radius: 10px;
@@ -2145,6 +2233,8 @@ kbd {
 .result-podium__col { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 140px; }
 .result-podium__crown { font-size: 24px; color: var(--gold); }
 .result-podium__img {
+  position: relative; /* anchors + clips the .cover-ph gradient layer (#256) */
+  overflow: hidden;
   width: 74px;
   height: 74px;
   border-radius: 14px;
@@ -2221,6 +2311,8 @@ kbd {
   padding: 12px 16px;
 }
 .archive-row__img {
+  position: relative; /* anchors + clips the .cover-ph gradient layer (#256) */
+  overflow: hidden;
   width: 56px;
   height: 56px;
   border-radius: 12px;

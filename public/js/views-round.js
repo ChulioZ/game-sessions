@@ -109,9 +109,7 @@ function renderStartTab(round, activeGames) {
       const when = fmtDateTime(session.chosenAt || session.createdAt);
       const imgStyle = game && game.image ? ` style="background-image:url('${game.image}')"` : '';
       const fallback = game
-        ? game.image
-          ? ''
-          : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`
+        ? coverPlaceholder(game)
         : '<i class="ti ti-tornado" aria-hidden="true"></i>';
       let pill = '';
       if (game) {
@@ -152,9 +150,7 @@ function renderStartTab(round, activeGames) {
     const sst = gameStatsForSession(round, lastPlayed, game.id);
     const when = fmtDateTime(lastPlayed.createdAt);
     const imgStyle = game.image ? ` style="background-image:url('${game.image}')"` : '';
-    const fallback = game.image
-      ? ''
-      : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`;
+    const fallback = coverPlaceholder(game);
     const pill =
       sst.avg !== null
         ? `<span class="score-pill" style="background:${avgColor(sst.avg)}">Ø ${sst.avg.toFixed(1)}</span>`

@@ -235,6 +235,7 @@ public/
     core.js          DOM/API helpers, stats, design, language picker  (loads first)
     account.js       onboarding + auth UI (login/register/verify/reset), token wiring
     ranking.js       tie-aware podium places ("1, 2, 2, 4")
+    cover.js         deterministic per-title gradient for games with no cover
     lookup-group.js  collapses same-title provider hits into one multi-badge row
     views-home.js    lobby + new round
     views-round.js        round hub (Start/Regal/Chronik/Pokale dock) + Start tab

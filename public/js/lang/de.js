@@ -144,6 +144,12 @@ I18N.de = {
   'detail.notChosen': 'nicht gewählt',
   'detail.sessionCancelled': 'Session abgebrochen',
   'detail.retireConfirm': '„{title}“ aussortieren?',
+  'detail.onboard.title': 'Ein unbeschriebenes Blatt',
+  'detail.onboard.text':
+    'Dieses Spiel wurde noch nicht gespielt oder bewertet. Bewertungen und Sessions erscheinen hier von selbst, sobald ihr es spielt — bis dahin kannst du ihm ein Gesicht geben.',
+  'detail.onboard.cover': 'Cover hinzufügen',
+  'detail.onboard.tags': 'Tags vergeben',
+  'detail.onboard.players': 'Personenzahl festlegen',
 
   'member.editName': 'Zum Umbenennen klicken',
   'member.colorLabel': 'Avatar-Farbe',

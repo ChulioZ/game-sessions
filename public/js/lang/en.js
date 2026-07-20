@@ -144,6 +144,12 @@ I18N.en = {
   'detail.notChosen': 'not chosen',
   'detail.sessionCancelled': 'session cancelled',
   'detail.retireConfirm': 'Retire “{title}”?',
+  'detail.onboard.title': 'A blank slate',
+  'detail.onboard.text':
+    'Nobody has rated or played this one yet. Ratings and sessions show up here by themselves once you play it — until then, you can give it a face.',
+  'detail.onboard.cover': 'Add a cover',
+  'detail.onboard.tags': 'Add tags',
+  'detail.onboard.players': 'Set players',
 
   'member.editName': 'Click to rename',
   'member.colorLabel': 'Avatar color',

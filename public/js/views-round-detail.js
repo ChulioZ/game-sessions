@@ -176,9 +176,7 @@ async function showGameDetail(rid, gameId) {
 
   const st = gameStats(round, gameId);
   const imgStyle = game.image ? `style="background-image:url('${game.image}')"` : '';
-  const fallback = game.image
-    ? ''
-    : `<i class="ti ${GAME_ICON}" aria-hidden="true"></i>`;
+  const fallback = coverPlaceholder(game);
   app.innerHTML = '';
 
   // Send a partial update, then re-render the page from fresh data.
@@ -361,6 +359,21 @@ async function showGameDetail(rid, gameId) {
     });
   }
 
+  // Related sessions (those that drew this game) – newest first. Computed up
+  // here, not at its own section below, because `sparse` needs it.
+  const related = round.sessions
+    .filter((s) => s.gameIds.includes(gameId))
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+
+  // A game nobody has touched yet: no cover, no rating, no session, no tags
+  // (#256). Rendering the normal layout for it produced a page of near-empty
+  // widgets — a dash in a grey ring, a dashed chip, one line of muted text —
+  // which read as broken rather than new. Instead the page drops the empty
+  // widgets entirely and leads with an invitation (see `onboard` below).
+  const assignedTagIds = (game.tagIds || []).filter((x) => (round.tags || []).some((tg) => tg.id === x));
+  const sparse =
+    !game.image && st.avg === null && related.length === 0 && assignedTagIds.length === 0;
+
   // Header card: image + title + score ring ("Spielepass").
   const ratingsLine = t(st.count === 1 ? 'detail.ratingsLineOne' : 'detail.ratingsLine', { n: st.count, s: st.sessions });
   const RING_C = (2 * Math.PI * 34).toFixed(1);
@@ -381,11 +394,13 @@ async function showGameDetail(rid, gameId) {
     ? `<div class="sort-flag" style="margin-top:8px"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('detail.totalSort', { n: st.sortCount }))}</div>`
     : '';
 
-  const head = h(`<div class="gd-head">
+  // The score ring is dropped for a sparse game — an empty ring next to an
+  // empty everything-else is what made the page read as broken (#256).
+  const head = h(`<div class="gd-head${sparse ? ' gd-head--sparse' : ''}">
        <div class="gd-info">
          <h1></h1>
        </div>
-       <div class="gd-stats">${scoreRing}${sortLine}</div>
+       ${sparse ? '' : `<div class="gd-stats">${scoreRing}${sortLine}</div>`}
      </div>`);
 
   // Editable cover image (click to paste a new one or remove it).
@@ -401,27 +416,30 @@ async function showGameDetail(rid, gameId) {
   titleEl.addEventListener('click', () => startTitleEdit(titleEl));
   h1.append(titleEl, space());
 
+  // On a sparse page the dashed "set …" chips are suppressed: the onboarding
+  // panel below already offers those exact actions, and two competing
+  // affordances for one action is what made the old layout feel scattered.
   const hasPl = Number.isInteger(game.minPlayers) && Number.isInteger(game.maxPlayers);
-  const plEl = hasPl
-    ? h(playersTag(game.minPlayers, game.maxPlayers))
-    : h(`<span class="tag tag--players tag--empty">${esc(t('detail.setPlayers'))}</span>`);
-  makeEditableTag(plEl, () => openPlayersPopover(plEl));
-
-  h1.append(plEl);
+  if (hasPl || !sparse) {
+    const plEl = hasPl
+      ? h(playersTag(game.minPlayers, game.maxPlayers))
+      : h(`<span class="tag tag--players tag--empty">${esc(t('detail.setPlayers'))}</span>`);
+    makeEditableTag(plEl, () => openPlayersPopover(plEl));
+    h1.append(plEl);
+  }
 
   // Custom round tags (#238): assigned tags render as chips, each opening the
   // edit popover; with none assigned, an empty chip is the way in (and the
   // popover can create the round's very first tag inline).
   const roundTags = round.tags || [];
-  const gameTagIds = (game.tagIds || []).filter((x) => roundTags.some((tg) => tg.id === x));
-  if (gameTagIds.length) {
-    gameTagIds.forEach((x) => {
+  if (assignedTagIds.length) {
+    assignedTagIds.forEach((x) => {
       const tg = roundTags.find((q) => q.id === x);
       const tagEl = h(`<span class="tag tag--custom">${esc(tg.name)}</span>`);
       makeEditableTag(tagEl, () => openTagsPopover(tagEl));
       h1.append(space(), tagEl);
     });
-  } else {
+  } else if (!sparse) {
     const tagEl = h(`<span class="tag tag--custom tag--empty">${esc(t('detail.setTags'))}</span>`);
     makeEditableTag(tagEl, () => openTagsPopover(tagEl));
     h1.append(space(), tagEl);
@@ -460,6 +478,38 @@ async function showGameDetail(rid, gameId) {
   }
   app.appendChild(actionWrap);
 
+  // Sparse game (#256): one inviting panel that says why the page is bare and
+  // offers the steps that fill it, instead of scattering half-empty widgets.
+  // The actions reuse the very same popovers the chips/cover would have opened,
+  // so this is a different presentation of existing affordances, not new API.
+  if (sparse) {
+    const onboard = h(`<div class="gd-onboard">
+         <div class="gd-onboard__head">
+           <i class="ti ti-sparkles gd-onboard__icon" aria-hidden="true"></i>
+           <div>
+             <h3>${esc(t('detail.onboard.title'))}</h3>
+             <p class="muted">${esc(t('detail.onboard.text'))}</p>
+           </div>
+         </div>
+         <div class="gd-onboard__acts"></div>
+       </div>`);
+    const acts = onboard.querySelector('.gd-onboard__acts');
+    [
+      // The cover popover anchors on the hero itself (that's what it edits);
+      // the other two anchor on their own button, which is where the eye is.
+      // Cover and tags are always missing here (that's part of `sparse`), but
+      // players can already be set — don't offer to fill in what's filled in.
+      ['ti-photo', t('detail.onboard.cover'), () => openImagePopover(imgEl)],
+      ['ti-tags', t('detail.onboard.tags'), (b) => openTagsPopover(b)],
+      ...(hasPl ? [] : [['ti-users', t('detail.onboard.players'), (b) => openPlayersPopover(b)]]),
+    ].forEach(([icon, label, onClick]) => {
+      const b = h(`<button class="btn gd-onboard__act"><i class="ti ${icon}" aria-hidden="true"></i> ${esc(label)}</button>`);
+      b.addEventListener('click', () => onClick(b));
+      acts.appendChild(b);
+    });
+    app.appendChild(onboard);
+  }
+
   // Link back to the provider page when the game was added from an external
   // source. A game with no source instead offers to link one after the fact
   // (issue #74). Provider names are proper nouns, not translated.
@@ -472,11 +522,10 @@ async function showGameDetail(rid, gameId) {
     app.appendChild(link);
   }
 
-  // Related sessions (those that drew this game) – newest first.
-  const related = round.sessions
-    .filter((s) => s.gameIds.includes(gameId))
-    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-
+  // Related sessions (`related` is computed near the top — `sparse` needs it).
+  // On a sparse page the section is omitted entirely: the onboarding panel
+  // already explains that ratings and sessions appear once the game is played,
+  // so a heading over one line of muted text only adds to the emptiness.
   const sec = h(`<div class="section"><h3>${esc(t('detail.relatedTitle'))}</h3></div>`);
   if (related.length === 0) {
     sec.appendChild(h(`<div class="muted">${esc(t('detail.relatedEmpty'))}</div>`));
@@ -518,7 +567,7 @@ async function showGameDetail(rid, gameId) {
     });
     sec.appendChild(list);
   }
-  app.appendChild(sec);
+  if (!sparse) app.appendChild(sec);
 
   const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
   back.querySelector('button').addEventListener('click', () => navBack(() => showRound(rid, 'regal')));

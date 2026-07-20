@@ -525,10 +525,8 @@ function makeMemberLink(el, rid, mid) {
   });
 }
 
-// Neutral game icon shown on a card/thumbnail that has no cover image. Since
-// games no longer carry a platform/type (#242), one generic glyph stands in for
-// every game (`ti-dice-3` is declared in the bundled tabler-icons subset).
-const GAME_ICON = 'ti-dice-3';
+// GAME_ICON / gameHue / coverPlaceholder live in js/cover.js (loaded earlier),
+// which is pure and dependency-free so the test suite can require it.
 
 // Plain localized player-count text ("2–4 Personen"), or '' when the game
 // predates the player-count feature (one/both fields missing). The plain form is
