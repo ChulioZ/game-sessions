@@ -26,6 +26,21 @@ test('csvField quotes every field and doubles inner quotes', () => {
   assert.equal(csvField(0), '"0"');
 });
 
+// Feedback text is written by anyone who can reach the widget and is read by the
+// operator in Excel — so a leading formula trigger must be neutralized. Quoting
+// alone does not do it: Excel consumes the quotes as CSV syntax and evaluates
+// what is left.
+test('a leading formula trigger is neutralized, not just quoted', () => {
+  assert.equal(csvField('=cmd|\'/c calc\'!A1'), '"\'=cmd|\'/c calc\'!A1"');
+  for (const lead of ['=', '+', '-', '@', '\t', '\r']) {
+    assert.equal(csvField(`${lead}payload`), `"'${lead}payload"`, `lead ${JSON.stringify(lead)}`);
+  }
+  // Only the FIRST character matters — an inner '=' is ordinary text and must
+  // not be mangled, or every "a=b" in a message would grow an apostrophe.
+  assert.equal(csvField('total=5'), '"total=5"');
+  assert.equal(csvField('kein Problem'), '"kein Problem"');
+});
+
 test('toCsv writes a header row and CRLF records', () => {
   const csv = toCsv([['A', (r) => r.a], ['B', (r) => r.b]], [{ a: 1, b: 2 }, { a: 3, b: 4 }]);
   assert.equal(csv, '"A","B"\r\n"1","2"\r\n"3","4"\r\n');

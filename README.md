@@ -221,7 +221,9 @@ lib/
                      logged to an in-memory outbox)
   csv.js             RFC 4180 CSV writer for the operator panel's exports
                      (issue #288) — quotes every field, so a feedback message
-                     with commas/quotes/newlines cannot corrupt the file
+                     with commas/quotes/newlines cannot corrupt the file, and
+                     neutralizes leading =/+/-/@ so it cannot become an Excel
+                     formula
   observability.js   structured logging, /healthz, central error handler
   status.js          derived instance configuration for the operator panel's
                      status card (issue #274) — booleans/enums only, never a

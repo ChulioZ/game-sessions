@@ -538,6 +538,18 @@ test('the list cards page and export the full set', async (t) => {
     assert.equal(countCsvRecords(res.text), 6);
   });
 
+  await t.test('a hostile message cannot become an Excel formula', async () => {
+    await repo.createFeedback({
+      message: '=cmd|\'/c calc\'!A1',
+      context: { path: '/', locale: 'de', tenantId: 'tenant-a' },
+      createdAt: '2026-07-20T20:00:00.000Z',
+    });
+    const res = await request(app).get('/api/admin/feedback.csv').set('Cookie', cookie);
+    // Present as text, apostrophe-prefixed — never as a bare leading '='.
+    assert.ok(res.text.includes('"\'=cmd|'), 'formula lead was not neutralized');
+    assert.ok(!res.text.includes('"=cmd|'), 'a raw formula cell reached the file');
+  });
+
   await t.test('the log export carries the reason column', async () => {
     const res = await request(app).get('/api/admin/log.csv').set('Cookie', cookie);
     assert.equal(res.status, 200);
