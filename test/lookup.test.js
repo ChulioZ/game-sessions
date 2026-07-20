@@ -36,7 +36,7 @@ const PROD = {
   media: [{ __typename: 'Media', role: 'MASTER', type: 'IMAGE', url: 'https://image.api.playstation.com/vulcan/w.png' }],
 };
 
-test('GET /api/lookup/search returns normalized results', async () => {
+test('GET …/lookup/search returns normalized results', async () => {
   stubFetch((url) => {
     assert.match(url, /\/search\//);
     return htmlRes(page({ 'Product:X': PROD }));
@@ -69,7 +69,7 @@ test('search returns 502 when the provider is unreachable', async () => {
   assert.equal(res.body.error, 'provider_unreachable');
 });
 
-test('GET /api/lookup/game returns normalized detail (digital, players)', async () => {
+test('GET …/lookup/game returns normalized detail (digital, players)', async () => {
   stubFetch((url) => {
     assert.match(url, /\/product\//);
     return htmlRes(page({ 'Product:X': PROD }, '<span class="compatText">1 - 4 players</span>'));
@@ -121,7 +121,7 @@ const GEEK_CATAN = {
   },
 };
 
-test('GET /api/lookup/search?provider=bgg returns BGG-id results (via Wikidata)', async () => {
+test('GET …/lookup/search?provider=bgg returns BGG-id results (via Wikidata)', async () => {
   stubFetch((url) => {
     assert.match(url, /query\.wikidata\.org/);
     return jsonRes(WDQS_CATAN);
@@ -134,7 +134,7 @@ test('GET /api/lookup/search?provider=bgg returns BGG-id results (via Wikidata)'
   ]);
 });
 
-test('GET /api/lookup/game?provider=bgg returns analog detail with players', async () => {
+test('GET …/lookup/game?provider=bgg returns analog detail with players', async () => {
   // detail() now makes two calls: BGG geekitems (data) + a Wikidata label query
   // (localized title). With no localized label, the BGG canonical name is kept.
   stubFetch((url) => {
@@ -218,7 +218,7 @@ const STEAM_DETAIL = {
   },
 };
 
-test('GET /api/lookup/search?provider=steam returns only full games (type app)', async () => {
+test('GET …/lookup/search?provider=steam returns only full games (type app)', async () => {
   stubFetch((url) => {
     assert.match(url, /store\.steampowered\.com\/api\/storesearch/);
     return jsonRes(STEAM_SEARCH);
@@ -230,7 +230,7 @@ test('GET /api/lookup/search?provider=steam returns only full games (type app)',
   ]);
 });
 
-test('GET /api/lookup/game?provider=steam returns digital detail (players)', async () => {
+test('GET …/lookup/game?provider=steam returns digital detail (players)', async () => {
   stubFetch((url) => {
     assert.match(url, /store\.steampowered\.com\/api\/appdetails/);
     return jsonRes(STEAM_DETAIL);
@@ -264,7 +264,7 @@ const NINTENDO_DOC = {
 };
 const NINTENDO_JSON = { response: { numFound: 1, docs: [NINTENDO_DOC] } };
 
-test('GET /api/lookup/search?provider=nintendo returns normalized Switch results', async () => {
+test('GET …/lookup/search?provider=nintendo returns normalized Switch results', async () => {
   stubFetch((url) => {
     assert.match(url, /searching\.nintendo-europe\.com/);
     assert.match(url, /system_type%3Anintendoswitch/); // Switch-only filter
@@ -277,7 +277,7 @@ test('GET /api/lookup/search?provider=nintendo returns normalized Switch results
   ]);
 });
 
-test('GET /api/lookup/game?provider=nintendo returns digital detail (players)', async () => {
+test('GET …/lookup/game?provider=nintendo returns digital detail (players)', async () => {
   stubFetch((url) => {
     assert.match(url, /searching\.nintendo-europe\.com/);
     assert.match(url, /fs_id/); // detail filters the index down to one item
@@ -335,7 +335,7 @@ const XBOX_DETAIL = {
   },
 };
 
-test('GET /api/lookup/search?provider=xbox returns only game suggestions', async () => {
+test('GET …/lookup/search?provider=xbox returns only game suggestions', async () => {
   stubFetch((url) => {
     assert.match(url, /msstoreapiprod\/api\/autosuggest/);
     return jsonRes(XBOX_SEARCH);
@@ -347,7 +347,7 @@ test('GET /api/lookup/search?provider=xbox returns only game suggestions', async
   ]);
 });
 
-test('GET /api/lookup/game?provider=xbox returns digital detail (players)', async () => {
+test('GET …/lookup/game?provider=xbox returns digital detail (players)', async () => {
   stubFetch((url) => {
     assert.match(url, /displaycatalog\.mp\.microsoft\.com/);
     return jsonRes(XBOX_DETAIL);

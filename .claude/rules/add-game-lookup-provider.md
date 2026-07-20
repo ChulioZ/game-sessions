@@ -3,8 +3,10 @@
 The add-game title field is a search-as-you-type lookup (`lib/providers/`,
 `routes/lookup.js`, `showAddGame` in `views-round.js`). All provider calls are
 cross-origin (no CORS headers), so **all provider calls run server-side**
-through `/api/lookup/*`; the browser never calls the provider. The frontend
-queries **every** provider in parallel and merges the hits (round-robin
+through `/api/rounds/:rid/lookup/*`; the browser never calls the provider. The
+frontend queries every provider **the round has enabled** in parallel (since
+#294 — absent config means all five, see
+`.claude/rules/round-provider-config.md`) and merges the hits (round-robin
 interleave) into one dropdown, each result tagged with its own provider; one
 provider failing (502) must not blank out the other's results (`Promise.allSettled`).
 
@@ -43,8 +45,8 @@ splits the job across two public, key-free endpoints:
 
 ### Title language follows the UI locale (`lang` param, issue #114)
 
-BGG titles are **localized to the app's active language**. `/api/lookup/search`
-and `/api/lookup/game` accept a `lang` query param (allowlist `de`/`en`, default
+BGG titles are **localized to the app's active language**. The `search` and
+`game` lookup routes accept a `lang` query param (allowlist `de`/`en`, default
 `en` when absent — see `lookupLang` in `routes/lookup.js`), which the frontend
 sends as `getLocale()` and which is **part of the cache key** (so a de/en switch
 isn't served a stale-language hit). The route passes it as the trailing arg to
