@@ -141,11 +141,24 @@ replace it with per-field assertions.
 
 Two related shapes worth keeping:
 
-- **Comparing two secrets returns only the verdict.** `distinct(a, b)` hashes
-  both first so `timingSafeEqual` gets equal-length operands (comparing the raw
-  values would leak their lengths through the length check), and only the boolean
-  escapes. That is how `adminSecretDistinct` / `sessionSecretDistinct` can report
-  "ADMIN_PASSWORD equals AUTH_PASSWORD" without either value.
+- **Comparing two secrets returns only the verdict.** `distinct(a, b)` uses the
+  same length-check-then-`timingSafeEqual` shape as `lib/admin.js`'s and
+  `lib/auth.js`'s `safeEqual`; only the boolean escapes. That is how
+  `adminSecretDistinct` / `sessionSecretDistinct` report "ADMIN_PASSWORD equals
+  AUTH_PASSWORD" without either value.
+
+  **Do not "harden" this by hashing the operands first.** The first version of
+  #274 did (SHA-256, purely to give `timingSafeEqual` equal-length inputs) and
+  **CodeQL failed the PR with a high-severity `js/insufficient-password-hash`** —
+  a value from `ADMIN_PASSWORD`/`SESSION_SECRET` flowing into a fast hash reads
+  as weak password storage to the scanner, and honestly to a human reader too.
+  It was a false positive in the strict sense (nothing is stored, transmitted or
+  returned — the digests died in the same expression), but the un-hashed form is
+  the better code regardless: it matches the existing idiom and needs no
+  dismissal. The side-channel it "fixed" does not exist here — the only thing the
+  length short-circuit can reveal is whether two secrets share a length, to a
+  caller who is already an authenticated operator and who is handed the equality
+  verdict itself in the response.
 - **The server reports facts; the panel decides what's "good".** The
   ok/warn/off verdicts live in `statusRows()` in `public/js/admin.js`, not in the
   API. So changing an opinion (is a disk image backend a warning or fine?) never
