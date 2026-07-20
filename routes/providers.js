@@ -27,7 +27,7 @@ const providersSchema = z.object({
 // a full PUT rather than a toggle endpoint: the two states have to stay
 // distinguishable from "never configured" (the key absent = all providers).
 router.put('/', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   const body = validateBody(providersSchema, req, res);

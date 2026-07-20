@@ -38,7 +38,7 @@ const updateTagSchema = z.object({ icon: z.enum(TAG_ICONS).nullable() });
 // Create a tag. A name matching an existing tag (trimmed, case-insensitive)
 // returns that tag instead of creating a duplicate.
 router.post('/', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   const body = validateBody(createTagSchema, req, res);
@@ -64,7 +64,7 @@ router.post('/', async (req, res) => {
 // deliberately still unsupported. No quota interaction: changing an icon
 // doesn't consume the per-round tag cap.
 router.patch('/:tagId', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   const body = validateBody(updateTagSchema, req, res);
@@ -77,7 +77,7 @@ router.patch('/:tagId', async (req, res) => {
 
 // Delete a tag; the data layer also unassigns it from every game that had it.
 router.delete('/:tagId', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
   const deleted = await req.repo.deleteTag(req.params.rid, req.params.tagId);
   if (!deleted) return res.status(404).json({ error: 'Tag not found' });

@@ -48,8 +48,6 @@ function shuffle(arr) {
   return arr;
 }
 
-const findSession = (round, sid) => round.sessions.find((s) => s.id === sid);
-
 // Start a new session. Two modes:
 //  - random draw (default): pick games by tag/player-count filters;
 //  - direct pick (`gameId` given): play one chosen game, skipping the vote.
@@ -162,10 +160,11 @@ router.post('/', async (req, res) => {
 
 // Save a session's complete result (hot-seat: all at once at the end).
 router.post('/:sid/results', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  // Light probe: this route only needs "does the round exist" (the mutator's
+  // null return already yields the session 404 below) — not every game and
+  // vote map of the round.
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
-  if (!findSession(round, req.params.sid))
-    return res.status(404).json({ error: 'Session not found' });
 
   const body = validateBody(saveResultsSchema, req, res);
   if (!body) return;
@@ -176,9 +175,9 @@ router.post('/:sid/results', async (req, res) => {
 
 // Remember the session's chosen game (or clear it with null).
 router.post('/:sid/choice', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
-  const session = findSession(round, req.params.sid);
+  const session = await req.repo.getSession(req.params.rid, req.params.sid);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   if (session.cancelled)
@@ -194,9 +193,10 @@ router.post('/:sid/choice', async (req, res) => {
 
 // Mark the game as played/finished and record winners (finished:false resets it).
 router.post('/:sid/finish', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  // Meta carries the members, which is all the winner validation needs.
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
-  const session = findSession(round, req.params.sid);
+  const session = await req.repo.getSession(req.params.rid, req.params.sid);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   const body = validateBody(finishSchema, req, res);
@@ -219,9 +219,9 @@ router.post('/:sid/finish', async (req, res) => {
 // Cancel the session: no game appealed, nothing gets played (cancelled:false
 // undoes it). A final state, mutually exclusive with choosing/finishing a game.
 router.post('/:sid/cancel', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
-  const session = findSession(round, req.params.sid);
+  const session = await req.repo.getSession(req.params.rid, req.params.sid);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   const cancelled = req.body.cancelled !== false; // default: true
@@ -237,9 +237,9 @@ router.post('/:sid/cancel', async (req, res) => {
 // every member's vote for it. If it was the chosen/played game, that choice
 // (and any recorded result) is reset too.
 router.delete('/:sid/games/:gid', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
-  const session = findSession(round, req.params.sid);
+  const session = await req.repo.getSession(req.params.rid, req.params.sid);
   if (!session) return res.status(404).json({ error: 'Session not found' });
   if (!session.gameIds.includes(req.params.gid))
     return res.status(404).json({ error: 'Game does not belong to this session' });
@@ -250,7 +250,7 @@ router.delete('/:sid/games/:gid', async (req, res) => {
 });
 
 router.delete('/:sid', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
   const deleted = await req.repo.deleteSession(req.params.rid, req.params.sid);
   if (!deleted) return res.status(404).json({ error: 'Session not found' });

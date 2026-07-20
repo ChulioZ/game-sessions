@@ -21,7 +21,7 @@ const MEMBER_COLORS = [
 // Accepts any subset of { name, color, userId } — userId must be an existing
 // user's id, or null to unlink (members stay name-only seats by default).
 router.patch('/:mid', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
   if (!round.members.some((m) => m.id === req.params.mid))
     return res.status(404).json({ error: 'Member not found' });

@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
 });
 
 router.delete('/:aid', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
   const deleted = await req.repo.deleteActivity(req.params.rid, req.params.aid);
   if (!deleted) return res.status(404).json({ error: 'Activity not found' });

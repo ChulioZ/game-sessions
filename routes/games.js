@@ -77,7 +77,12 @@ function buildSource(body) {
 }
 
 router.post('/', upload.single('image'), async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  // Light read: existence + tags. Only the quota branch below counts games,
+  // and quotas are inert outside the public multi-tenant mode — so the full
+  // round is fetched exactly when the cap is actually enforced.
+  const round = quota.enforced()
+    ? await req.repo.getRound(req.params.rid)
+    : await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   // Per-tenant games-per-round cap (#139): only in the public multi-tenant mode.
@@ -130,7 +135,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 // Registered before the '/:gid' handlers below; it is a POST on a single
 // segment, so it can't collide with the two-segment '/:gid/retire|complete'.
 router.post('/move-to', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   const body = validateBody(moveGamesSchema, req, res);
@@ -138,7 +143,7 @@ router.post('/move-to', async (req, res) => {
   if (body.targetRoundId === req.params.rid)
     return res.status(400).json({ error: 'Target round must be a different round' });
 
-  const target = await req.repo.getRound(body.targetRoundId);
+  const target = await req.repo.getRoundMeta(body.targetRoundId);
   if (!target) return res.status(404).json({ error: 'Target round not found' });
 
   // Per-tenant caps (#139), inert outside the public multi-tenant mode. Passed
@@ -168,9 +173,9 @@ router.post('/move-to', async (req, res) => {
 // the game linked to a provider (sourceProvider/…) — this is what "link an
 // existing game to a provider" (issue #74) uses.
 router.patch('/:gid', upload.single('image'), async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
-  const game = round.games.find((g) => g.id === req.params.gid);
+  const game = await req.repo.getGame(req.params.rid, req.params.gid);
   if (!game) return res.status(404).json({ error: 'Game not found' });
 
   const b = req.body;
@@ -252,7 +257,7 @@ router.patch('/:gid', upload.single('image'), async (req, res) => {
 // Retire a game (or take it back into the collection). The game is kept, only
 // flagged as retired with a timestamp.
 router.post('/:gid/retire', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   const retired = req.body.retired !== false; // default: true
@@ -265,7 +270,7 @@ router.post('/:gid/retire', async (req, res) => {
 // as opposed to retiring it. Like retiring it takes the game out of the active
 // collection; the data layer keeps the two states mutually exclusive (#250).
 router.post('/:gid/complete', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   const completed = req.body.completed !== false; // default: true
@@ -278,7 +283,7 @@ router.post('/:gid/complete', async (req, res) => {
 // every trace of it from past sessions and the activity feed. Rating averages
 // are derived from session votes, so they adjust automatically.
 router.delete('/:gid', async (req, res) => {
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return res.status(404).json({ error: 'Round not found' });
 
   // The data layer removes the game and scrubs it from sessions + the feed,

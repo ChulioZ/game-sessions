@@ -57,6 +57,65 @@ module.exports = function repoContract(repo) {
     assert.equal(again.members.length, 2);
   });
 
+  test('getRoundMeta carries identity/members/config but no games or sessions', async () => {
+    const round = await freshRound({ name: 'Meta' });
+    await repo.createGame(T, round.id, gameFields());
+    await repo.createSession(T, round.id, {
+      createdAt: 't', gameIds: ['x'], votes: {}, chosenGameId: null, chosenAt: null,
+      finished: false, finishedAt: null, winnerIds: [], cancelled: false, cancelledAt: null, done: false,
+    });
+
+    const meta = await repo.getRoundMeta(T, round.id);
+    assert.equal(meta.name, 'Meta');
+    assert.deepEqual(meta.members.map((m) => m.name), ['Alice', 'Bob']);
+    assert.equal(meta.background, null);
+    // The whole point: the heavy collections are NOT part of the read.
+    assert.equal('games' in meta, false);
+    assert.equal('sessions' in meta, false);
+    // Absent-key parity with getRound: config keys appear only once written.
+    assert.equal('tags' in meta, false);
+    assert.equal('providers' in meta, false);
+    await repo.addTag(T, round.id, 'Koop', null);
+    await repo.setProviders(T, round.id, ['bgg']);
+    const again = await repo.getRoundMeta(T, round.id);
+    assert.equal(again.tags.length, 1);
+    assert.deepEqual(again.providers, ['bgg']);
+
+    // Snapshot semantics + isolation, like every other read.
+    again.members.push({ id: 'x', name: 'Injected' });
+    assert.equal((await repo.getRoundMeta(T, round.id)).members.length, 2);
+    assert.equal(await repo.getRoundMeta(OTHER, round.id), null);
+    assert.equal(await repo.getRoundMeta(T, 'missing'), null);
+  });
+
+  test('getSession/getGame fetch one entity; wrong round or tenant is not-found', async () => {
+    const round = await freshRound();
+    const decoy = await freshRound();
+    const game = await repo.createGame(T, round.id, gameFields({ title: 'Solo' }));
+    const session = await repo.createSession(T, round.id, {
+      createdAt: 't', gameIds: [game.id], votes: {}, chosenGameId: null, chosenAt: null,
+      finished: false, finishedAt: null, winnerIds: [], cancelled: false, cancelledAt: null, done: false,
+    });
+
+    const s = await repo.getSession(T, round.id, session.id);
+    assert.deepEqual(s.gameIds, [game.id]);
+    const g = await repo.getGame(T, round.id, game.id);
+    assert.equal(g.title, 'Solo');
+
+    // A guessed id under the WRONG round (or tenant) must read as missing —
+    // the routes' 404 distinction depends on it.
+    assert.equal(await repo.getSession(T, decoy.id, session.id), null);
+    assert.equal(await repo.getGame(T, decoy.id, game.id), null);
+    assert.equal(await repo.getSession(OTHER, round.id, session.id), null);
+    assert.equal(await repo.getGame(OTHER, round.id, game.id), null);
+    assert.equal(await repo.getSession(T, round.id, 'missing'), null);
+    assert.equal(await repo.getGame(T, round.id, 'missing'), null);
+
+    // Snapshots: mutating the returned entity never touches the store.
+    s.gameIds.push('hacked');
+    assert.deepEqual((await repo.getSession(T, round.id, session.id)).gameIds, [game.id]);
+  });
+
   test('getRound returns null for a missing round; deleteRound reports found/again', async () => {
     assert.equal(await repo.getRound(T, 'nope'), null);
     const round = await freshRound();

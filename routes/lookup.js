@@ -59,7 +59,7 @@ function lookupLang(req) {
 async function resolveProvider(req) {
   const provider = getProvider(req.query.provider);
   if (!provider) return { status: 400, error: 'Unknown provider' };
-  const round = await req.repo.getRound(req.params.rid);
+  const round = await req.repo.getRoundMeta(req.params.rid);
   if (!round) return { status: 404, error: 'Round not found' };
   // Absent = never configured = every provider enabled (pre-#294 behaviour).
   const enabled = round.providers;
