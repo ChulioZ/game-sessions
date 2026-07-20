@@ -190,13 +190,35 @@ function paintTagChip(chip, name, state, tagIcon) {
 }
 // Build the curated tag-icon picker (#255): a grid of glyph buttons, exactly
 // one active, following the MEMBER_COLORS swatch pattern (a fixed set, no free
-// input). Returns { el, get } — `get()` reads the current pick, so a caller can
-// create/patch a tag with whatever is selected at submit time.
+// input). Since #293 the grid is collapsed behind a trigger showing the current
+// glyph — 20 always-open buttons dominated the narrow tag popover, making an
+// optional nicety read as the main task.
+// Returns { trigger, grid, get }: the two parts are handed back separately, not
+// as one wrapper, because every call site wants the trigger inline in an
+// existing input row and the grid on its own line below it — a wrapper would
+// force the grid into that row's flex layout. `get()` reads the current pick, so
+// a caller can create/patch a tag with whatever is selected at submit time.
 // `selected` is the tag's stored icon (or null/undefined for an unset one,
 // which lands on the default `tags` glyph — the same one it already renders).
-function tagIconPicker(selected) {
+// `opts.expanded` drops the trigger entirely and renders the bare grid: the
+// Tags screen's per-tag edit already toggles the picker open from its own pencil
+// button, and nesting a second disclosure inside that would be one click too many.
+let iconPickerSeq = 0;
+function tagIconPicker(selected, opts) {
   let current = TAG_ICONS.includes(selected) ? selected : 'tags';
-  const el = h(`<div class="icon-picker" role="group" aria-label="${esc(t('tags.chooseIcon'))}"></div>`);
+  const expanded = !!(opts && opts.expanded);
+  const gridId = `icon-picker-${++iconPickerSeq}`;
+  const grid = h(`<div class="icon-picker" id="${gridId}" role="group" aria-label="${esc(t('tags.chooseIcon'))}"${expanded ? '' : ' hidden'}></div>`);
+  const trigger = expanded ? null : h(`<button type="button" class="icon-picker__trigger" aria-expanded="false"
+       aria-controls="${gridId}" title="${esc(t('tags.chooseIcon'))}" aria-label="${esc(t('tags.chooseIcon'))}">
+       <i class="ti ${tagIconClass(current)}" aria-hidden="true"></i>
+       <i class="ti ti-chevron-down icon-picker__caret" aria-hidden="true"></i>
+     </button>`);
+  const setOpen = (open) => {
+    grid.hidden = !open;
+    trigger.setAttribute('aria-expanded', String(open));
+  };
+  if (trigger) trigger.addEventListener('click', () => setOpen(grid.hidden));
   TAG_ICONS.forEach((key) => {
     const label = t(`tags.icons.${key}`);
     // data-icon carries the key so a caller can read it off the button it was
@@ -207,16 +229,20 @@ function tagIconPicker(selected) {
        </button>`);
     btn.addEventListener('click', () => {
       current = key;
-      el.querySelectorAll('.icon-picker__btn').forEach((b) => {
+      grid.querySelectorAll('.icon-picker__btn').forEach((b) => {
         b.classList.remove('is-active');
         b.setAttribute('aria-pressed', 'false');
       });
       btn.classList.add('is-active');
       btn.setAttribute('aria-pressed', 'true');
+      if (trigger) {
+        trigger.querySelector('.ti').className = `ti ${tagIconClass(key)}`;
+        setOpen(false);
+      }
     });
-    el.appendChild(btn);
+    grid.appendChild(btn);
   });
-  return { el, get: () => current };
+  return { trigger, grid, get: () => current };
 }
 
 // A game passes the tri-state tag filter iff it carries every included tag (AND)
