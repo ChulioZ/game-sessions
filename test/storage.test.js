@@ -51,18 +51,6 @@ function fakeS3() {
         objects.delete(input.Key);
         return {};
       }
-      if (name === 'ListObjectsV2Command') {
-        const prefix = input.Prefix || '';
-        return {
-          Contents: [...objects.keys()]
-            .filter((k) => k.startsWith(prefix))
-            .map((Key) => ({ Key })),
-        };
-      }
-      if (name === 'DeleteObjectsCommand') {
-        for (const o of input.Delete.Objects) objects.delete(o.Key);
-        return { Errors: [] };
-      }
       if (name === 'GetObjectCommand') {
         const obj = objects.get(input.Key);
         if (!obj) {
@@ -168,48 +156,4 @@ test('s3: remove swallows client errors (best effort)', async () => {
   const client = { async send() { throw new Error('network down'); } };
   const s3 = createS3Storage({ client, bucket: 'test-bucket' });
   await s3.remove('/uploads/x.png'); // must not throw
-});
-
-/* ------------------------- removeAll (one-time purge) ---------------------- */
-
-test('disk: removeAll deletes every stored file, referenced or orphaned', async () => {
-  const a = await disk.save(PNG, '.png');
-  const b = await disk.save(PNG, '.png');
-  // Earlier cases in this file share the temp uploads dir, so the count is
-  // relative — what matters is that the sweep leaves nothing behind.
-  assert.ok(await disk.removeAll() >= 2);
-  for (const p of [a, b]) {
-    assert.equal(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(p))), false);
-  }
-  assert.deepEqual(fs.readdirSync(store.UPLOAD_DIR), []);
-  // An empty dir is an honest zero, not an error.
-  assert.equal(await disk.removeAll(), 0);
-});
-
-test('s3: removeAll deletes every object under the prefix', async () => {
-  const { client, objects } = fakeS3();
-  const s3 = createS3Storage({ client, bucket: 'test-bucket', prefix: 'covers/' });
-  await s3.save(PNG, '.png');
-  await s3.save(PNG, '.jpg');
-  // An object outside the prefix belongs to someone else — it must survive.
-  objects.set('other/keep.png', { body: PNG, contentType: 'image/png' });
-
-  assert.equal(await s3.removeAll(), 2);
-  assert.deepEqual([...objects.keys()], ['other/keep.png']);
-  assert.equal(await s3.removeAll(), 0);
-});
-
-test('s3: removeAll stops instead of spinning when deletes are refused', async () => {
-  // A bucket that refuses every delete would otherwise loop forever, because the
-  // listing never shrinks.
-  const client = {
-    async send(cmd) {
-      const name = cmd.constructor.name;
-      if (name === 'ListObjectsV2Command') return { Contents: [{ Key: 'stuck.png' }] };
-      if (name === 'DeleteObjectsCommand') return { Errors: [{ Key: 'stuck.png' }] };
-      throw new Error('unexpected command ' + name);
-    },
-  };
-  const s3 = createS3Storage({ client, bucket: 'test-bucket' });
-  assert.equal(await s3.removeAll(), 0);
 });

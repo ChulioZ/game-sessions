@@ -372,12 +372,6 @@ without deleting anything, so evidence survives; and read the log of those actio
 that a DSA Art. 17 statement of reasons needs. Suspension takes effect immediately
 — existing access tokens stop working, not just new logins.
 
-The same page carries a **one-time** "Alle Cover zurücksetzen" action (issue
-#172): it clears every game's cover and provider link across all tenants and
-deletes every object in the bucket, including orphaned ones. It exists only to
-retire the provider covers this instance re-hosted under the old behaviour, is
-guarded by a typed confirmation phrase, and is scheduled for removal once used.
-
 Data-subject requests (issue #273) are handled from the same Konten card:
 **Exportieren** downloads everything held for one account as JSON (its rounds
 with members, games, sessions *and* the activity feed, plus the account's own

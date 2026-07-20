@@ -58,7 +58,6 @@ test('the admin gate refuses everything without a valid operator session', async
       ['get', '/api/admin/me'],
       ['get', '/api/admin/lookup?image=/uploads/a.jpg'],
       ['post', '/api/admin/takedown'],
-      ['post', '/api/admin/covers/purge'],
       ['get', '/api/admin/users'],
       ['get', '/api/admin/log'],
     ]) {
@@ -420,98 +419,6 @@ test('export answers an access request; erasure cascades and is logged (#273)', 
       .set('Cookie', cookie)
       .send({ reason: 'again', confirmEmail: 'erase-me@example.com' });
     assert.equal(res.status, 404);
-  });
-});
-
-test('the one-time cover purge clears covers, links and stored objects (#172)', async (t) => {
-  const cookie = await adminCookie();
-  const owner = await makeAccount('purge@example.com');
-  const storage = require('../lib/storage');
-  const store = require('../lib/store');
-  const fs = require('node:fs');
-  const path = require('node:path');
-
-  const round = await request(app)
-    .post('/api/rounds')
-    .set('Authorization', `Bearer ${owner.token}`)
-    .send({ name: 'Purge round', members: ['Zoe'] });
-  const rid = round.body.id;
-
-  // One game whose cover we host, one hotlinked to a provider (#172's new shape).
-  const hosted = (await request(app)
-    .post(`/api/rounds/${rid}/games`)
-    .set('Authorization', `Bearer ${owner.token}`)
-    .send({ title: 'Hosted cover', minPlayers: 1, maxPlayers: 4 })).body;
-  const linked = (await request(app)
-    .post(`/api/rounds/${rid}/games`)
-    .set('Authorization', `Bearer ${owner.token}`)
-    .send({
-      title: 'Hotlinked cover',
-      minPlayers: 1,
-      maxPlayers: 4,
-      imageUrl: 'https://cf.geekdo-images.com/x/pic.jpg',
-      sourceProvider: 'bgg',
-      sourceExternalId: '13',
-    })).body;
-  assert.equal(linked.image, 'https://cf.geekdo-images.com/x/pic.jpg');
-  assert.equal(linked.source.provider, 'bgg');
-
-  const stored = await storage.save(Buffer.from([1, 2, 3, 4]), '.jpg');
-  await repo.forTenant(owner.user.tenantId).updateGame(rid, hosted.id, { image: stored });
-  // An object no game references any more — the sweep must take it too.
-  const orphan = await storage.save(Buffer.from([5, 6, 7, 8]), '.png');
-
-  await t.test('a wrong confirmation phrase refuses without touching anything', async () => {
-    const res = await request(app)
-      .post('/api/admin/covers/purge')
-      .set('Cookie', cookie)
-      .send({ reason: 'oops', confirm: 'purge all covers' }); // case matters
-    assert.equal(res.status, 400);
-    assert.equal(res.body.error, 'confirm_mismatch');
-    assert.ok(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(stored))));
-  });
-
-  await t.test('a missing reason is refused like every other logged action', async () => {
-    const res = await request(app)
-      .post('/api/admin/covers/purge')
-      .set('Cookie', cookie)
-      .send({ confirm: 'PURGE ALL COVERS' });
-    assert.equal(res.status, 400);
-  });
-
-  await t.test('the sweep clears both cover shapes and every stored object', async () => {
-    const res = await request(app)
-      .post('/api/admin/covers/purge')
-      .set('Cookie', cookie)
-      .send({ reason: 'One-time cleanup for #172', confirm: 'PURGE ALL COVERS' });
-    assert.equal(res.status, 200);
-    assert.ok(res.body.images >= 2);
-    assert.ok(res.body.sources >= 1);
-    assert.equal(res.body.objectsFailed, 0);
-
-    const after = await request(app)
-      .get(`/api/rounds/${rid}`)
-      .set('Authorization', `Bearer ${owner.token}`);
-    const games = after.body.games;
-    assert.equal(games.find((g) => g.id === hosted.id).image, null);
-    assert.equal(games.find((g) => g.id === linked.id).image, null);
-    assert.equal(games.find((g) => g.id === linked.id).source, null);
-    // Non-cover data survives: this is a cover sweep, not a data wipe.
-    assert.equal(games.find((g) => g.id === hosted.id).title, 'Hosted cover');
-
-    // Both the referenced object and the orphan are gone from storage.
-    assert.equal(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(stored))), false);
-    assert.equal(fs.existsSync(path.join(store.UPLOAD_DIR, path.basename(orphan))), false);
-  });
-
-  await t.test('the action is logged with its counts', async () => {
-    const res = await request(app).get('/api/admin/log').set('Cookie', cookie);
-    assert.equal(res.status, 200);
-    const entry = res.body.entries.find((e) => e.action === 'covers_purged');
-    assert.ok(entry, 'the purge must appear in the action log');
-    assert.equal(entry.reason, 'One-time cleanup for #172');
-    assert.equal(entry.target, 'all');
-    assert.ok(entry.objectsRemoved >= 2);
   });
 });
 

@@ -319,17 +319,18 @@ if (!process.env.DATABASE_URL) {
         const after = await probe.query('SELECT count(*)::int AS n FROM games');
         assert.equal(after.rows[0].n, 0);
 
-        // 4. The same trap for the one-time cover purge (#172): it clears covers
-        //    with an UPDATE, so running it under the admin escape would match
-        //    zero rows and report a clean sweep that changed nothing. Asserted
-        //    here because the contract suite's connection is a superuser and
-        //    bypasses RLS entirely, so only a plain role can catch it.
+        // 4. The other half of 2b: the tenant-scoped path takedownImage
+        //    actually uses DOES update. Without this, 2b alone would still pass
+        //    if the policies refused the write to everyone — so the pair is what
+        //    proves the escape is narrow rather than the table being read-only.
+        //    Only a plain role can show it: the contract suite's connection is a
+        //    superuser and bypasses RLS entirely.
         await probe.query('BEGIN');
         await probe.query("SELECT set_config('app.tenant_id', 'esc-a', true)");
         const scoped = await probe.query(
           "UPDATE games SET data = data || '{\"image\":null}'::jsonb WHERE data->>'image' = '/uploads/esc-a.jpg'"
         );
-        assert.equal(scoped.rowCount, 1, 'the tenant-scoped path purgeAllCovers uses must update');
+        assert.equal(scoped.rowCount, 1, 'the tenant-scoped write path must update');
         await probe.query('ROLLBACK');
       } finally {
         await probe.end();

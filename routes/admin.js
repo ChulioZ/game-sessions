@@ -132,61 +132,6 @@ router.post('/takedown', async (req, res) => {
   res.json({ ok: true, cleared, entry });
 });
 
-/* ------------------------------- cover purge -------------------------------- */
-
-// The exact phrase the operator must echo back. A reason alone is too easy to
-// send by accident for something this destructive and this irreversible.
-const PURGE_CONFIRM = 'PURGE ALL COVERS';
-
-// ONE-TIME operator sweep (#172): clear every game's cover and provider source
-// link across all tenants, then delete every object in the bucket — including
-// ones no game references any more.
-//
-// Why it exists: until #172 the app DOWNLOADED provider cover art and re-hosted
-// it, which is reproduction + making available of third-party artwork we hold no
-// licence for. New covers are hotlinked instead, but the copies already made had
-// to go before the instance is opened to the public. It cannot be surgical: a
-// stored '/uploads/<id>.jpg' carries no record of whether it came from a
-// provider or a member's own upload, so the sweep drops both and the games are
-// re-linked by hand afterwards.
-//
-// This endpoint is deliberately temporary — see the follow-up issue to remove it.
-router.post('/covers/purge', async (req, res) => {
-  const body = validateBody(
-    z.object({ reason: reasonSchema, confirm: z.string() }),
-    req, res,
-  );
-  if (!body) return;
-  if (body.confirm !== PURGE_CONFIRM) return res.status(400).json({ error: 'confirm_mismatch' });
-
-  // References first, bytes second — the same ordering as /takedown and
-  // /erase: a failed object delete then leaves an orphan, never a row pointing
-  // at a missing object (which renders as a broken cover for the user).
-  const { images, sources } = await repo.purgeAllCovers();
-  let objects = 0;
-  let failed = 0;
-  try {
-    objects = await storage.removeAll();
-  } catch (err) {
-    failed = 1;
-    logger.error({ event: 'admin_purge_objects_failed', err: err.message });
-  }
-
-  const entry = await repo.logModeration({
-    action: 'covers_purged',
-    target: 'all',
-    reason: body.reason,
-    at: new Date().toISOString(),
-    tenantId: null,
-    clearedImages: images,
-    clearedSources: sources,
-    objectsRemoved: objects,
-  });
-
-  logger.info({ event: 'admin_covers_purged' });
-  res.json({ ok: true, images, sources, objects, objectsFailed: failed, entry });
-});
-
 /* ---------------------------------- users ---------------------------------- */
 
 // The safe projection of a stored user. listUsers()/getUserById() return the raw

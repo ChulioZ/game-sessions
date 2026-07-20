@@ -114,23 +114,6 @@
     </section>
 
     <section class="card">
-      <h2>Alle Cover zurücksetzen</h2>
-      <p class="sub" style="margin-bottom: 0;">
-        Einmalige Aktion (#172): entfernt bei <strong>allen</strong> Spielen aller Tenants
-        das Cover und die Provider-Verknüpfung und löscht <strong>jedes</strong> Objekt im
-        Bucket — auch verwaiste. Trifft auch selbst hochgeladene Bilder. Nicht umkehrbar.
-      </p>
-      <form id="purgeForm">
-        <label for="purgeReason">Begründung (wird protokolliert)</label>
-        <textarea id="purgeReason" required placeholder="z. B. Einmalige Bereinigung nach #172"></textarea>
-        <label for="purgeConfirm">Zur Bestätigung <code>PURGE ALL COVERS</code> eingeben</label>
-        <input id="purgeConfirm" required placeholder="PURGE ALL COVERS" />
-        <button type="submit" class="danger">Alle Cover endgültig löschen</button>
-      </form>
-      <p class="msg" id="purgeMsg" role="alert" hidden></p>
-    </section>
-
-    <section class="card">
       <h2>Konten</h2>
       <div class="scroll"><table id="usersTable"><tbody></tbody></table></div>
       <p class="msg msg--err" id="usersError" role="alert" hidden></p>
