@@ -9,7 +9,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { providerMatchCover } = require('../public/js/views-round-lookup');
+const { providerMatchCover } = require('../public/js/lookup-cover');
 const psstore = require('../lib/providers/psstore');
 const { providerCoverUrl } = require('../lib/providers');
 

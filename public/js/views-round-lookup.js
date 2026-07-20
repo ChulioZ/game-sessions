@@ -500,18 +500,6 @@ function showAddGame(round) {
 
 // =================== Link an existing game to a provider (issue #74) ===================
 
-// The cover to offer for a picked match, given the search hit `r` and the detail
-// response `d`. A provider's *detail* response may carry no image: the PS Store
-// product page only stubs the product, so its cover lives on the search hit
-// (see parseProduct in lib/providers/psstore.js). Hence the fallback to the
-// search thumbnail — exactly what the add-game flow already does (#281).
-// Provider-agnostic: detail wins whenever it has one, so BGG/Steam/Nintendo/Xbox
-// are unaffected. Both sources come from the same provider IMAGE_HOSTS, so the
-// server's providerCoverUrl() allowlist accepts either.
-function providerMatchCover(r, d) {
-  return (d && d.imageUrl) || (r && r.thumbnail) || null;
-}
-
 // Sheet for attaching a provider to a game that has no source yet: search the
 // providers (prefilled with the game's title), pick a match, then choose which
 // differing fields (name, cover, players) to overwrite. The source link is
@@ -729,8 +717,4 @@ function startDirectSession(round, game) {
       showResults(round, data.session, data.games);
     } catch (e) { toast(e.message); }
   });
-}
-
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { providerMatchCover };
 }
