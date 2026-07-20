@@ -7,6 +7,7 @@
 const express = require('express');
 const { z } = require('zod');
 const { validateBody } = require('../lib/validate');
+const { trackEvent } = require('../lib/observability');
 
 const router = express.Router({ mergeParams: true });
 
@@ -92,6 +93,7 @@ router.post('/', async (req, res) => {
       cancelledAt: null,
       done: true,
     });
+    trackEvent('session_created', { tenantId: req.tenantId });
     return res.status(201).json({ session, games: [game], members });
   }
 
@@ -149,6 +151,9 @@ router.post('/', async (req, res) => {
     done: false,
   }, filters);
 
+  // Both start modes (direct-pick above, draw here) are one created session.
+  trackEvent('session_created', { tenantId: req.tenantId });
+
   // Convenience for the frontend: send the picked games right away.
   res.status(201).json({ session, games: picked, members });
 });
@@ -204,6 +209,8 @@ router.post('/:sid/finish', async (req, res) => {
   }
   const updated = await req.repo.finishSession(req.params.rid, req.params.sid, { finished, winnerIds });
   if (!updated) return res.status(404).json({ error: 'Session not found' });
+  // This route also UN-finishes (finished:false) — only the real finish counts.
+  if (finished) trackEvent('session_finished', { tenantId: req.tenantId });
   res.json(updated);
 });
 

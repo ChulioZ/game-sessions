@@ -11,6 +11,7 @@ const { upload, saveUploadedImage } = require('../lib/upload');
 const { getProvider, isAllowedImageUrl } = require('../lib/providers');
 const { validateBody } = require('../lib/validate');
 const quota = require('../lib/quota');
+const { trackEvent } = require('../lib/observability');
 
 const router = express.Router({ mergeParams: true });
 
@@ -145,6 +146,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     tagIds,
   });
   if (!game) return res.status(404).json({ error: 'Round not found' });
+  trackEvent('game_added', { tenantId: req.tenantId });
   res.status(201).json(game);
 });
 
