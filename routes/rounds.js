@@ -6,6 +6,7 @@ const express = require('express');
 const { z } = require('zod');
 const { validateBody } = require('../lib/validate');
 const quota = require('../lib/quota');
+const { trackEvent } = require('../lib/observability');
 
 const router = express.Router();
 
@@ -90,6 +91,7 @@ router.post('/', async (req, res) => {
     members: body.members,
     importFromRoundId: body.importFromRoundId || null,
   });
+  trackEvent('round_created', { tenantId: req.tenantId });
   res.status(201).json(round);
 });
 

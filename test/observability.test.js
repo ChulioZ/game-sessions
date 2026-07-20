@@ -14,12 +14,14 @@ const request = require('supertest');
 const express = require('express');
 const { EventEmitter } = require('node:events');
 
-const { app } = require('./helpers');
+const { app, createRound } = require('./helpers');
 const {
   logger,
   requestLogger,
   captureError,
   errorHandler,
+  trackEvent,
+  EVENTS,
 } = require('../lib/observability');
 
 // Capture everything written to stdout while `fn` runs, restoring afterwards.
@@ -40,12 +42,21 @@ async function captureStdout(fn) {
 
 // Parse only the JSON log lines, ignoring any unrelated stdout noise the test
 // runner may interleave.
+//
+// The noise is not merely *between* our lines: node:test's reporter writes
+// binary IPC frames to the same stdout we're capturing, and one write can carry
+// a frame AND a pino line in a single chunk with no newline between them. So
+// locate where our JSON actually starts instead of requiring index 0 — a
+// `startsWith('{')` check silently drops a real, correctly-emitted log line
+// depending on chunk boundaries (which is exactly how it behaves: flaky by
+// test-name-pattern and by position in the file).
 function parseLogLines(lines) {
   const out = [];
   for (const l of lines) {
-    if (!l.startsWith('{')) continue;
+    const start = l.indexOf('{"level":');
+    if (start === -1) continue;
     try {
-      out.push(JSON.parse(l));
+      out.push(JSON.parse(l.slice(start)));
     } catch {
       // not one of ours
     }
@@ -314,4 +325,133 @@ test('captureError never throws even if the webhook fetch rejects', async () => 
   }
   // Reaching here without throwing is the assertion.
   assert.ok(true);
+});
+
+/* ---------------------------------------------------------------------------
+ * Product-usage events (issue #261). Two layers: trackEvent's own allowlist
+ * discipline, and the route call sites firing exactly once per real mutation.
+ * See .claude/rules/product-event-logging.md.
+ * ------------------------------------------------------------------------- */
+
+// Run `fn` with LOG_LEVEL=info and return only the parsed product-event lines
+// (dropping the request logger's own `event:'request'` lines and any noise).
+async function captureEvents(fn) {
+  const lines = await withEnv('LOG_LEVEL', 'info', () => captureStdout(fn));
+  return parseLogLines(lines).filter((o) => EVENTS.has(o.event));
+}
+
+test('trackEvent logs event + tenantId, and IGNORES any extra field', async () => {
+  const events = await captureEvents(() => {
+    trackEvent('round_created', {
+      tenantId: 't-1',
+      // Everything below is exactly what must never reach a log line.
+      title: 'Catan',
+      memberName: 'Alice',
+      email: 'alice@example.com',
+      comment: 'free text',
+    });
+  });
+
+  assert.equal(events.length, 1);
+  const [e] = events;
+  assert.equal(e.event, 'round_created');
+  assert.equal(e.tenantId, 't-1');
+  // The allowlist is the whole point: only ts/level/event/tenantId, no more.
+  assert.deepEqual(Object.keys(e).sort(), ['event', 'level', 'tenantId', 'ts']);
+  const line = JSON.stringify(e);
+  for (const leak of ['Catan', 'Alice', 'alice@example.com', 'free text']) {
+    assert.ok(!line.includes(leak), `leaked ${leak}`);
+  }
+});
+
+test('trackEvent drops an unknown event name and warns instead', async () => {
+  const lines = await withEnv('LOG_LEVEL', 'info', () =>
+    captureStdout(() => trackEvent('made_up_event', { tenantId: 't-1' }))
+  );
+  const objs = parseLogLines(lines);
+  assert.equal(objs.length, 1);
+  assert.equal(objs[0].level, 'warn');
+  assert.equal(objs[0].event, 'unknown_product_event');
+  assert.equal(objs[0].name, 'made_up_event');
+});
+
+test('product events honour LOG_LEVEL like every other line', async () => {
+  const silent = await withEnv('LOG_LEVEL', 'silent', () =>
+    captureStdout(() => trackEvent('game_added', { tenantId: 't-1' }))
+  );
+  assert.equal(silent.length, 0);
+});
+
+test('round_created fires once on a successful create, never on a rejected one', async () => {
+  const ok = await captureEvents(async () => {
+    const res = await request(app)
+      .post('/api/rounds')
+      .send({ name: 'Event round', members: ['Alice'] });
+    assert.equal(res.status, 201);
+  });
+  assert.deepEqual(ok.map((e) => e.event), ['round_created']);
+  // Accounts are off in the suite, so every caller is the default tenant.
+  assert.equal(ok[0].tenantId, 'default');
+
+  // A validation failure must not log an event that didn't happen.
+  const rejected = await captureEvents(async () => {
+    const res = await request(app).post('/api/rounds').send({ name: '', members: [] });
+    assert.equal(res.status, 400);
+  });
+  assert.deepEqual(rejected, []);
+});
+
+test('game_added, session_created and session_finished fire on the real mutations', async () => {
+  const round = await createRound(request, { name: 'Flow round' });
+
+  const added = await captureEvents(async () => {
+    const res = await request(app)
+      .post(`/api/rounds/${round.id}/games`)
+      .send({ title: 'Azul', minPlayers: 2, maxPlayers: 4 });
+    assert.equal(res.status, 201);
+  });
+  assert.deepEqual(added.map((e) => e.event), ['game_added']);
+
+  let sid;
+  const started = await captureEvents(async () => {
+    const res = await request(app).post(`/api/rounds/${round.id}/sessions`).send({ count: 1 });
+    assert.equal(res.status, 201);
+    sid = res.body.session.id;
+  });
+  assert.deepEqual(started.map((e) => e.event), ['session_created']);
+
+  const finished = await captureEvents(async () => {
+    const res = await request(app)
+      .post(`/api/rounds/${round.id}/sessions/${sid}/finish`)
+      .send({ winnerIds: [] });
+    assert.equal(res.status, 200);
+  });
+  assert.deepEqual(finished.map((e) => e.event), ['session_finished']);
+
+  // Un-finishing goes through the same route and must NOT count as a finish.
+  const unfinished = await captureEvents(async () => {
+    const res = await request(app)
+      .post(`/api/rounds/${round.id}/sessions/${sid}/finish`)
+      .send({ finished: false });
+    assert.equal(res.status, 200);
+  });
+  assert.deepEqual(unfinished, []);
+});
+
+test('tag_created fires for a new tag but not for a deduped duplicate', async () => {
+  const round = await createRound(request, { name: 'Tag round' });
+
+  const created = await captureEvents(async () => {
+    const res = await request(app).post(`/api/rounds/${round.id}/tags`).send({ name: 'Solo' });
+    assert.equal(res.status, 201);
+  });
+  assert.deepEqual(created.map((e) => e.event), ['tag_created']);
+
+  // Same name (different case) reuses the existing tag — still a 201, but it is
+  // not a new tag and must not be counted as one.
+  const duplicate = await captureEvents(async () => {
+    const res = await request(app).post(`/api/rounds/${round.id}/tags`).send({ name: 'solo' });
+    assert.equal(res.status, 201);
+  });
+  assert.deepEqual(duplicate, []);
 });

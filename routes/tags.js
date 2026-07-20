@@ -9,6 +9,7 @@ const express = require('express');
 const { z } = require('zod');
 const { validateBody } = require('../lib/validate');
 const quota = require('../lib/quota');
+const { trackEvent } = require('../lib/observability');
 
 const router = express.Router({ mergeParams: true });
 
@@ -43,6 +44,9 @@ router.post('/', async (req, res) => {
 
   const tag = await req.repo.addTag(req.params.rid, body.name);
   if (!tag) return res.status(404).json({ error: 'Round not found' });
+  // Only a genuinely new name is a creation — a duplicate reuses the existing
+  // tag above, which is not a new tag and must not inflate the count.
+  if (!exists) trackEvent('tag_created', { tenantId: req.tenantId });
   res.status(201).json(tag);
 });
 

@@ -147,7 +147,10 @@ code and documentation are in English.
   request/error logs to stdout (`LOG_LEVEL`, no bodies or personal data), and a
   central error handler so unexpected throws never leak a stack trace — they
   return a generic 500 and are logged (and optionally forwarded to
-  `ERROR_WEBHOOK_URL`). See `lib/observability.js`.
+  `ERROR_WEBHOOK_URL`). The same logger also emits a handful of product-usage
+  events (round/session/game/tag created, session finished) carrying only the
+  event name and tenant id — no analytics service, no cookies, no client-side
+  tracking. See `lib/observability.js`.
 - **Runs entirely on your machine.** Fonts and the icon set are self-hosted
   under `public/fonts/`, and the subtle background grain is an inline SVG in the
   stylesheet — no CDNs. The only runtime external calls are **opt-in**: the
