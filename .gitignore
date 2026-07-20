@@ -13,7 +13,7 @@ data/
 *.log
 .DS_Store
 
-# Local environment files may hold secrets (e.g. ANTHROPIC_API_KEY) — never
+# Local environment files may hold secrets (e.g. SESSION_SECRET) — never
 # commit them. The committed template is .env.example (no secrets).
 .env
 .env.local

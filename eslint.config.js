@@ -31,8 +31,6 @@ const frontendGlobals = {
   randomOrderCache: 'readonly', randomOrderedGames: 'readonly',
   gameStatsForSession: 'readonly', gameStats: 'readonly',
   retireRecommendations: 'readonly', minimizedRecs: 'readonly',
-  buyNextKeepOpen: 'readonly', buyNextSelected: 'readonly',
-  buyNextRuns: 'readonly', deleteBuyNextRun: 'readonly',
   STANDARD_ACCENT: 'readonly',
   applyBackground: 'readonly', avgColor: 'readonly',
   MEMBER_COLORS: 'readonly', memberColor: 'readonly', initials: 'readonly',
@@ -56,9 +54,8 @@ const frontendGlobals = {
   showLogin: 'readonly', showRegister: 'readonly', showForgot: 'readonly',
   showAuthDone: 'readonly', renderVerifyLanding: 'readonly',
   renderResetLanding: 'readonly', setupAccountUi: 'readonly',
-  // ranking.js + lookup-group.js + buynext.js (also CommonJS modules for tests — hence `module`)
-  computePlaces: 'readonly', groupLookupHits: 'readonly',
-  playNextRecommendations: 'readonly', module: 'readonly',
+  // ranking.js + lookup-group.js (also CommonJS modules for tests — hence `module`)
+  computePlaces: 'readonly', groupLookupHits: 'readonly', module: 'readonly',
   // views-home.js
   showHome: 'readonly', showNewRound: 'readonly',
   // views-round.js (hub + Start tab) and its siblings loaded right after it:
@@ -68,7 +65,6 @@ const frontendGlobals = {
   showBackground: 'readonly', showGameDetail: 'readonly', showAddGame: 'readonly',
   showTags: 'readonly',
   HUB_TABS: 'readonly', renderHubDock: 'readonly', renderStartTab: 'readonly',
-  renderBuyNext: 'readonly', generateBuyNext: 'readonly',
   renderRegalTab: 'readonly', renderChronikTab: 'readonly', renderPokaleTab: 'readonly',
   activeSheet: 'writable', closeSheet: 'readonly', startDirectSession: 'readonly',
   showLinkProvider: 'readonly', attachLookup: 'readonly', searchProvider: 'readonly',

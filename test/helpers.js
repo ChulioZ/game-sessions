@@ -19,7 +19,6 @@ process.env.DATA_DIR = DATA_DIR;
 // The limiters' real behaviour is covered by test/security.test.js, which builds
 // its own app with tiny limits.
 process.env.RATE_LIMIT_MAX = '1000000';
-process.env.RECS_RATE_LIMIT_MAX = '1000000';
 process.env.AUTH_RATE_LIMIT_MAX = '1000000';
 
 // Keep the observability request logger quiet during the ordinary suite so test

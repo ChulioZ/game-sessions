@@ -61,9 +61,9 @@ code and documentation are in English.
 - **Round hub** – each round is a small app of its own, with a floating dock
   switching between four tabs:
   - **Start** – the launchpad: hero with the members, a big "start session"
-    button, resumable in-progress sessions, the last played result, gentle
+    button, resumable in-progress sessions, the last played result, and gentle
     retire recommendations for games that are rated low or often proposed for
-    retirement, and **buy-next / play-next suggestions** (see below).
+    retirement.
   - **Regal** (shelf) – the game collection as a card grid with custom-tag
     filter chips, a search pill, sorting
     (random / name / rating),
@@ -94,22 +94,6 @@ code and documentation are in English.
   single game can be removed from a session's results.
 - **Ratings on demand** – a game's average is always computed live from all
   session votes, so deleting a session automatically corrects every average.
-- **Buy-next / play-next suggestions** – on the Start tab, a two-layer
-  recommender. **Layer A** is always on and fully local: it resurfaces games you
-  rate highly but rarely play, so loved titles get back on the table (no
-  network, no key). **Layer B** is an opt-in "generate suggestions" button that
-  asks an LLM for real new titles to consider buying, matched to your
-  collection's taste; the result is cached per round. Each suggestion is a title
-  plus a short reason written in the **active UI language** (board and digital
-  games alike). Every
-  generation is **kept as a history** rather than overwriting the last, so you
-  can page back through past runs (each shows its date/model), delete one you
-  don't want, and no good earlier list is lost. It sends
-  only an **anonymized taste profile** (game titles + collection shape, never
-  member names or ids) to the [Claude API](https://www.anthropic.com/), and
-  needs an `ANTHROPIC_API_KEY` — without one, the button reports it isn't set up
-  and Layer A still works. This is the app's only outbound LLM call and it fires
-  only when you press the button.
 - **Designs** – per round, pick a colour scheme (page tone + accent); the
   whole UI derives from it — surfaces, shadows, even the dark "stage" of the
   finale.
@@ -149,8 +133,8 @@ code and documentation are in English.
   caches after a deploy — not a bundler or framework.
 - **Hardening:** [helmet](https://helmetjs.github.io/) sets security headers
   (CSP, `X-Content-Type-Options`, frame options, HSTS) and
-  [express-rate-limit](https://express-rate-limit.mintlify.app/) caps requests —
-  a generous global limit plus a stricter one on the billable buy-next endpoint.
+  [express-rate-limit](https://express-rate-limit.mintlify.app/) caps requests
+  with a generous global limit.
   Mutating request bodies are validated at the router boundary with
   [zod](https://zod.dev/) schemas (via `lib/validate.js`).
   TLS is expected to terminate at a reverse proxy (`TRUST_PROXY` then forwards
@@ -175,12 +159,6 @@ code and documentation are in English.
   defaults to the German store, `de`/`german` (`STEAM_CC` / `STEAM_LOCALE`); the
   Nintendo eShop defaults to the German store, `de` (`NINTENDO_LOCALE`); the
   Xbox / Microsoft Store defaults to the German store, `de-de` (`XBOX_LOCALE`).
-  The one exception is the **buy-next suggestions** feature: pressing its
-  "generate" button calls the [Claude API](https://www.anthropic.com/)
-  server-side (via `/api/rounds/:rid/recommendations`) and requires an
-  `ANTHROPIC_API_KEY`. It is strictly opt-in (only on that click), sends an
-  anonymized taste profile with no member identifiers, and the app is fully
-  functional without the key.
 
 ```
 server.js            starts the HTTP server (the only place that listens)
@@ -238,9 +216,6 @@ routes/
   activities.js      …/activities           (list the feed [GET], delete an entry)
   background.js      …/background           (set the design)
   tags.js            …/tags                 (create a custom tag [deduped], delete one)
-  recommendations.js …/recommendations      (buy-next run history: list [GET],
-                                             generate & append via Claude [POST],
-                                             delete one run [DELETE /:runId])
 public/
   index.html
   login.html         standalone login page (shown only when AUTH_PASSWORD is set)
@@ -258,7 +233,6 @@ public/
     core.js          DOM/API helpers, stats, design, language picker  (loads first)
     account.js       onboarding + auth UI (login/register/verify/reset), token wiring
     ranking.js       tie-aware podium places ("1, 2, 2, 4")
-    buynext.js       local "play these again" recommender (Layer A)
     lookup-group.js  collapses same-title provider hits into one multi-badge row
     views-home.js    lobby + new round
     views-round.js        round hub (Start/Regal/Chronik/Pokale dock) + Start tab
@@ -311,8 +285,6 @@ From other devices on your home network: `http://<your-computer-ip>:3000`
 
 Use a different port: `PORT=8080 npm start`
 Use a different data folder: `DATA_DIR=/path/to/data npm start`
-Enable buy-next AI suggestions: `ANTHROPIC_API_KEY=sk-ant-… npm start`
-(optional — everything else works without it)
 
 Use PostgreSQL instead of the JSON file: `DATABASE_URL=postgres://… npm start` (the
 app runs its Knex migrations on start, so the schema is created/updated
@@ -328,8 +300,7 @@ or the AWS default provider chain. Unset, images stay under `DATA_DIR/uploads` a
 before. See the S3 block in `.env.example`.
 
 Behind a TLS-terminating proxy: `TRUST_PROXY=1 npm start` (so rate limiting sees
-the real client IP). Tune the limits with `RATE_LIMIT_MAX` (global, per 15 min)
-and `RECS_RATE_LIMIT_MAX` (buy-next generations, per hour).
+the real client IP). Tune the limit with `RATE_LIMIT_MAX` (global, per 15 min).
 
 Serving one deployment under several domains: `CANONICAL_HOST` + `REDIRECT_HOSTS`
 (issue #230) 301 the branded non-canonical domains onto a single canonical origin
@@ -340,10 +311,8 @@ domains, or set `REDIRECT_HOSTS` empty to disable. See the block in `.env.exampl
 
 Per-tenant quotas (issue #139): in the public multi-tenant mode (`ACCOUNTS_ENABLED=true`)
 each tenant is capped on rounds (`MAX_ROUNDS_PER_TENANT`, default 10), games per
-round (`MAX_GAMES_PER_ROUND`, default 1000), custom tags per round
-(`MAX_TAGS_PER_ROUND`, default 30), and successful buy-next generations
-per month (`RECS_TENANT_MONTHLY_MAX`, default 1 — bounds the billed Claude spend
-per tenant, on top of the per-IP `RECS_RATE_LIMIT_MAX`). With accounts off (the
+round (`MAX_GAMES_PER_ROUND`, default 1000), and custom tags per round
+(`MAX_TAGS_PER_ROUND`, default 30). With accounts off (the
 default, single-tenant deploy) these are inert. See the quotas block in `.env.example`.
 
 Require a login: set `AUTH_PASSWORD=…` (and optionally `SESSION_SECRET=…`) to gate
@@ -391,7 +360,8 @@ npm run start:env         # loads .env, then runs the server
 
 `start:env` uses Node's built-in `--env-file-if-exists` (Node ≥ 20.12; a missing
 `.env` is fine), so there is no extra dependency. **`.env` is gitignored** — it
-may hold your `ANTHROPIC_API_KEY`, so never commit it. Plain `npm start` ignores
+may hold your `SESSION_SECRET` and provider credentials, so never commit it.
+Plain `npm start` ignores
 `.env` and reads only real environment variables.
 
 ### With Docker
