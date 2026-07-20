@@ -190,6 +190,80 @@ async function showTags(rid) {
   app.appendChild(back);
 }
 
+// =================== Lookup providers (#294) ===================
+
+// Which external game databases this round's add-game / link-provider lookups
+// query. Sibling of showTags: both are per-round global configuration.
+async function showProviders(rid) {
+  currentView = () => showProviders(rid);
+  syncUrl(`/round/${rid}/providers`);
+  app.innerHTML = '<p class="muted">…</p>';
+  let round;
+  try { round = await fetchRound(rid); }
+  catch { return showHome(); }
+  applyBackground(round.background);
+  setCrumbs([
+    { label: t('nav.home'), onClick: showHome },
+    { label: round.name, onClick: () => showRound(rid) },
+    { label: t('providers.crumb') },
+  ]);
+
+  app.innerHTML = '';
+  app.appendChild(h(`<div class="page-head"><h1>${esc(t('providers.title'))}</h1></div>`));
+
+  const sec = h('<div class="section"></div>');
+  sec.appendChild(h(`<div class="muted" style="margin-bottom:14px">${esc(t('providers.note'))}</div>`));
+
+  // A round that has never been configured has no `providers` key at all, which
+  // means "all of them" — enabledProviders() owns that rule, so read the current
+  // state through it rather than re-deriving it here.
+  const enabled = new Set(enabledProviders(round));
+  const hint = h(`<div class="muted" style="margin-top:14px"></div>`);
+  const renderHint = () => {
+    hint.textContent = enabled.size ? '' : t('providers.noneHint');
+  };
+
+  const list = h('<div class="ds-list"></div>');
+  LOOKUP_PROVIDERS.forEach((id) => {
+    const logo = providerLogo(id);
+    const row = h(`<label class="ds-row provider-row">
+         <div class="ds-row__main">
+           ${logo ? `<span class="provider-row__logo" aria-hidden="true">${logo}</span>` : ''}
+           <span>${esc(providerLabel(id))}</span>
+         </div>
+         <div class="ds-row__meta">
+           <input type="checkbox" class="provider-row__box" ${enabled.has(id) ? 'checked' : ''} />
+         </div>
+       </label>`);
+    const box = row.querySelector('input');
+    box.addEventListener('change', async () => {
+      if (box.checked) enabled.add(id); else enabled.delete(id);
+      renderHint();
+      try {
+        // Always PUT the full list: an empty one is a real setting ("we type our
+        // own titles"), not a no-op, so it has to be sent like any other.
+        await api('PUT', `/api/rounds/${rid}/providers`, { providers: LOOKUP_PROVIDERS.filter((p) => enabled.has(p)) });
+        toast(t('providers.toast.saved'));
+      } catch (e) {
+        // Put the checkbox back where the server still has it.
+        box.checked = !box.checked;
+        if (box.checked) enabled.add(id); else enabled.delete(id);
+        renderHint();
+        toast(e.message);
+      }
+    });
+    list.appendChild(row);
+  });
+  sec.appendChild(list);
+  renderHint();
+  sec.appendChild(hint);
+  app.appendChild(sec);
+
+  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
+  back.querySelector('button').addEventListener('click', () => navBack(() => showRound(rid)));
+  app.appendChild(back);
+}
+
 // =================== Game detail ===================
 
 async function showGameDetail(rid, gameId) {

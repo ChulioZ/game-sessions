@@ -248,12 +248,17 @@ function renderStartTab(round, activeGames) {
     `<button class="btn"><i class="ti ti-tags" aria-hidden="true"></i> ${esc(t('round.tags'))}</button>`
   );
   tagsBtn.addEventListener('click', () => showTags(rid));
+  const providersBtn = h(
+    `<button class="btn"><i class="ti ti-world-search" aria-hidden="true"></i> ${esc(t('round.providers'))}</button>`
+  );
+  providersBtn.addEventListener('click', () => showProviders(rid));
   const bgBtn = h(
     `<button class="btn"><i class="ti ti-palette" aria-hidden="true"></i> ${esc(t('round.design'))}</button>`
   );
   bgBtn.addEventListener('click', () => showBackground(rid));
   actions.appendChild(addGameBtn);
   actions.appendChild(tagsBtn);
+  actions.appendChild(providersBtn);
   actions.appendChild(bgBtn);
   app.appendChild(actions);
 }

@@ -97,3 +97,7 @@
 .ti-ghost::before { content: "\eb8e"; }
 .ti-building-castle::before { content: "\ed88"; }
 .ti-world::before { content: "\eb54"; }
+/* Codepoint read from THIS bundle's cmap (glyph name `world-search`), not from
+   tabler.io — the two disagree for some glyphs. See
+   .claude/rules/tabler-icon-codepoints.md. */
+.ti-world-search::before { content: "\f9e7"; }

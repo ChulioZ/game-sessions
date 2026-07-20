@@ -3,11 +3,15 @@
 /*
  * Add-game lookup: proxies external game-database providers (PlayStation Store,
  * BoardGameGeek, Steam, Nintendo eShop, Xbox) so the browser never makes the
- * cross-origin call itself. Mounted at /api/lookup in lib/app.js.
+ * cross-origin call itself.
  *
- *   GET /api/lookup/search?provider=psstore&q=witcher
+ * Mounted under /api/rounds/:rid/lookup (mergeParams for rid) — round-scoped
+ * since #294, because which providers may be queried is a per-round setting and
+ * has to be enforced server-side, not merely hidden in the UI:
+ *
+ *   GET /api/rounds/:rid/lookup/search?provider=psstore&q=witcher
  *       -> { results: [{ providerId, title, thumbnail }] }
- *   GET /api/lookup/game?provider=psstore&id=UP4497-PPSA10407_00-0000000000000
+ *   GET /api/rounds/:rid/lookup/game?provider=psstore&id=UP4497-PPSA10407_00-0
  *       -> { provider, externalId, title, minPlayers, maxPlayers, type,
  *            duration, imageUrl, url }
  *
@@ -18,7 +22,7 @@
 const express = require('express');
 const { getProvider } = require('../lib/providers');
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 // Tiny in-memory cache to be polite to the provider (debounced typing still
 // repeats the same queries). Keyed per provider+kind+key, short TTL.
@@ -43,9 +47,31 @@ function lookupLang(req) {
   return LOOKUP_LANGS.includes(lang) ? lang : 'en';
 }
 
-router.get('/search', async (req, res) => {
+// Resolve the requested provider against BOTH the registry and the round's
+// enabled list (#294). Answers with the provider, or an { status, error } the
+// caller returns as-is:
+//   - unknown id            -> 400, as before
+//   - round gone            -> 404
+//   - registered but off    -> 403 provider_disabled
+// A disabled provider must be REFUSED, not silently answered: the UI filters its
+// fan-out too, so a request naming one is either a stale client or a hand-rolled
+// call, and answering it would make the setting advisory rather than enforced.
+async function resolveProvider(req) {
   const provider = getProvider(req.query.provider);
-  if (!provider) return res.status(400).json({ error: 'Unknown provider' });
+  if (!provider) return { status: 400, error: 'Unknown provider' };
+  const round = await req.repo.getRound(req.params.rid);
+  if (!round) return { status: 404, error: 'Round not found' };
+  // Absent = never configured = every provider enabled (pre-#294 behaviour).
+  const enabled = round.providers;
+  if (Array.isArray(enabled) && !enabled.includes(provider.id)) {
+    return { status: 403, error: 'provider_disabled' };
+  }
+  return { provider };
+}
+
+router.get('/search', async (req, res) => {
+  const { provider, status, error } = await resolveProvider(req);
+  if (!provider) return res.status(status).json({ error });
   const q = String(req.query.q || '').trim();
   if (q.length < 2) return res.json({ results: [] });
   const lang = lookupLang(req);
@@ -60,8 +86,8 @@ router.get('/search', async (req, res) => {
 });
 
 router.get('/game', async (req, res) => {
-  const provider = getProvider(req.query.provider);
-  if (!provider) return res.status(400).json({ error: 'Unknown provider' });
+  const { provider, status, error } = await resolveProvider(req);
+  if (!provider) return res.status(status).json({ error });
   const id = String(req.query.id || '').trim();
   if (!id) return res.status(400).json({ error: 'Missing id' });
   const lang = lookupLang(req);

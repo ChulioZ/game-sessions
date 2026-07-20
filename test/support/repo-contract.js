@@ -359,6 +359,33 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.setTagIcon(T, 'missing', plain.id, 'star'), null);
   });
 
+  test('setProviders: absent by default, empty list distinct from absent (#294)', async () => {
+    const round = await freshRound();
+
+    // Absent-key parity: a round that was never configured must not grow a
+    // `providers` key, because absent is what means "all providers enabled".
+    // Give it a default and every existing round silently changes behaviour.
+    assert.equal('providers' in round, false);
+    assert.equal('providers' in (await repo.getRound(T, round.id)), false);
+
+    const saved = await repo.setProviders(T, round.id, ['bgg', 'steam']);
+    assert.deepEqual(saved, ['bgg', 'steam']);
+    assert.deepEqual((await repo.getRound(T, round.id)).providers, ['bgg', 'steam']);
+
+    // An empty list is a real, distinct setting ("query nothing"), so it must
+    // round-trip as [] and NOT collapse back to the absent key.
+    assert.deepEqual(await repo.setProviders(T, round.id, []), []);
+    const cleared = await repo.getRound(T, round.id);
+    assert.equal('providers' in cleared, true);
+    assert.deepEqual(cleared.providers, []);
+
+    // It also survives the list read, not just the single-round read.
+    const listed = (await repo.listRounds(T)).find((r) => r.id === round.id);
+    assert.deepEqual(listed.providers, []);
+
+    assert.equal(await repo.setProviders(T, 'missing', ['bgg']), null);
+  });
+
   test('moveGames reparents every game and merges tags by name (#253)', async () => {
     const src = await freshRound({ name: 'Source' });
     const dst = await freshRound({ name: 'Target' });

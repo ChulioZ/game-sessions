@@ -37,12 +37,31 @@ function providerLogo(provider) {
 // the merged list is ranked by how well each title matches the query, re-sorted
 // in place as each provider arrives. One provider failing must not hide the
 // others' results — only an all-providers failure shows the error state.
+//
+// This is the registry order, which doubles as the interleave priority. Since
+// #294 it is the FULL set: filter it through enabledProviders() before any
+// fan-out, because a round can switch individual providers off.
 const LOOKUP_PROVIDERS = ['psstore', 'bgg', 'steam', 'nintendo', 'xbox'];
 const MAX_SUGGESTIONS = 10;
 
-async function searchProvider(provider, q) {
-  const res = await api('GET', `/api/lookup/search?provider=${provider}&q=${encodeURIComponent(q)}&lang=${encodeURIComponent(getLocale())}`);
+// The providers this round queries (#294). An ABSENT `providers` key means the
+// round was never configured, which means all of them — so don't treat a missing
+// key like an empty list, or every existing round would lose its lookup. An
+// empty array is a real, deliberate setting: query nothing.
+function enabledProviders(round) {
+  const ids = round && round.providers;
+  if (!Array.isArray(ids)) return LOOKUP_PROVIDERS;
+  return LOOKUP_PROVIDERS.filter((p) => ids.includes(p));
+}
+
+async function searchProvider(rid, provider, q) {
+  const res = await api('GET', `/api/rounds/${rid}/lookup/search?provider=${provider}&q=${encodeURIComponent(q)}&lang=${encodeURIComponent(getLocale())}`);
   return ((res && res.results) || []).map((r) => Object.assign({ provider }, r));
+}
+
+// Fetch one provider's detail for a round, honouring its enabled list server-side.
+function lookupDetail(rid, r) {
+  return api('GET', `/api/rounds/${rid}/lookup/game?provider=${encodeURIComponent(r.provider)}&id=${encodeURIComponent(r.providerId)}&lang=${encodeURIComponent(getLocale())}`);
 }
 
 // Query-match relevance tier (higher = better), case-insensitive on trimmed
@@ -68,7 +87,14 @@ function scoreHit(title, q) {
 // menu programmatically (e.g. after a pick), search(q) runs a lookup immediately
 // (e.g. for a prefilled value on open). Shared by showAddGame and showLinkProvider
 // so the two lookups stay in sync.
-function attachLookup(input, menu, onPick, onInput) {
+function attachLookup(round, input, menu, onPick, onInput) {
+  const rid = round.id;
+  const active = enabledProviders(round);
+  // Zero providers enabled is a legitimate configuration (#294): the field stays
+  // a plain title input with no dropdown. Return inert stubs so callers can keep
+  // calling closeMenu()/search() unconditionally.
+  if (!active.length) return { closeMenu() {}, search() {} };
+
   let searchTimer;
   let searchSeq = 0; // guards against out-of-order responses
 
@@ -127,7 +153,7 @@ function attachLookup(input, menu, onPick, onInput) {
     const seq = ++searchSeq;
     showMenuMsg(t('lookup.searching'));
     const hits = []; // accumulates across providers as each resolves
-    let pending = LOOKUP_PROVIDERS.length;
+    let pending = active.length;
     let anyFulfilled = false;
 
     // Group same-title hits from different providers into one row (ranked by
@@ -174,8 +200,8 @@ function attachLookup(input, menu, onPick, onInput) {
       openMenu();
     }
 
-    LOOKUP_PROVIDERS.forEach((provider, prio) => {
-      searchProvider(provider, q).then((list) => {
+    active.forEach((provider, prio) => {
+      searchProvider(rid, provider, q).then((list) => {
         if (seq !== searchSeq) return;
         anyFulfilled = true;
         list.forEach((r, order) => hits.push(Object.assign({ score: scoreHit(r.title, q), prio, order }, r)));
@@ -442,7 +468,7 @@ function showAddGame(round) {
     if (r.thumbnail && !pastedBlob) showProviderImage(r.thumbnail);
     let d;
     try {
-      d = await api('GET', `/api/lookup/game?provider=${encodeURIComponent(r.provider)}&id=${encodeURIComponent(r.providerId)}&lang=${encodeURIComponent(getLocale())}`);
+      d = await lookupDetail(round.id, r);
     } catch {
       toast(t('lookup.error'));
       return;
@@ -455,7 +481,7 @@ function showAddGame(round) {
   }
 
   // A manual edit no longer matches the picked suggestion.
-  lookup = attachLookup(titleInput, menu, pickSuggestion, () => { chosenSource = null; });
+  lookup = attachLookup(round, titleInput, menu, pickSuggestion, () => { chosenSource = null; });
 
   async function save(again) {
     const title = form.querySelector('#title').value.trim();
@@ -544,7 +570,7 @@ function showLinkProvider(round, game) {
   input.value = game.title;
 
   // Wire the shared lookup; a manual edit clears the pending match panel.
-  const lookup = attachLookup(input, menu, pickSuggestion, () => { resultBox.innerHTML = ''; });
+  const lookup = attachLookup(round, input, menu, pickSuggestion, () => { resultBox.innerHTML = ''; });
   // The title is already filled in, so search for it right away — setting
   // input.value above doesn't fire an 'input' event, so trigger it explicitly.
   lookup.search(game.title);
@@ -555,7 +581,7 @@ function showLinkProvider(round, game) {
     resultBox.innerHTML = `<div class="section muted">${esc(t('lookup.searching'))}</div>`;
     let d;
     try {
-      d = await api('GET', `/api/lookup/game?provider=${encodeURIComponent(r.provider)}&id=${encodeURIComponent(r.providerId)}&lang=${encodeURIComponent(getLocale())}`);
+      d = await lookupDetail(round.id, r);
     } catch {
       resultBox.innerHTML = '';
       toast(t('lookup.error'));

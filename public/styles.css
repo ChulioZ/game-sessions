@@ -1641,6 +1641,14 @@ body.auth-screen .crumbs { display: none; }
 .ds-row__date { font-weight: 700; }
 .ds-row__status { font-size: 15px; margin-top: 2px; }
 .ds-row__meta { display: flex; align-items: center; gap: 10px; flex: none; }
+/* Lookup-provider rows (#294): brand mark + name on the left, its switch right.
+   Scoped to .provider-row — the plain .ds-row__main stacks its children (the
+   Chronik rows put a date over a status), so making it a flex row globally
+   would lay those out side by side. */
+.provider-row .ds-row__main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.provider-row__logo { width: 22px; height: 22px; flex: none; display: inline-flex; }
+.provider-row__logo svg { width: 100%; height: 100%; display: block; }
+.provider-row__box { width: 18px; height: 18px; accent-color: var(--brand); cursor: pointer; }
 .ds-row__meta .score-pill { position: static; }
 .ds-row__meta .sort-flag { margin: 0; }
 

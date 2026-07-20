@@ -44,6 +44,7 @@ I18N.en = {
 
   'round.design': 'Design',
   'round.tags': 'Tags',
+  'round.providers': 'Providers',
   'round.startSession': 'Start session',
   'round.startSessionDisabled': 'Add games first',
   'round.addGame': 'Add a game',
@@ -348,6 +349,12 @@ I18N.en = {
   'theme.sand': 'Sand',
   'theme.schiefer': 'Slate',
   'theme.pfirsich': 'Peach',
+
+  'providers.crumb': 'Providers',
+  'providers.title': 'Providers',
+  'providers.note': 'Choose which game databases are searched when you add a game or link one to a store. Turn off the ones your group never plays – their hits disappear from the suggestions.',
+  'providers.noneHint': 'No provider is active: the title field stays a plain text box and you type every game in yourself.',
+  'providers.toast.saved': 'Providers updated',
 
   'tags.crumb': 'Tags',
   'tags.title': 'Tags',

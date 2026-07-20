@@ -38,6 +38,12 @@ code and documentation are in English.
   view). The lookup is optional — manual entry works exactly as before, and the
   app degrades gracefully when a source is unreachable (one provider failing
   still shows the others' results).
+- **Providers per round** – each round chooses which of the five databases its
+  lookups query (a "Provider" screen next to Tags in the round hub). A
+  board-games-only group can switch the four digital stores off so their hits
+  stop crowding the dropdown — and the requests stop being made at all. A round
+  that never configures it queries all five, as before; turning *every* provider
+  off is allowed too and simply leaves the title field a plain text input.
   **Provider cover art is hotlinked, not copied:** the picture is loaded straight
   from the store's own servers rather than downloaded onto this instance, because
   re-hosting third-party box art on a public service needs a licence we don't
@@ -182,7 +188,8 @@ code and documentation are in English.
   under `public/fonts/`, and the subtle background grain is an inline SVG in the
   stylesheet — no CDNs. The only runtime external calls are **opt-in**: the
   add-game lookup queries the PlayStation Store, Steam, the Nintendo eShop, the
-  Xbox / Microsoft Store and BoardGameGeek server-side (via `/api/lookup/*`) only
+  Xbox / Microsoft Store and BoardGameGeek server-side (via
+  `/api/rounds/:rid/lookup/*`, and only the providers that round enabled) only
   when you type a title to search; it sends just the search text and the active
   UI language, and the app works fully without it. None of these need an API key
   or account. BoardGameGeek titles follow the **active UI language** (German or
@@ -256,7 +263,8 @@ routes/
   feedback.js        /api/feedback          (in-app user feedback: submit one
                                              message; read side lives on
                                              /api/admin — issue #260)
-  lookup.js          /api/lookup            (search/game — provider proxy: PS Store, BGG, Steam, Nintendo, Xbox)
+  lookup.js          …/lookup               (search/game — provider proxy: PS Store, BGG, Steam, Nintendo, Xbox;
+                                             round-scoped, refuses a provider the round disabled)
   rounds.js          /api/rounds            (list, detail, create, delete)
   games.js           …/games                (add [+cover hotlink/source],
                                              edit [+link to provider],
@@ -268,6 +276,7 @@ routes/
   activities.js      …/activities           (list the feed [GET], delete an entry)
   background.js      …/background           (set the design)
   tags.js            …/tags                 (create a custom tag [deduped], set its icon, delete one)
+  providers.js       …/providers            (set which lookup providers this round queries)
 public/
   index.html
   login.html         standalone login page (shown only when AUTH_PASSWORD is set)
@@ -296,7 +305,8 @@ public/
     views-round.js        round hub (Start/Regal/Chronik/Pokale dock) + Start tab
     views-round-tabs.js   Regal, Chronik, Pokale tabs + the two archive
                           screens (retired / completed)
-    views-round-detail.js game detail, design picker, tags screen, sheet helpers
+    views-round-detail.js game detail, design picker, tags + providers screens,
+                          sheet helpers
     views-round-lookup.js provider lookup, add game, link provider
     views-member.js  member detail page (stats, name/color editing)
     views-session.js session setup, voting (hot-seat), finale, results

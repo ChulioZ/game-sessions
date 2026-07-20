@@ -44,6 +44,7 @@ I18N.de = {
 
   'round.design': 'Design',
   'round.tags': 'Tags',
+  'round.providers': 'Provider',
   'round.startSession': 'Session wirbeln',
   'round.startSessionDisabled': 'Erst Spiele hinzufügen',
   'round.addGame': 'Spiel hinzufügen',
@@ -348,6 +349,12 @@ I18N.de = {
   'theme.sand': 'Sand',
   'theme.schiefer': 'Schiefer',
   'theme.pfirsich': 'Pfirsich',
+
+  'providers.crumb': 'Provider',
+  'providers.title': 'Provider',
+  'providers.note': 'Wähle, welche Spiele-Datenbanken durchsucht werden, wenn du ein Spiel hinzufügst oder mit einem Store verknüpfst. Schalte aus, was ihr nie spielt – deren Treffer verschwinden aus den Vorschlägen.',
+  'providers.noneHint': 'Kein Provider aktiv: Das Titelfeld bleibt ein einfaches Textfeld, du tippst jedes Spiel selbst ein.',
+  'providers.toast.saved': 'Provider aktualisiert',
 
   'tags.crumb': 'Tags',
   'tags.title': 'Tags',
