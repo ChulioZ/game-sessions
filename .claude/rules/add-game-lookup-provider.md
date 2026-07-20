@@ -103,21 +103,16 @@ change. `providerMatchCover(r, d)` in `public/js/lookup-cover.js` is that one
 chokepoint for the link-provider sheet; the add-game flow does the same inline
 (`showProviderImage(r.thumbnail)` before the detail call resolves).
 
-It lives in its own small pure module rather than as an export from the big
-`views-round-lookup.js` **because of the coverage gate**: `require`-ing a
-~730-line DOM view file from a test pulls it into the report at ~10% lines and
-sinks `coverage:ci` (`--test-coverage-lines=90`) even though the test itself
-passes. That is why every requireable frontend helper here is a small,
-purpose-named file (`cover.js`, `ranking.js`, `lookup-group.js`) — the pattern
-is a coverage constraint, not just taste. Splitting one costs an `index.html`
-`<script>` tag, an entry in `sw.js`'s `SHELL` **plus a `CACHE` bump**, and an
-`eslint.config.js` globals entry (see `pwa-service-worker.md`).
-Forgetting it fails **silently and asymmetrically**: the cover toggle simply
-never renders for PS Store while every other provider works, which reads as
-"linking is broken for Sony" rather than a missing fallback. Guarded by
+**Forgetting that fallback fails silently and asymmetrically:** the cover toggle
+simply never renders for PS Store while every other provider works, which reads
+as "linking is broken for Sony" rather than as a missing fallback. Guarded by
 `test/provider-match-cover.test.js`, which asserts the asymmetry against the
-real parsers so a future Sony page change that *starts* shipping `media` is
+real parsers — so a future Sony page change that *starts* shipping `media` is
 noticed rather than silently making the test vacuous.
+
+(`providerMatchCover` lives in its own small module rather than as an export
+from `views-round-lookup.js` for a reason unrelated to providers — see
+`.claude/rules/frontend-helper-modules-and-coverage.md`.)
 
 **Known limits — don't treat these as bugs:**
 - It's **undocumented storefront scraping**. Sony can change the page shape any

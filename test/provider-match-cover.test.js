@@ -66,8 +66,9 @@ test('psstore parseProduct has no image while parseSearch does', () => {
   const html = (data) =>
     `<html><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(data)}</script></body></html>`;
 
-  const detail = psstore.parseProduct(html(product));
-  assert.equal(detail.imageUrl, null);
+  const detail = psstore.parseProduct(html(product), 'EP0001');
+  assert.equal(detail.title, 'Hades'); // the stub does yield a title …
+  assert.equal(detail.imageUrl, null); // … but never a cover
 
   const hits = psstore.parseSearch(html(search));
   assert.equal(hits.length, 1);
