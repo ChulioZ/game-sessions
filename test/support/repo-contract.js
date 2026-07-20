@@ -124,6 +124,32 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.updateGame(T, 'missing', game.id, { title: 'X' }), null);
   });
 
+  // Unlinking a game (#282) patches source/image to null rather than removing
+  // the keys. Both backends must round-trip that as a PRESENT null: the JSON
+  // one via Object.assign, Postgres via jsonb `||` (which sets JSON null, it
+  // does not delete the key). A backend that dropped the key instead would
+  // still satisfy the route's `if (!game.source)` check, so only asserting the
+  // shape here catches a divergence.
+  test('updateGame patches a field to a present null (unlink shape)', async () => {
+    const round = await freshRound();
+    const game = await repo.createGame(T, round.id, gameFields({
+      image: 'https://cf.geekdo-images.com/x/pic.jpg',
+      source: { provider: 'bgg', externalId: '13', url: 'https://boardgamegeek.com/boardgame/13' },
+    }));
+    assert.equal(game.source.provider, 'bgg');
+
+    const cleared = await repo.updateGame(T, round.id, game.id, { source: null, image: null });
+    assert.equal(cleared.source, null);
+    assert.equal(cleared.image, null);
+    assert.equal('source' in cleared, true, 'the key stays present, holding null');
+    assert.equal('image' in cleared, true);
+
+    // and it survives a re-read, not just the returning clause
+    const reread = (await repo.getRound(T, round.id)).games.find((g) => g.id === game.id);
+    assert.equal(reread.source, null);
+    assert.equal(reread.image, null);
+  });
+
   test('deleteGame refuses active games, scrubs retired ones from sessions', async () => {
     const round = await freshRound();
     const game = await repo.createGame(T, round.id, gameFields({ image: '/uploads/x.png' }));
