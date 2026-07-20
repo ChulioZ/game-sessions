@@ -182,7 +182,7 @@ function renderRegalTab(round, activeGames) {
 async function showMoveGames(round) {
   let rounds;
   try {
-    rounds = await api('GET', '/api/rounds');
+    rounds = await fetchRoundList({ rerender: false });
   } catch (e) {
     toast(e.message);
     return;

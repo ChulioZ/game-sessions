@@ -87,6 +87,7 @@ async function refreshAccessToken() {
 // Called by core.js api() when a 401 survives a refresh attempt.
 function onSessionLost() {
   clearTokens();
+  invalidateRoundCache(); // no cached round data may survive the identity loss
   accountUser = null;
   setupAccountUi();
   showLogin();
@@ -95,6 +96,7 @@ function onSessionLost() {
 async function logout() {
   try { await authFetch('/logout', { refreshToken: getRefreshToken() }); } catch {}
   clearTokens();
+  invalidateRoundCache(); // the next login may be a different account/tenant
   accountUser = null;
   setupAccountUi();
   showLogin();
@@ -207,6 +209,9 @@ function showLogin() {
         const { ok, status, data } = await authFetch('/login', { email: email.value.trim(), password: pw.value });
         if (ok) {
           setTokens(data.accessToken, data.refreshToken);
+          // A different account than the cache's owner may be logging in on
+          // this browser — its persisted round data must not leak across.
+          invalidateRoundCache();
           accountUser = data.user || null;
           enterApp();
           return;

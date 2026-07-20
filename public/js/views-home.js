@@ -9,7 +9,9 @@ async function showHome() {
   setCrumbs([{ label: t('nav.home') }]);
   applyBackground(null); // home: default background
   app.innerHTML = '<p class="muted">…</p>';
-  const rounds = await api('GET', '/api/rounds');
+  // SWR: renders instantly from the cached summary (a background refresh
+  // re-invokes showHome via currentView if anything changed).
+  const rounds = await fetchRoundList();
 
   app.innerHTML = '';
   app.appendChild(
@@ -85,8 +87,10 @@ async function showNewRound() {
   applyBackground(null);
   app.innerHTML = '<p class="muted">…</p>';
 
-  // Rounds whose games list can be copied over.
-  const allRounds = await api('GET', '/api/rounds');
+  // Rounds whose games list can be copied over. rerender:false — this screen
+  // is a form, and a background re-render would wipe what the user typed; a
+  // moments-stale import dropdown is harmless.
+  const allRounds = await fetchRoundList({ rerender: false });
   const importable = allRounds.filter((r) => r.gameCount > 0);
   const importField = importable.length
     ? `<div class="field import-card">

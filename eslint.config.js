@@ -22,8 +22,11 @@ const frontendGlobals = {
   app: 'readonly', crumbs: 'readonly', toastEl: 'readonly',
   currentView: 'writable', h: 'readonly', esc: 'readonly', toastTimer: 'writable',
   toast: 'readonly', api: 'readonly', setCrumbs: 'readonly', joinNames: 'readonly',
-  fetchRound: 'readonly', invalidateRoundCache: 'readonly', roundCache: 'writable',
-  fetchActivities: 'readonly', activityCache: 'writable',
+  fetchRound: 'readonly', invalidateRoundCache: 'readonly',
+  fetchActivities: 'readonly', fetchRoundList: 'readonly', fetchRoundFresh: 'readonly',
+  swrStore: 'readonly', swrRenderToken: 'writable', uiBusy: 'readonly',
+  // swr.js
+  createSwrStore: 'readonly',
   applyStaticTexts: 'readonly', setupLangPicker: 'readonly', gamesSort: 'writable',
   regalFilters: 'writable', regalFiltersRid: 'writable',
   TAG_STATES: 'readonly', cycleTagState: 'readonly',

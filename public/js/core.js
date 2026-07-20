@@ -61,6 +61,9 @@ async function api(method, url, body, _retried) {
         if (!_retried && (await refreshAccessToken())) return api(method, url, body, true);
         onSessionLost();
       } else {
+        // Locked out of the shared-password gate: drop the persisted cache
+        // before bouncing, so the login page never fronts stale round data.
+        invalidateRoundCache();
         window.location.assign('/');
       }
     }
@@ -74,36 +77,80 @@ async function api(method, url, body, _retried) {
   return res.status === 204 ? null : res.json();
 }
 
-/* Round cache. Tab switches re-render via showRound and used to re-fetch the
- * full round every time — the dominant felt latency on the hosted deploy.
- * Cache the last-fetched round briefly and serve navigations from it. Safe
- * because (a) api() invalidates on every successful mutation, so a stale hit
- * can only come from *another* device's change, which the short TTL bounds,
- * and (b) views never mutate the round object in place — they re-fetch and
- * re-render after mutations. The mid-session "fresh" fetches in
- * views-session.js intentionally bypass this and call api() directly. */
-const ROUND_CACHE_TTL_MS = 30 * 1000;
-let roundCache = { rid: null, round: null, at: 0 };
-let activityCache = { rid: null, activities: null, at: 0 };
+/* Stale-while-revalidate navigation cache (store: js/swr.js, loaded earlier).
+ *
+ * Every navigation used to block on a fresh fetch behind a "…" placeholder —
+ * the dominant felt latency on the hosted deploy, where each data request
+ * costs a full server round trip. Now a view renders INSTANTLY from the last
+ * known data (persisted in localStorage, so even a cold app start paints
+ * real content) while the fetch runs in the background; if it returns
+ * something different, the current view re-renders once, silently.
+ *
+ * Correctness guards, all load-bearing:
+ *  - api() clears the whole cache on every successful mutation (see above),
+ *    so a post-mutation navigation always awaits fresh data — the user never
+ *    sees their own change flash back to the old state. Stale renders can
+ *    only show *another* device's lag, which the background refresh corrects.
+ *  - A background refresh only re-renders while the SAME view instance is
+ *    current (swrRenderToken, bumped by syncUrl on every navigation) and no
+ *    sheet/popover is open (uiBusy) — never yanking UI out from under an
+ *    interaction. A skipped re-render is fine: the cache is already fresh for
+ *    the next navigation.
+ *  - The re-rendered view re-reads the cache within the freshness window, so
+ *    refresh -> re-render -> refresh can't loop (see swr.js beginRevalidate).
+ *  - The auth flows (account.js) clear the store on login/logout/session
+ *    loss, so no cached data survives an identity change.
+ * Views never mutate returned objects in place (same contract as before). The
+ * mid-session "must be fresh" fetches use fetchRoundFresh, which awaits the
+ * network and seeds the cache. */
+const SWR_FRESH_MS = 5000;
+const swrStore = createSwrStore({
+  storage: (() => { try { return window.localStorage; } catch { return null; } })(),
+  storageKey: 'spielwirbel.swr.v1',
+});
+let swrRenderToken = 0; // bumped by syncUrl (router.js) on every navigation
 function invalidateRoundCache() {
-  roundCache = { rid: null, round: null, at: 0 };
-  activityCache = { rid: null, activities: null, at: 0 };
+  swrStore.clear();
 }
-async function fetchRound(rid) {
-  const fresh = roundCache.rid === rid && Date.now() - roundCache.at < ROUND_CACHE_TTL_MS;
-  if (fresh) return roundCache.round;
+// True while a modal-ish surface is open — a background re-render would
+// destroy it (the sheets/popovers live inside #app / on body).
+function uiBusy() {
+  return !!document.querySelector('.sheet-backdrop') || !!activePopover;
+}
+// Serve the cached value for `key` (instantly, however old) and revalidate in
+// the background; block only on a cache miss. `rerender: false` still refreshes
+// the cache but never re-renders the view — for form screens, where a rebuild
+// would wipe what the user is typing.
+async function swrRead(key, url, { rerender = true } = {}) {
+  const cached = swrStore.get(key);
+  if (cached === undefined) {
+    const value = await api('GET', url);
+    swrStore.set(key, value);
+    return value;
+  }
+  if (swrStore.beginRevalidate(key, SWR_FRESH_MS)) {
+    const token = swrRenderToken;
+    api('GET', url)
+      .then((fresh) => {
+        swrStore.endRevalidate(key);
+        const changed = JSON.stringify(fresh) !== JSON.stringify(swrStore.get(key));
+        swrStore.set(key, fresh);
+        if (rerender && changed && token === swrRenderToken && !uiBusy()) currentView();
+      })
+      .catch(() => swrStore.endRevalidate(key));
+  }
+  return cached;
+}
+const fetchRoundList = (opts) => swrRead('rounds', '/api/rounds', opts);
+const fetchRound = (rid) => swrRead('round:' + rid, '/api/rounds/' + rid);
+// The activity feed lives on its own endpoint (#197), hence its own key.
+const fetchActivities = (rid) => swrRead('acts:' + rid, `/api/rounds/${rid}/activities`);
+// Await the network and seed the cache — for flows that must observe their own
+// just-written state (mid-session refreshes) where a stale render would lie.
+async function fetchRoundFresh(rid) {
   const round = await api('GET', '/api/rounds/' + rid);
-  roundCache = { rid, round, at: Date.now() };
+  swrStore.set('round:' + rid, round);
   return round;
-}
-// Same pattern for the activity feed, which lives on its own endpoint (#197)
-// and so misses the round cache — without this, every Chronik entry re-fetches.
-async function fetchActivities(rid) {
-  const fresh = activityCache.rid === rid && Date.now() - activityCache.at < ROUND_CACHE_TTL_MS;
-  if (fresh) return activityCache.activities;
-  const activities = await api('GET', '/api/rounds/' + rid + '/activities');
-  activityCache = { rid, activities, at: Date.now() };
-  return activities;
 }
 
 function setCrumbs(parts) {

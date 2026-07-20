@@ -36,6 +36,11 @@ function roundPath(rid, tab) {
 // each routable show*(). While the router is driving (routing === true) or the
 // path already matches, it replaces; otherwise it pushes a new history entry.
 function syncUrl(path) {
+  // Every view calls this first, so it doubles as the navigation signal for
+  // the SWR cache: bumping the token retires any background refresh armed by
+  // the previous view (core.js swrRead) — a late response updates the cache
+  // but must never re-render a view the user already left.
+  swrRenderToken += 1;
   if (routing || path === location.pathname) {
     history.replaceState({ path, idx: navIndex }, '', path);
   } else {

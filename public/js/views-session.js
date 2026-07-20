@@ -277,7 +277,7 @@ function startVoting(round, session, games, members) {
   async function finish() {
     try {
       await api('POST', `/api/rounds/${round.id}/sessions/${session.id}/results`, { votes });
-      const fresh = await api('GET', '/api/rounds/' + round.id);
+      const fresh = await fetchRoundFresh(round.id);
       const savedSession = fresh.sessions.find((s) => s.id === session.id);
       // Nobody sees the result yet: the finale gate gathers everyone first.
       showFinale(fresh, savedSession, games);
@@ -526,7 +526,7 @@ async function showResults(round, session, gamesHint, reveal) {
         try {
           await api('POST', `/api/rounds/${round.id}/games/${g.id}/retire`, { retired: true });
           toast(t('games.retired', { title: g.title }));
-          const fresh = await api('GET', '/api/rounds/' + round.id);
+          const fresh = await fetchRoundFresh(round.id);
           const sess = fresh.sessions.find((s) => s.id === session.id) || session;
           showResults(fresh, sess, games);
         } catch (e) { toast(e.message); }
@@ -538,7 +538,7 @@ async function showResults(round, session, gamesHint, reveal) {
       try {
         await api('DELETE', `/api/rounds/${round.id}/sessions/${session.id}/games/${g.id}`);
         toast(t('result.toast.gameRemoved', { title: g.title }));
-        const fresh = await api('GET', '/api/rounds/' + round.id);
+        const fresh = await fetchRoundFresh(round.id);
         const sess = fresh.sessions.find((s) => s.id === session.id) || session;
         showResults(fresh, sess, games);
       } catch (e) { toast(e.message); }
