@@ -143,9 +143,16 @@ if (!process.env.DATABASE_URL) {
   // nothing" on a hardened deploy while CI stayed green.
   //
   // Two halves, and the second is the security-critical one:
-  //   1. app.admin='on' WIDENS READS across tenants (USING).
-  //   2. It does NOT widen writes — WITH CHECK stays tenant-matched, so an
-  //      operator read can never turn into a cross-tenant write.
+  //   1. app.admin='on' WIDENS READS across tenants.
+  //   2. It does NOT widen writes — INSERT, UPDATE *and* DELETE stay
+  //      tenant-matched.
+  //
+  // DELETE is the one that matters most here and is easy to get wrong: Postgres
+  // governs DELETE by USING **alone** (there is no WITH CHECK for DELETE), so
+  // the tempting implementation — `OR app.admin` bolted onto the existing FOR
+  // ALL policy's USING — would leave a cross-tenant DELETE wide open while
+  // looking read-only. The migration instead adds a separate FOR SELECT policy;
+  // the DELETE assertion below is what pins that down.
   test('the moderation admin escape widens reads only, never writes', async () => {
     const assert = require('node:assert/strict');
     const a = await repo.createRound('esc-a', { name: 'A round', members: ['M'] });
@@ -190,14 +197,26 @@ if (!process.env.DATABASE_URL) {
         );
         assert.deepEqual(seen.rows.map((r) => r.tenant_id), ['esc-a', 'esc-b']);
 
-        // 2. …but the SAME transaction may not write across tenants: WITH CHECK
-        //    deliberately has no admin escape, so an insert for another tenant is
-        //    refused even with the flag set.
+        // 2a. …but the SAME transaction may not INSERT across tenants: the
+        //     tenant policy's WITH CHECK has no admin escape.
         await assert.rejects(
           () => probe.query("INSERT INTO rounds(id, tenant_id, name) VALUES ('esc_x', 'esc-a', 'X')"),
           /row-level security/,
           'the admin flag must NOT permit a cross-tenant insert'
         );
+        await probe.query('ROLLBACK');
+
+        // 2b. …and it may not DELETE across tenants either. This is the
+        //     assertion that catches the USING-only mistake: a DELETE is
+        //     filtered by the tenant policy alone, so with the flag set (and no
+        //     app.tenant_id) it must match ZERO rows rather than every tenant's.
+        await probe.query('BEGIN');
+        await probe.query("SELECT set_config('app.admin', 'on', true)");
+        const del = await probe.query("DELETE FROM games WHERE data->>'image' = '/uploads/esc-a.jpg'");
+        assert.equal(del.rowCount, 0, 'the admin flag must NOT permit a cross-tenant delete');
+        // Same for a cross-tenant UPDATE.
+        const upd = await probe.query("UPDATE games SET data = data || '{\"image\":null}'::jsonb WHERE data->>'image' = '/uploads/esc-a.jpg'");
+        assert.equal(upd.rowCount, 0, 'the admin flag must NOT permit a cross-tenant update');
         await probe.query('ROLLBACK');
 
         // 3. The flag is transaction-local: the next statement on the same

@@ -25,21 +25,36 @@ token version (`a1`) and cookie (`aid`, `sameSite=strict`). Keep all three — d
 the prefix and an app `sid` token becomes a valid admin token whenever
 `SESSION_SECRET` is set. `test/admin.test.js` asserts an app token is rejected.
 
-## 2. The Postgres RLS admin escape is READ-ONLY — never add it to WITH CHECK
+## 2. The RLS admin escape must be a separate `FOR SELECT` policy — NOT `OR` bolted onto the existing one
 
 An abuse notice names an image, not a tenant, so the lookup is inherently
 cross-tenant — and under `FORCE ROW LEVEL SECURITY` an unscoped read sees zero
 rows (fail-closed). Migration `20260720140000_moderation.js` therefore admits
-`current_setting('app.admin', true) = 'on'` in the policies' **`USING`** clause,
-set transaction-locally by `atx()` in `lib/repo/postgres.js`.
+`current_setting('app.admin', true) = 'on'`, set transaction-locally by `atx()`
+in `lib/repo/postgres.js`.
 
-**It is deliberately absent from `WITH CHECK`.** `USING` governs which rows a
-statement may *see*; `WITH CHECK` governs rows it may *write*. So the flag can
-widen a lookup and can **never** widen a write. That is why `takedownImage`
-does not write under the escape: it reads the target rows with `atx()`, then
-performs each update through the ordinary tenant-scoped `tx(tenant, …)` path.
-Adding the escape to `WITH CHECK` would make a single missed `if` in the admin
-routes a cross-tenant write primitive.
+**The obvious implementation is wrong and was caught in review.** Adding
+`OR current_setting('app.admin', …)` to the existing `FOR ALL` policy's `USING`
+clause, leaving `WITH CHECK` tenant-matched, *looks* read-only. It isn't:
+
+> **`DELETE` is governed by `USING` alone — there is no `WITH CHECK` for
+> `DELETE`.**
+
+So that shape silently permits a cross-tenant `DELETE` from inside any admin
+transaction. Measured on a real database before the rewrite: with the flag set, a
+cross-tenant `DELETE FROM games` reported `rowCount 1`; without it, `0`.
+
+The correct shape, and what is in the migration: **leave `<t>_tenant_isolation`
+completely untouched** (still `FOR ALL`, tenant-matched on both clauses) and add
+a **separate, additive `<t>_admin_read` policy that is `FOR SELECT` only**.
+Postgres OR-combines permissive policies *per command*, so `SELECT` passes on
+"tenant matches OR admin is on" while `INSERT`/`UPDATE`/`DELETE` consult only the
+tenant policy. Write isolation is then byte-for-byte what it was before #268, and
+the read-only property is **structural** — a `DELETE` or `UPDATE` someone later
+writes inside `atx()` is refused by the database, not merely by convention.
+
+`takedownImage` accordingly reads its targets under `atx()` and then performs
+each update through the ordinary tenant-scoped `tx(tenant, …)` path.
 
 ## 3. Cross-tenant repo methods must be tested through a PLAIN ROLE
 
@@ -52,9 +67,11 @@ green the whole time.
 
 The probe that actually catches it is
 `test/repo.postgres.test.js` → *"the moderation admin escape widens reads only,
-never writes"*, which creates a dedicated non-superuser role and asserts all
-three properties: the flag widens the read, it does **not** permit a cross-tenant
-insert, and it dies with the transaction. Same reasoning as the pre-existing
+never writes"*, which creates a dedicated non-superuser role and asserts: the
+flag widens the read, it does **not** permit a cross-tenant `INSERT`, `UPDATE`
+**or `DELETE`** (the `DELETE` assertion is specifically what pins down the trap
+in §2 — it returns `rowCount 1` under the wrong policy shape and `0` under the
+right one), and it dies with the transaction. Same reasoning as the pre-existing
 fail-closed probe next to it (see `.claude/rules/tenancy-rls.md`).
 
 ## 4. The moderation methods are global on purpose — keep them out of TENANT_METHODS
