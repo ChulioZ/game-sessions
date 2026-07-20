@@ -97,9 +97,136 @@
     loginForm.hidden = true;
     panel.hidden = false;
     $('password').value = '';
+    loadStatus();
     loadUsers();
     loadFeedback();
     loadLog();
+  }
+
+  // ---- instance status (#274) ----------------------------------------------
+
+  // Each row is [label, verdict, value, note?]. The verdict drives the pill
+  // colour: 'ok' = as intended, 'warn' = works but probably not what you meant,
+  // 'off' = a real misconfiguration. Deriving it HERE rather than server-side is
+  // deliberate — the server reports facts, the panel interprets them, so a new
+  // opinion about what "good" looks like never changes the API.
+  function statusRows(s) {
+    const yesNo = (b) => (b ? 'ja' : 'nein');
+    const rows = [];
+
+    // Accounts: the flag being on while `enabled` is false means SESSION_SECRET
+    // is missing — the app silently stays in legacy mode.
+    rows.push(['Accounts (Registrierung)',
+      s.accounts.enabled ? 'ok' : (s.accounts.flagSet ? 'off' : 'warn'),
+      s.accounts.enabled ? 'aktiv' : 'aus',
+      s.accounts.flagSet && !s.accounts.enabled
+        ? 'ACCOUNTS_ENABLED ist gesetzt, aber SESSION_SECRET fehlt — die Instanz läuft weiter im Alt-Modus.'
+        : null]);
+
+    rows.push(['SESSION_SECRET',
+      !s.accounts.sessionSecretSet ? 'warn' : (s.accounts.sessionSecretDistinct ? 'ok' : 'off'),
+      !s.accounts.sessionSecretSet ? 'nicht gesetzt' : (s.accounts.sessionSecretDistinct ? 'eigenständig' : 'gleich AUTH_PASSWORD'),
+      s.accounts.sessionSecretSet && !s.accounts.sessionSecretDistinct
+        ? 'Muss ein eigenes Geheimnis sein — sonst kann jedes Gruppenmitglied Tokens fälschen.'
+        : null]);
+
+    rows.push(['ADMIN_PASSWORD',
+      !s.admin.enabled ? 'warn' : (s.admin.secretDistinct ? 'ok' : 'off'),
+      !s.admin.enabled ? 'nicht gesetzt' : (s.admin.secretDistinct ? 'eigenständig' : 'gleich AUTH_PASSWORD'),
+      s.admin.enabled && !s.admin.secretDistinct
+        ? 'Rechteausweitung: Jede Person mit dem App-Passwort hätte Operator-Rechte.'
+        : null]);
+
+    rows.push(['E-Mail-Versand', s.mail.configured ? 'ok' : 'off',
+      s.mail.configured ? 'Brevo konfiguriert' : 'nur Outbox (kein Versand)',
+      s.mail.configured ? null
+        : 'Ohne BREVO_API_KEY landen Verifizierungs- und Reset-Mails im Speicher und werden nie zugestellt.']);
+
+    rows.push(['MAIL_FROM / APP_BASE_URL',
+      s.mail.fromSet && s.mail.baseUrlSet ? 'ok' : 'warn',
+      `${yesNo(s.mail.fromSet)} / ${yesNo(s.mail.baseUrlSet)}`]);
+
+    rows.push(['Bild-Speicher', s.storage.images === 's3' ? 'ok' : 'warn',
+      s.storage.images === 's3' ? 'S3 / R2' : 'lokale Festplatte',
+      s.storage.images === 's3' ? null
+        : 'Ohne S3_BUCKET liegen Cover im Container und sind nach dem nächsten Deploy weg.']);
+
+    rows.push(['Datenspeicher', s.storage.data === 'postgres' ? 'ok' : 'warn',
+      s.storage.data === 'postgres' ? 'PostgreSQL' : 'data.json',
+      s.storage.data === 'postgres' ? null
+        : 'Ohne DATABASE_URL liegen die Runden in einer Datei im Container.']);
+
+    rows.push(['Migrationen',
+      s.migrations.pending ? 'off' : 'ok',
+      s.migrations.backend === 'json'
+        ? 'entfällt (JSON)'
+        : `${s.migrations.latest || 'keine'}${s.migrations.pending ? ` · ${s.migrations.pending} offen` : ''}`,
+      s.migrations.pending ? 'Der Code ist neuer als das Schema — dieser Deploy hat nicht migriert.' : null]);
+
+    rows.push(['Kontingente', s.quotas.enforced ? 'ok' : 'warn',
+      s.quotas.enforced ? 'aktiv' : 'inaktiv (Accounts aus)',
+      `Runden/Tenant ${s.quotas.roundsPerTenant} · Spiele/Runde ${s.quotas.gamesPerRound} · Tags/Runde ${s.quotas.tagsPerRound}`]);
+
+    rows.push(['Kanonische Domain', 'ok', s.hosts.canonical,
+      s.hosts.redirects.length ? `Weiterleitung: ${s.hosts.redirects.join(', ')}` : 'keine Weiterleitungen']);
+
+    rows.push(['Assets', s.assets.built ? 'ok' : 'warn',
+      s.assets.built ? 'gebautes dist/' : 'public/ (ungebaut)',
+      s.assets.built ? null : 'Ohne Build greift kein Cache-Busting — Clients können alte JS/CSS behalten.']);
+
+    rows.push(['Version', 'ok',
+      `${s.app.version || '—'}${s.app.commit ? ` · ${s.app.commit}` : ''}`,
+      `NODE_ENV: ${s.app.nodeEnv || '—'} · Laufzeit: ${formatUptime(s.app.uptimeSeconds)}`]);
+
+    return rows;
+  }
+
+  function formatUptime(seconds) {
+    if (!Number.isFinite(seconds)) return '—';
+    const d = Math.floor(seconds / 86400);
+    const h = Math.floor((seconds % 86400) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    if (d) return `${d} d ${h} h`;
+    if (h) return `${h} h ${m} min`;
+    return `${m} min`;
+  }
+
+  async function loadStatus() {
+    const grid = $('statusGrid');
+    grid.replaceChildren();
+    hide($('statusError'));
+
+    let status;
+    try {
+      ({ status } = await api('/status'));
+    } catch (err) {
+      show($('statusError'), message(err), 'err');
+      return;
+    }
+
+    for (const [label, verdict, value, note] of statusRows(status)) {
+      const item = document.createElement('div');
+      item.className = 'status__item';
+
+      const head = document.createElement('div');
+      head.className = 'status__label';
+      head.textContent = label;
+      item.appendChild(head);
+
+      const pill = document.createElement('span');
+      pill.className = `pill pill--${verdict}`;
+      pill.textContent = value;
+      item.appendChild(pill);
+
+      if (note) {
+        const hint = document.createElement('div');
+        hint.className = 'status__note';
+        hint.textContent = note;
+        item.appendChild(hint);
+      }
+
+      grid.appendChild(item);
+    }
   }
 
   // ---- lookup --------------------------------------------------------------

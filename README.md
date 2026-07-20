@@ -213,6 +213,9 @@ lib/
   mail.js            outbound e-mail (Brevo when BREVO_API_KEY is set, else
                      logged to an in-memory outbox)
   observability.js   structured logging, /healthz, central error handler
+  status.js          derived instance configuration for the operator panel's
+                     status card (issue #274) — booleans/enums only, never a
+                     secret value
   providers/         external game-database providers for the add-game lookup
     index.js         provider registry + image-host allowlist
     psstore.js       PlayStation Store: search + detail via the store's
@@ -232,10 +235,11 @@ routes/
                                              e-mail, login, refresh, logout,
                                              forgot/reset password, me —
                                              404 unless ACCOUNTS_ENABLED)
-  admin.js           /api/admin             (operator moderation: image→tenant
-                                             lookup, takedown, account
-                                             suspend/restore, GDPR export +
-                                             erasure, action log, user feedback —
+  admin.js           /api/admin             (operator moderation: instance
+                                             status, image→tenant lookup,
+                                             takedown, account suspend/restore,
+                                             GDPR export + erasure, action log,
+                                             user feedback —
                                              404 unless ADMIN_PASSWORD)
   feedback.js        /api/feedback          (in-app user feedback: submit one
                                              message; read side lives on
@@ -391,6 +395,16 @@ reference, leaving the rest of the data intact); suspend or restore an account
 without deleting anything, so evidence survives; and read the log of those actions
 that a DSA Art. 17 statement of reasons needs. Suspension takes effect immediately
 — existing access tokens stop working, not just new logins.
+
+The panel also opens with an **Instanz-Status** card (issue #274): how the running
+instance is *actually* configured — accounts mode and whether `SESSION_SECRET` is
+a secret of its own, whether `ADMIN_PASSWORD` differs from `AUTH_PASSWORD`, mail
+delivery vs. the in-memory outbox, the image and data backends, pending schema
+migrations, quota ceilings and whether they bite, the canonical host, whether the
+built `dist/` assets are being served, and the running version/commit. Every field
+is a derived boolean, enum or number — **no secret value is ever returned**, so a
+screenshot of the card is harmless. It exists so the go-live checklist can be
+verified from the app instead of by eye against the Railway dashboard.
 
 Data-subject requests (issue #273) are handled from the same Konten card:
 **Exportieren** downloads everything held for one account as JSON (its rounds

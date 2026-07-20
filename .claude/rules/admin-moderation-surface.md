@@ -123,6 +123,63 @@ Related, and the sharper trap #273 uncovered:
 `.claude/rules/erased-account-token-fallback.md` — deleting a user row is not
 enough on its own, because their stateless access token outlives it.
 
+## 6. The status card (#274) reports DERIVED values — the sweep test is the guard
+
+`lib/status.js` answers "how is this instance actually configured?" for the
+panel's Instanz-Status card. Its one hard rule is that **no secret ever reaches
+the response** — not in full, not truncated, not hashed-and-displayed. The panel
+is password-gated, not secret-cleared, and a screenshot of it must be harmless.
+
+The obvious way to hold that line is careful review of each field, which decays
+the moment someone adds a thirteenth one. So the enforcement is a **generic
+sweep** in `test/status.test.js`: it plants recognisable values in
+`AUTH_PASSWORD`/`SESSION_SECRET`/`ADMIN_PASSWORD`/`BREVO_API_KEY`, serializes the
+whole response, and asserts none of them appears — plus no long hex blob, which
+catches "I'll just show a hash". A new field that echoes a secret fails that test
+**without anyone remembering to extend it**. Keep the sweep generic; don't
+replace it with per-field assertions.
+
+Two related shapes worth keeping:
+
+- **Comparing two secrets returns only the verdict.** `distinct(a, b)` uses the
+  same length-check-then-`timingSafeEqual` shape as `lib/admin.js`'s and
+  `lib/auth.js`'s `safeEqual`; only the boolean escapes. That is how
+  `adminSecretDistinct` / `sessionSecretDistinct` report "ADMIN_PASSWORD equals
+  AUTH_PASSWORD" without either value.
+
+  **Do not "harden" this by hashing the operands first.** The first version of
+  #274 did (SHA-256, purely to give `timingSafeEqual` equal-length inputs) and
+  **CodeQL failed the PR with a high-severity `js/insufficient-password-hash`** —
+  a value from `ADMIN_PASSWORD`/`SESSION_SECRET` flowing into a fast hash reads
+  as weak password storage to the scanner, and honestly to a human reader too.
+  It was a false positive in the strict sense (nothing is stored, transmitted or
+  returned — the digests died in the same expression), but the un-hashed form is
+  the better code regardless: it matches the existing idiom and needs no
+  dismissal. The side-channel it "fixed" does not exist here — the only thing the
+  length short-circuit can reveal is whether two secrets share a length, to a
+  caller who is already an authenticated operator and who is handed the equality
+  verdict itself in the response.
+- **The server reports facts; the panel decides what's "good".** The
+  ok/warn/off verdicts live in `statusRows()` in `public/js/admin.js`, not in the
+  API. So changing an opinion (is a disk image backend a warning or fine?) never
+  changes the response shape.
+
+**`assetsBuilt()` lives in `lib/status.js`, and `lib/app.js`'s `assetDir()` calls
+it** rather than each deriving `NODE_ENV==='production' && dist/index.html
+exists` separately. A second copy would eventually drift, and a card reporting
+"built assets" while `public/` is actually being served is worse than not
+reporting it at all. Note the direction: `status.js` must never require
+`lib/app.js` (that would be a cycle — app → routes/admin → status).
+
+**`migrationStatus()` is on both repo backends and absent from
+`TENANT_METHODS`**, like the other operator methods (§4): migration state is a
+property of the database, not of any tenant's data, and knex's bookkeeping table
+sits outside RLS. The JSON backend answers `{ backend:'json', latest:null,
+pending:0 }` rather than throwing, so the panel renders one shape for both. The
+field that matters is `pending` — non-zero means the code shipped but the schema
+did not, which otherwise surfaces only later as a column-not-found error under
+real traffic.
+
 ## Smaller things worth remembering
 
 - **Suspension is enforced in `lib/tenant.js`,** not only at login. That

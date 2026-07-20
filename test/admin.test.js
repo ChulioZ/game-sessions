@@ -56,6 +56,7 @@ test('the admin gate refuses everything without a valid operator session', async
   await t.test('every gated route 401s unauthenticated', async () => {
     for (const [method, path] of [
       ['get', '/api/admin/me'],
+      ['get', '/api/admin/status'],
       ['get', '/api/admin/lookup?image=/uploads/a.jpg'],
       ['post', '/api/admin/takedown'],
       ['get', '/api/admin/users'],
@@ -419,6 +420,49 @@ test('export answers an access request; erasure cascades and is logged (#273)', 
       .set('Cookie', cookie)
       .send({ reason: 'again', confirmEmail: 'erase-me@example.com' });
     assert.equal(res.status, 404);
+  });
+});
+
+// The panel's go-live checklist card (#274). The interesting assertions are the
+// negative ones: the response must describe THIS process, and must not carry a
+// secret. test/status.test.js pins the derivation down field by field; this is
+// about the route.
+test('the status endpoint reports the running instance without leaking secrets (#274)', async (t) => {
+  const cookie = await adminCookie();
+  const res = await request(app).get('/api/admin/status').set('Cookie', cookie);
+  assert.equal(res.status, 200);
+  const { status } = res.body;
+
+  await t.test('it describes the configuration this test process runs with', async () => {
+    // This file sets ACCOUNTS_ENABLED + SESSION_SECRET + ADMIN_PASSWORD at the
+    // top, and the suite runs on the default backends.
+    assert.equal(status.accounts.enabled, true);
+    assert.equal(status.accounts.sessionSecretSet, true);
+    assert.equal(status.admin.enabled, true);
+    assert.equal(status.quotas.enforced, true);
+    assert.equal(status.storage.images, 'disk');
+    assert.equal(status.storage.data, 'json');
+    assert.equal(status.migrations.backend, 'json');
+    // Mail is deliberately unconfigured in tests (lib/mail.js's outbox path).
+    assert.equal(status.mail.configured, false);
+  });
+
+  await t.test('no configured secret is echoed back', async () => {
+    const serialized = JSON.stringify(res.body);
+    for (const secret of [ADMIN_PW, 'test-session-secret']) {
+      assert.equal(serialized.includes(secret), false);
+    }
+  });
+
+  // Read-only by construction: the card reports configuration, it never edits
+  // it — env vars stay a deliberate Railway action. No write verb is routed, so
+  // each one falls out of this router unhandled (landing on the /api gate) and
+  // must never come back 2xx.
+  await t.test('it is read-only — no write verb is offered', async () => {
+    for (const method of ['post', 'put', 'patch', 'delete']) {
+      const write = await request(app)[method]('/api/admin/status').set('Cookie', cookie).send({});
+      assert.ok(write.status >= 400, `${method} /api/admin/status answered ${write.status}`);
+    }
   });
 });
 

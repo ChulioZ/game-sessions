@@ -597,6 +597,24 @@ module.exports = function repoContract(repo) {
     assert.equal((await repo.listFeedback(1)).length, 1);
   });
 
+  // The operator panel's "did this deploy migrate?" field (#274). Both backends
+  // must answer in ONE shape, so the panel renders the same card either way —
+  // the JSON backend has no schema, and says so, rather than throwing or
+  // returning null and forcing a special case into the view.
+  test('migrationStatus reports the schema state in a backend-agnostic shape', async () => {
+    const status = await repo.migrationStatus();
+    assert.ok(['json', 'postgres'].includes(status.backend));
+    assert.equal(typeof status.pending, 'number');
+    // A freshly initialised store is fully migrated either way.
+    assert.equal(status.pending, 0);
+    if (status.backend === 'json') {
+      assert.equal(status.latest, null);
+    } else {
+      // init() ran migrate.latest(), so a real migration name must be recorded.
+      assert.match(status.latest, /^\d+_/);
+    }
+  });
+
   // The suite shares one store across cases, so assert on the delta, not on an
   // absolute count — other tests have already created users by now.
   test('listUsers returns every user for the operator account list', async () => {

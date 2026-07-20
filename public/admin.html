@@ -66,6 +66,14 @@
     th { color: #8b93a6; font-weight: 600; }
     .pill { font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: #2c3240; }
     .pill--off { background: rgba(180, 68, 63, 0.3); color: #ffb4b4; }
+    /* Status card (#274): green = as intended, amber = works but probably not
+       what you meant, red = a real misconfiguration. */
+    .pill--ok { background: rgba(66, 148, 92, 0.28); color: #a9e6b6; }
+    .pill--warn { background: rgba(190, 140, 45, 0.28); color: #f0d08a; }
+    .status { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.75rem; }
+    .status__item { background: #14161c; border: 1px solid #2c3240; border-radius: 10px; padding: 0.7rem 0.8rem; }
+    .status__label { color: #8b93a6; font-size: 0.78rem; margin-bottom: 0.3rem; }
+    .status__note { color: #8b93a6; font-size: 0.78rem; margin-top: 0.3rem; }
     .scroll { overflow-x: auto; }
     code { background: #14161c; padding: 0.1rem 0.35rem; border-radius: 6px; font-size: 0.85em; }
     [hidden] { display: none !important; }
@@ -88,6 +96,16 @@
       <h1 style="margin: 0;">Moderation</h1>
       <button class="ghost small" id="logout">Abmelden</button>
     </div>
+
+    <section class="card">
+      <h2>Instanz-Status</h2>
+      <p class="sub" style="margin-bottom: 0.9rem;">
+        Wie diese Instanz tatsächlich läuft — Grundlage für die Go-live-Checkliste (#219).
+        Nur abgeleitete Werte, keine Geheimnisse.
+      </p>
+      <div class="status" id="statusGrid"></div>
+      <p class="msg msg--err" id="statusError" role="alert" hidden></p>
+    </section>
 
     <section class="card">
       <h2>Bild zuordnen</h2>

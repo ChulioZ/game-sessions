@@ -25,6 +25,7 @@ const { validateBody } = require('../lib/validate');
 const admin = require('../lib/admin');
 const repo = require('../lib/repo');
 const storage = require('../lib/storage');
+const { instanceStatus } = require('../lib/status');
 const { logger } = require('../lib/observability');
 
 const router = express.Router();
@@ -77,6 +78,17 @@ router.get('/me', admin.requireAdmin, (req, res) => {
 /* --------------------------- everything below: gated ----------------------- */
 
 router.use(admin.requireAdmin);
+
+/* --------------------------------- status ---------------------------------- */
+
+// How this instance is actually configured (issue #274), so #219's go-live
+// checklist is verifiable from the app rather than by eye against Railway's
+// env-var list. Read-only, and every field is a derived boolean/enum/number or a
+// public host name — never a secret, not even truncated. lib/status.js is where
+// that guarantee is kept; don't widen the response here.
+router.get('/status', async (req, res) => {
+  res.json({ status: await instanceStatus() });
+});
 
 /* --------------------------------- lookup ---------------------------------- */
 
