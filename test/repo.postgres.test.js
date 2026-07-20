@@ -30,7 +30,17 @@ if (!process.env.DATABASE_URL) {
       ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
     });
     await c.connect();
-    await c.query('TRUNCATE rounds, members, games, sessions, activities CASCADE');
+    // EVERY table the contract suite writes, not just the round ones. The JSON
+    // backend gets a fresh temp DATA_DIR per run, so the shared contract assumes
+    // an empty store — but a Postgres database persists between runs. Omitting
+    // `users` and `moderation_log` here made the suite pass on a fresh database
+    // and fail on the second run against the same one ("logModeration appends
+    // and listModeration returns newest first" asserts an absolute count of 2
+    // and saw 4). CI never noticed: it gets a clean service container each time,
+    // so this only ever bit someone re-running against a local container.
+    // TRUNCATE is table-level and exempt from RLS, which is why it works here at
+    // all (.claude/rules/tenancy-rls.md).
+    await c.query('TRUNCATE rounds, members, games, sessions, activities, users, moderation_log CASCADE');
     await c.end();
   });
 
@@ -153,6 +163,91 @@ if (!process.env.DATABASE_URL) {
   // ALL policy's USING — would leave a cross-tenant DELETE wide open while
   // looking read-only. The migration instead adds a separate FOR SELECT policy;
   // the DELETE assertion below is what pins that down.
+  // Erasure (#273) DELETEs round rows, and this file's own connection is a
+  // superuser that bypasses RLS — so the shared contract suite would report a
+  // green cascade even if the policy forbade it. Only a plain role proves the
+  // delete actually lands on a hardened deploy.
+  //
+  // The specific trap: erasure must NOT be attempted under the app.admin escape,
+  // which is FOR SELECT only. A DELETE there matches zero rows (DELETE is
+  // governed by USING alone, and the admin policy contributes none for it), so
+  // eraseAccount would silently report `rounds: 0` and erase nothing while
+  // claiming success — the worst possible outcome for a legal duty. It therefore
+  // runs through the ordinary tx(tenant, ...) path, which this asserts.
+  test('erasure deletes tenant rows as a non-superuser under FORCE RLS', async () => {
+    const assert = require('node:assert/strict');
+    const tenant = `pg-erase-${Math.random().toString(16).slice(2)}`;
+    const user = await repo.createUser({
+      email: `${tenant}@example.com`,
+      createdAt: '2026-07-20T00:00:00.000Z',
+      tenantId: tenant,
+      emailVerified: true,
+      identities: [],
+      verification: null,
+      reset: null,
+      refreshTokens: [],
+    });
+    const round = await repo.createRound(tenant, { name: 'To erase', members: ['Ann'] });
+    await repo.createGame(tenant, round.id, {
+      title: 'Covered', minPlayers: 1, maxPlayers: 4, image: '/uploads/pg-erase.jpg', source: null,
+    });
+
+    const admin = new Client({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    await admin.connect();
+    try {
+      await admin.query('DROP ROLE IF EXISTS gs_erase_probe');
+      await admin.query("CREATE ROLE gs_erase_probe LOGIN PASSWORD 'probe'");
+      await admin.query('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gs_erase_probe');
+      await admin.query('GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO gs_erase_probe');
+
+      const url = new URL(process.env.DATABASE_URL);
+      url.username = 'gs_erase_probe';
+      url.password = 'probe';
+      const probe = new Client({
+        connectionString: url.toString(),
+        ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+      });
+      await probe.connect();
+      try {
+        // A DELETE under the ADMIN escape matches nothing — the shape erasure
+        // must not use, asserted so a later "simplification" onto atx() fails
+        // loudly here instead of silently erasing nothing in production.
+        await probe.query('BEGIN');
+        await probe.query("SELECT set_config('app.admin', 'on', true)");
+        const viaAdmin = await probe.query('DELETE FROM rounds WHERE id = $1', [round.id]);
+        assert.equal(viaAdmin.rowCount, 0, 'the FOR SELECT admin escape must not delete');
+        await probe.query('ROLLBACK');
+
+        // …while the tenant-scoped path erasure actually uses does delete, and
+        // the children cascade with the round.
+        await probe.query('BEGIN');
+        await probe.query("SELECT set_config('app.tenant_id', $1, true)", [tenant]);
+        const viaTenant = await probe.query('DELETE FROM rounds WHERE id = $1', [round.id]);
+        assert.equal(viaTenant.rowCount, 1, 'the tenant-scoped path must delete');
+        const games = await probe.query('SELECT count(*)::int AS n FROM games WHERE round_id = $1', [round.id]);
+        assert.equal(games.rows[0].n, 0, 'children cascade with the round');
+        await probe.query('ROLLBACK'); // leave the row for the repo call below
+      } finally {
+        await probe.end();
+      }
+    } finally {
+      await admin.query('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM gs_erase_probe').catch(() => {});
+      await admin.query('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM gs_erase_probe').catch(() => {});
+      await admin.query('DROP ROLE IF EXISTS gs_erase_probe').catch(() => {});
+      await admin.end();
+    }
+
+    // End to end through the repo itself.
+    const out = await repo.eraseAccount(user.id);
+    assert.equal(out.rounds, 1);
+    assert.deepEqual(out.images, ['/uploads/pg-erase.jpg']);
+    assert.equal(await repo.getUserById(user.id), null);
+    assert.deepEqual(await repo.listRounds(tenant), []);
+  });
+
   test('the moderation admin escape widens reads only, never writes', async () => {
     const assert = require('node:assert/strict');
     const a = await repo.createRound('esc-a', { name: 'A round', members: ['M'] });

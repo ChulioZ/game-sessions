@@ -474,6 +474,99 @@ module.exports = function repoContract(repo) {
     assert.deepEqual(after.find((u) => u.id === u1.id), u1);
   });
 
+  /* ---------------------- Erasure & export (#273) ---------------------------- */
+  /*
+   * These use their own throwaway tenants rather than T: eraseAccount deletes
+   * EVERY round of a tenant, which would pull the shared fixtures out from under
+   * the rest of the suite.
+   */
+
+  test('exportTenant returns the tenant\'s rounds INCLUDING the activity feed', async () => {
+    const tenant = `exp-${Math.random().toString(16).slice(2)}`;
+    const round = await repo.createRound(tenant, { name: 'Exported', members: ['Ann'] });
+    await repo.createGame(tenant, round.id, gameFields({ title: 'A game' }));
+
+    const out = await repo.exportTenant(tenant);
+    assert.equal(out.tenantId, tenant);
+    assert.equal(out.rounds.length, 1);
+    assert.equal(out.rounds[0].name, 'Exported');
+    assert.equal(out.rounds[0].members[0].name, 'Ann');
+    assert.equal(out.rounds[0].games[0].title, 'A game');
+    // The whole point of the export vs. a snapshot: the feed is held data, so an
+    // Art. 15 answer has to include it (getRound deliberately omits it, #197).
+    assert.ok(Array.isArray(out.rounds[0].activities));
+    assert.equal(out.rounds[0].activities.some((a) => a.type === 'game_added'), true);
+    // Scoping metadata is ours, not the subject's.
+    assert.equal('tenantId' in out.rounds[0], false);
+
+    // Another tenant's rounds never ride along.
+    const other = await repo.createRound(`${tenant}-x`, { name: 'Not theirs', members: ['Zoe'] });
+    assert.equal((await repo.exportTenant(tenant)).rounds.some((r) => r.id === other.id), false);
+
+    // An account with no tenant exports nothing rather than throwing.
+    assert.deepEqual(await repo.exportTenant(null), { tenantId: null, rounds: [] });
+  });
+
+  test('eraseAccount removes the user, cascades the tenant and reports freed images', async () => {
+    const tenant = `era-${Math.random().toString(16).slice(2)}`;
+    const user = await repo.createUser(userFields({ tenantId: tenant }));
+    const round = await repo.createRound(tenant, { name: 'Erased', members: ['Ann'] });
+    await repo.createGame(tenant, round.id, gameFields({ title: 'With cover', image: '/uploads/era1.jpg' }));
+    await repo.createGame(tenant, round.id, gameFields({ title: 'No cover', image: null }));
+    // A second round of the same tenant, so the cascade is proven to be
+    // tenant-wide and not just "the one round".
+    const second = await repo.createRound(tenant, { name: 'Also erased', members: ['Bo'] });
+    await repo.createGame(tenant, second.id, gameFields({ title: 'Another', image: '/uploads/era2.jpg' }));
+
+    // A neighbouring tenant that must survive untouched.
+    const keep = `${tenant}-keep`;
+    const kept = await repo.createRound(keep, { name: 'Kept', members: ['Zoe'] });
+
+    const out = await repo.eraseAccount(user.id);
+    assert.equal(out.tenantId, tenant);
+    assert.equal(out.rounds, 2);
+    assert.deepEqual([...out.images].sort(), ['/uploads/era1.jpg', '/uploads/era2.jpg']);
+
+    // The identity row and every round of that tenant are gone…
+    assert.equal(await repo.getUserById(user.id), null);
+    assert.deepEqual(await repo.listRounds(tenant), []);
+    assert.equal(await repo.getRound(tenant, round.id), null);
+    // …and the children went with them (the image is no longer referenced
+    // anywhere, which is what makes deleting the object safe).
+    assert.equal(await repo.findImageOwner('/uploads/era1.jpg'), null);
+    // …while the neighbouring tenant is untouched.
+    assert.equal((await repo.getRound(keep, kept.id)).name, 'Kept');
+
+    // Erasing again is a plain not-found, never a second cascade.
+    assert.equal(await repo.eraseAccount(user.id), null);
+    assert.equal(await repo.eraseAccount('nope'), null);
+  });
+
+  test('eraseAccount refuses when a second account shares the tenant', async () => {
+    const tenant = `shared-${Math.random().toString(16).slice(2)}`;
+    const a = await repo.createUser(userFields({ tenantId: tenant }));
+    const b = await repo.createUser(userFields({ tenantId: tenant }));
+    const round = await repo.createRound(tenant, { name: 'Shared data', members: ['Ann'] });
+
+    // Refusing is the point: the round data is partly the co-tenant's, and
+    // cascading it would be an unrequested deletion of a third party's data.
+    assert.equal(await repo.eraseAccount(a.id), 'tenant_shared');
+    assert.ok(await repo.getUserById(a.id), 'the refusal must not have deleted the user');
+    assert.equal((await repo.getRound(tenant, round.id)).name, 'Shared data');
+
+    // Once the co-tenant is gone, the same call goes through.
+    await repo.deleteUser(b.id);
+    const out = await repo.eraseAccount(a.id);
+    assert.equal(out.rounds, 1);
+  });
+
+  test('eraseAccount deletes an account that has no tenant data at all', async () => {
+    const user = await repo.createUser(userFields({ tenantId: null }));
+    const out = await repo.eraseAccount(user.id);
+    assert.deepEqual(out, { tenantId: null, rounds: 0, images: [] });
+    assert.equal(await repo.getUserById(user.id), null);
+  });
+
   test('updateMember links and unlinks a user', async () => {
     const user = await repo.createUser(userFields({ email: 'fixed@example.com' }));
 

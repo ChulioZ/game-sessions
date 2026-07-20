@@ -264,6 +264,164 @@ test('suspending an account blocks it immediately without deleting data', async 
   });
 });
 
+test('export answers an access request; erasure cascades and is logged (#273)', async (t) => {
+  const cookie = await adminCookie();
+  const subject = await makeAccount('erase-me@example.com');
+  const bystander = await makeAccount('keep-me@example.com');
+
+  const round = await request(app)
+    .post('/api/rounds')
+    .set('Authorization', `Bearer ${subject.token}`)
+    .send({ name: 'Their whole life', members: ['Ann'] });
+  const rid = round.body.id;
+
+  const game = await request(app)
+    .post(`/api/rounds/${rid}/games`)
+    .set('Authorization', `Bearer ${subject.token}`)
+    .send({ title: 'A game', minPlayers: 1, maxPlayers: 4 });
+  await repo.forTenant(subject.user.tenantId).updateGame(rid, game.body.id, { image: '/uploads/erase1.jpg' });
+
+  // The bystander gets data too, so the cascade is proven not to overreach.
+  await request(app)
+    .post('/api/rounds')
+    .set('Authorization', `Bearer ${bystander.token}`)
+    .send({ name: 'Untouched', members: ['Zoe'] });
+
+  await t.test('both new routes are gated like the rest of the surface', async () => {
+    for (const path of [`/api/admin/users/${subject.user.id}/export`, `/api/admin/users/${subject.user.id}/erase`]) {
+      const res = await request(app).post(path).send({ reason: 'x' });
+      assert.equal(res.status, 401, path);
+      assert.equal(res.body.error, 'admin_auth_required');
+    }
+  });
+
+  await t.test('export requires a reason and refuses an unknown account', async () => {
+    const noReason = await request(app)
+      .post(`/api/admin/users/${subject.user.id}/export`).set('Cookie', cookie).send({});
+    assert.equal(noReason.status, 400);
+
+    const unknown = await request(app)
+      .post('/api/admin/users/nope/export').set('Cookie', cookie).send({ reason: 'Art. 15' });
+    assert.equal(unknown.status, 404);
+  });
+
+  await t.test('export returns the account plus its rounds, and never a secret', async () => {
+    const res = await request(app)
+      .post(`/api/admin/users/${subject.user.id}/export`)
+      .set('Cookie', cookie)
+      .send({ reason: 'Art. 15 request 2026-07-20' });
+    assert.equal(res.status, 200);
+
+    const dump = res.body.export;
+    assert.equal(dump.account.email, 'erase-me@example.com');
+    assert.equal(dump.tenantId, subject.user.tenantId);
+    assert.equal(dump.rounds.length, 1);
+    assert.equal(dump.rounds[0].name, 'Their whole life');
+    assert.equal(dump.rounds[0].games[0].title, 'A game');
+    assert.ok(Array.isArray(dump.rounds[0].activities));
+
+    // The same secret-stripping the account list applies — an export is handed
+    // to the data subject, so a password hash in it would be a disclosure.
+    for (const key of ['identities', 'refreshTokens', 'verification', 'reset']) {
+      assert.equal(key in dump.account, false, `${key} must be stripped`);
+    }
+    // Another account's round is not in it.
+    assert.equal(dump.rounds.some((r) => r.name === 'Untouched'), false);
+
+    const log = await request(app).get('/api/admin/log').set('Cookie', cookie);
+    assert.equal(log.body.entries[0].action, 'user_exported');
+    assert.equal(log.body.entries[0].reason, 'Art. 15 request 2026-07-20');
+  });
+
+  await t.test('erasure refuses without a matching confirmation e-mail', async () => {
+    const wrong = await request(app)
+      .post(`/api/admin/users/${subject.user.id}/erase`)
+      .set('Cookie', cookie)
+      .send({ reason: 'Art. 17', confirmEmail: 'someone-else@example.com' });
+    assert.equal(wrong.status, 400);
+    assert.equal(wrong.body.error, 'confirm_mismatch');
+
+    // Nothing happened — the account and its data are still there.
+    assert.ok(await repo.getUserById(subject.user.id));
+    const missing = await request(app)
+      .post(`/api/admin/users/${subject.user.id}/erase`)
+      .set('Cookie', cookie)
+      .send({ confirmEmail: 'erase-me@example.com' });
+    assert.equal(missing.status, 400, 'a reason is mandatory');
+  });
+
+  await t.test('erasure removes the account, its rounds and its cover objects', async () => {
+    const res = await request(app)
+      .post(`/api/admin/users/${subject.user.id}/erase`)
+      .set('Cookie', cookie)
+      .send({ reason: 'Art. 17 request 2026-07-20', confirmEmail: 'Erase-Me@example.com' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.rounds, 1);
+    assert.equal(res.body.imagesRemoved, 1);
+    assert.equal(res.body.imagesFailed, 0);
+
+    // The identity is gone, so the token no longer resolves to an account…
+    assert.equal(await repo.getUserById(subject.user.id), null);
+
+    // SECURITY REGRESSION GUARD (#273): the access token is a stateless JWT with
+    // a 15-minute TTL, so this one is still signature-valid. lib/tenant.js used
+    // to resolve an unknown uid to `|| DEFAULT_TENANT` — which would hand an
+    // erased account's live token the 'default' tenant, i.e. the legacy
+    // production group's data, until the token expired. It must be refused.
+    const api = await request(app).get('/api/rounds').set('Authorization', `Bearer ${subject.token}`);
+    assert.equal(api.status, 401, 'an erased account\'s token must NOT fall back to the default tenant');
+    assert.equal(api.body.error, 'auth_required');
+    assert.equal(Array.isArray(api.body.rounds), false, 'it must not return any rounds at all');
+    // …and login is gone with it.
+    const login = await request(app)
+      .post('/api/account/login')
+      .send({ email: 'erase-me@example.com', password: PASSWORD });
+    assert.equal(login.status, 401);
+
+    // The round data went too — this is the half deleteUser alone never did.
+    assert.deepEqual(await repo.forTenant(subject.user.tenantId).listRounds(), []);
+    assert.equal(await repo.findImageOwner('/uploads/erase1.jpg'), null);
+
+    // The account list no longer shows it.
+    const users = await request(app).get('/api/admin/users').set('Cookie', cookie);
+    assert.equal(users.body.users.some((u) => u.email === 'erase-me@example.com'), false);
+  });
+
+  await t.test('the bystander account and its data are untouched', async () => {
+    const rounds = await repo.forTenant(bystander.user.tenantId).listRounds();
+    assert.equal(rounds.length, 1);
+    assert.equal(rounds[0].name, 'Untouched');
+    const login = await request(app)
+      .post('/api/account/login')
+      .send({ email: 'keep-me@example.com', password: PASSWORD });
+    assert.equal(login.status, 200);
+  });
+
+  await t.test('the log evidences the erasure WITHOUT re-storing the erased data', async () => {
+    const log = await request(app).get('/api/admin/log').set('Cookie', cookie);
+    const entry = log.body.entries[0];
+    assert.equal(entry.action, 'user_erased');
+    assert.equal(entry.target, subject.user.id);
+    assert.equal(entry.reason, 'Art. 17 request 2026-07-20');
+    assert.equal(entry.tenantId, subject.user.tenantId);
+    assert.equal(entry.rounds, 1);
+
+    // The record proves the request was honoured; it is not a copy of what was
+    // erased. An e-mail address here would survive the erasure it evidences.
+    assert.equal('email' in entry, false, 'the erasure log must not keep the address');
+    assert.equal(JSON.stringify(entry).includes('erase-me@example.com'), false);
+    assert.equal(JSON.stringify(entry).includes('Their whole life'), false);
+  });
+
+  await t.test('erasing again is a 404', async () => {
+    const res = await request(app)
+      .post(`/api/admin/users/${subject.user.id}/erase`)
+      .set('Cookie', cookie)
+      .send({ reason: 'again', confirmEmail: 'erase-me@example.com' });
+    assert.equal(res.status, 404);
+  });
+});
+
 test('with no ADMIN_PASSWORD the whole surface 404s', async () => {
   const saved = process.env.ADMIN_PASSWORD;
   delete process.env.ADMIN_PASSWORD;

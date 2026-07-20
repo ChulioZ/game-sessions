@@ -134,20 +134,24 @@ router.post('/takedown', async (req, res) => {
 
 /* ---------------------------------- users ---------------------------------- */
 
-// The account list. Strips every secret — hashes, tokens, verification and reset
-// material never leave the repo shape, which is why listUsers() returns it raw.
+// The safe projection of a stored user. listUsers()/getUserById() return the raw
+// shape — password hash, refresh tokens, verification and reset material — so
+// EVERY response carrying a user goes through here. Never respond with the repo
+// shape directly (.claude/rules/admin-moderation-surface.md).
+const safeUser = (u) => ({
+  id: u.id,
+  email: u.email,
+  tenantId: u.tenantId,
+  createdAt: u.createdAt,
+  emailVerified: !!u.emailVerified,
+  disabled: !!u.disabled,
+  disabledAt: u.disabledAt || null,
+  disabledReason: u.disabledReason || null,
+});
+
+// The account list.
 router.get('/users', async (req, res) => {
-  const users = (await repo.listUsers()).map((u) => ({
-    id: u.id,
-    email: u.email,
-    tenantId: u.tenantId,
-    createdAt: u.createdAt,
-    emailVerified: !!u.emailVerified,
-    disabled: !!u.disabled,
-    disabledAt: u.disabledAt || null,
-    disabledReason: u.disabledReason || null,
-  }));
-  res.json({ users });
+  res.json({ users: (await repo.listUsers()).map(safeUser) });
 });
 
 // Suspend or restore an account WITHOUT deleting anything, so evidence survives
@@ -181,6 +185,108 @@ router.post('/users/:uid/disabled', async (req, res) => {
 
   logger.info({ event: body.disabled ? 'admin_user_disabled' : 'admin_user_restored', tenantId: user.tenantId || null });
   res.json({ ok: true, entry });
+});
+
+/* --------------------------- export & erasure (#273) ------------------------ */
+
+// Art. 15/20: everything held for one account, as JSON the operator can hand to
+// the data subject.
+//
+// A POST, not a GET, even though it only reads: a reason is mandatory here like
+// on every other logged action, and a reason belongs in the BODY. As a query
+// parameter it would be written verbatim into the HTTP access log — which
+// records method/path (.claude/rules/product-event-logging.md) — putting the
+// text of a subject-access request, quite possibly naming the subject, into a
+// second place we would then have to erase.
+router.post('/users/:uid/export', async (req, res) => {
+  const body = validateBody(z.object({ reason: reasonSchema }), req, res);
+  if (!body) return;
+
+  const user = await repo.getUserById(req.params.uid);
+  if (!user) return res.status(404).json({ error: 'not_found' });
+
+  const { rounds } = await repo.exportTenant(user.tenantId || null);
+  const at = new Date().toISOString();
+
+  // The disclosure itself is logged: handing a copy of someone's data out is an
+  // act worth an audit record, and Art. 15 requests are answerable-for.
+  const entry = await repo.logModeration({
+    action: 'user_exported',
+    target: user.id,
+    reason: body.reason,
+    at,
+    tenantId: user.tenantId || null,
+    email: user.email,
+    rounds: rounds.length,
+  });
+
+  logger.info({ event: 'admin_user_exported', tenantId: user.tenantId || null });
+  res.json({ export: { exportedAt: at, account: safeUser(user), tenantId: user.tenantId || null, rounds }, entry });
+});
+
+// Art. 17: erase the account AND its tenant's round data, then delete the stored
+// cover objects. Irreversible, so it is deliberately awkward: a mandatory reason
+// plus `confirmEmail`, which must match the account's own address. That makes a
+// mis-typed or mis-clicked account id refuse rather than erase the wrong person
+// — the one mistake here that cannot be walked back.
+//
+// Suspension (above) stays the right first response to an abuse case: it
+// preserves evidence. Erasure is the opposite and must never be a side effect of
+// anything else (#268).
+router.post('/users/:uid/erase', async (req, res) => {
+  const body = validateBody(
+    // min(1) matters: without it an empty confirmEmail would "match" a user row
+    // that somehow carries no address, turning the guard off exactly when the
+    // data is already odd.
+    z.object({ reason: reasonSchema, confirmEmail: z.string().min(1, 'A confirmation e-mail is required') }),
+    req, res,
+  );
+  if (!body) return;
+
+  const user = await repo.getUserById(req.params.uid);
+  if (!user) return res.status(404).json({ error: 'not_found' });
+  if (body.confirmEmail.trim().toLowerCase() !== String(user.email || '').toLowerCase()) {
+    return res.status(400).json({ error: 'confirm_mismatch' });
+  }
+
+  const result = await repo.eraseAccount(user.id);
+  if (result === 'tenant_shared') return res.status(409).json({ error: 'tenant_shared' });
+  if (!result) return res.status(404).json({ error: 'not_found' });
+
+  // Rows first, bytes second (as in /takedown): the references are already gone,
+  // so a failed object delete leaves an orphaned file, never a broken cover.
+  // One failure must not abort the rest of an erasure that has already happened
+  // in the database — count them and report honestly instead.
+  let removed = 0;
+  let failed = 0;
+  for (const image of result.images) {
+    try {
+      await storage.remove(image);
+      removed += 1;
+    } catch (err) {
+      failed += 1;
+      logger.error({ event: 'admin_erase_object_failed', err: err.message });
+    }
+  }
+
+  // Deliberately NO email and no round/game names on this entry, unlike every
+  // other action here: the log outlives the erasure, so copying the erased
+  // person's data into it would defeat the erasure it is meant to evidence. The
+  // account id, tenant id, date, reason and counts are what proves the request
+  // was honoured — which is the record's only job.
+  const entry = await repo.logModeration({
+    action: 'user_erased',
+    target: user.id,
+    reason: body.reason,
+    at: new Date().toISOString(),
+    tenantId: result.tenantId,
+    rounds: result.rounds,
+    imagesRemoved: removed,
+    imagesFailed: failed,
+  });
+
+  logger.info({ event: 'admin_user_erased', tenantId: result.tenantId });
+  res.json({ ok: true, rounds: result.rounds, imagesRemoved: removed, imagesFailed: failed, entry });
 });
 
 /* ----------------------------------- log ----------------------------------- */

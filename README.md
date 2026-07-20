@@ -214,7 +214,8 @@ routes/
                                              404 unless ACCOUNTS_ENABLED)
   admin.js           /api/admin             (operator moderation: image→tenant
                                              lookup, takedown, account
-                                             suspend/restore, action log —
+                                             suspend/restore, GDPR export +
+                                             erasure, action log —
                                              404 unless ADMIN_PASSWORD)
   lookup.js          /api/lookup            (search/game — provider proxy: PS Store, BGG, Steam, Nintendo, Xbox)
   rounds.js          /api/rounds            (list, detail, create, delete)
@@ -364,6 +365,19 @@ reference, leaving the rest of the data intact); suspend or restore an account
 without deleting anything, so evidence survives; and read the log of those actions
 that a DSA Art. 17 statement of reasons needs. Suspension takes effect immediately
 — existing access tokens stop working, not just new logins.
+
+Data-subject requests (issue #273) are handled from the same Konten card:
+**Exportieren** downloads everything held for one account as JSON (its rounds
+with members, games, sessions *and* the activity feed, plus the account's own
+non-secret fields) for a GDPR Art. 15/20 access request; **Löschen** performs an
+Art. 17 erasure — the account row, every round of its tenant with all children,
+and the stored cover objects. Erasure is irreversible, so it demands a reason
+*and* the account's own e-mail address typed as confirmation, and it refuses
+outright if a second account still shares the tenant. Both actions are logged;
+the erasure entry deliberately records only the account id, tenant, date, reason
+and counts — never the erased address or any content, since the log outlives the
+erasure it evidences. Suspension remains the right first response to an abuse
+case: it preserves evidence, which erasure by definition destroys.
 
 `ADMIN_PASSWORD` must be a **separate** secret from `AUTH_PASSWORD`: the latter is
 shared with everyone using the instance, while these powers cross tenant

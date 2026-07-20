@@ -51,6 +51,9 @@
     admin_auth_required: 'Sitzung abgelaufen. Bitte neu anmelden.',
     admin_disabled: 'Die Moderationsoberfläche ist auf dieser Instanz nicht aktiviert.',
     rate_limited: 'Zu viele Versuche. Bitte kurz warten.',
+    confirm_mismatch: 'Die eingegebene E-Mail-Adresse stimmt nicht mit dem Konto überein.',
+    tenant_shared: 'Abgebrochen: Auf diesem Tenant liegt noch ein weiteres Konto. '
+      + 'Die Daten gehören auch diesem Konto und werden nicht gelöscht.',
   };
   const message = (err) => MESSAGES[err.message] || err.message;
 
@@ -210,11 +213,20 @@
       }
 
       const action = cell(row, '');
-      const btn = document.createElement('button');
-      btn.className = u.disabled ? 'small ghost' : 'small danger';
-      btn.textContent = u.disabled ? 'Entsperren' : 'Sperren';
-      btn.addEventListener('click', () => toggleUser(u));
-      action.appendChild(btn);
+      const actions = document.createElement('div');
+      actions.className = 'row';
+      for (const [label, cls, run] of [
+        [u.disabled ? 'Entsperren' : 'Sperren', u.disabled ? 'small ghost' : 'small danger', () => toggleUser(u)],
+        ['Exportieren', 'small ghost', () => exportUser(u)],
+        ['Löschen', 'small danger', () => eraseUser(u)],
+      ]) {
+        const btn = document.createElement('button');
+        btn.className = cls;
+        btn.textContent = label;
+        btn.addEventListener('click', run);
+        actions.appendChild(btn);
+      }
+      action.appendChild(actions);
 
       body.appendChild(row);
     }
@@ -236,6 +248,74 @@
       });
       loadUsers();
       loadLog();
+    } catch (err) {
+      show($('usersError'), message(err), 'err');
+    }
+  }
+
+  // ---- export & erasure (#273) ---------------------------------------------
+
+  // Ask for the mandatory reason. A cancelled prompt (null) aborts; an empty
+  // string would be rejected by the server anyway, so treat it the same rather
+  // than sending a doomed request.
+  function askReason(label) {
+    const reason = window.prompt(`${label}: Begründung (wird protokolliert)`);
+    return reason && reason.trim() ? reason : null;
+  }
+
+  // Art. 15/20. The response is JSON rather than a download URL because the
+  // required reason travels in the request body (see routes/admin.js) — so the
+  // file is assembled here and saved via an object URL.
+  async function exportUser(user) {
+    const reason = askReason('Export');
+    if (!reason) return;
+
+    try {
+      const out = await api(`/users/${encodeURIComponent(user.id)}/export`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+      const blob = new Blob([JSON.stringify(out.export, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `spielwirbel-export-${user.id}-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      // Revoked on the next tick, not inline: the click only *starts* the
+      // download, and tearing the object URL down in the same task can cancel it
+      // before the browser has read the blob.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      show($('usersError'), `Export erstellt: ${out.export.rounds.length} Runde(n).`, 'ok');
+      loadLog();
+    } catch (err) {
+      show($('usersError'), message(err), 'err');
+    }
+  }
+
+  // Art. 17. Irreversible and cascading, so the operator types the account's own
+  // address to confirm — the server checks it too, so a mis-clicked row refuses
+  // rather than erasing the wrong person.
+  async function eraseUser(user) {
+    const confirmEmail = window.prompt(
+      `Konto und ALLE Daten dieses Tenants endgültig löschen.\n\n`
+      + `Nicht umkehrbar. Zum Bestätigen die E-Mail-Adresse des Kontos eingeben:`,
+    );
+    if (!confirmEmail) return;
+
+    const reason = askReason('Löschung');
+    if (!reason) return;
+
+    try {
+      const out = await api(`/users/${encodeURIComponent(user.id)}/erase`, {
+        method: 'POST',
+        body: JSON.stringify({ reason, confirmEmail }),
+      });
+      const failed = out.imagesFailed ? `, ${out.imagesFailed} Bild(er) nicht entfernt` : '';
+      // Refresh BEFORE reporting: loadUsers() clears this same message element.
+      await loadUsers();
+      loadLog();
+      show($('usersError'),
+        `Gelöscht: ${out.rounds} Runde(n), ${out.imagesRemoved} Bild(er)${failed}.`, 'ok');
     } catch (err) {
       show($('usersError'), message(err), 'err');
     }

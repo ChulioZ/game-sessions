@@ -76,8 +76,9 @@ fail-closed probe next to it (see `.claude/rules/tenancy-rls.md`).
 
 ## 4. The moderation methods are global on purpose — keep them out of TENANT_METHODS
 
-`findImageOwner`, `takedownImage`, `logModeration`, `listModeration` and
-`listUsers` are **absent** from `TENANT_METHODS` in `lib/repo/index.js`. That is
+`findImageOwner`, `takedownImage`, `logModeration`, `listModeration`,
+`listUsers` and (since #273) `exportTenant`/`eraseAccount` are **absent** from
+`TENANT_METHODS` in `lib/repo/index.js`. That is
 the enforcement, not an oversight: an ordinary request handler only ever holds
 `req.repo` (the tenant-scoped facade), so it *cannot* reach them. They live on
 the module-level repo, which only the admin-gated `routes/admin.js` requires.
@@ -87,6 +88,40 @@ argument) and expose cross-tenant reads to every route.
 Related: `listUsers()` returns the **raw stored user shape**, secrets included —
 `routes/admin.js` is what projects it down to the safe fields. Don't respond with
 it directly.
+
+## 5. Erasure & export (#273) run tenant-scoped — the admin escape cannot delete
+
+`exportTenant`/`eraseAccount` deliberately do **not** use `atx()`. Resolving the
+named account already yields its tenant, so both are single-tenant work and go
+through the ordinary `tx(tenant, …)` path. For the export that is merely tighter;
+for the erasure it is **required**, and getting it wrong fails silently:
+
+> The admin policy is `FOR SELECT` only (§2). A `DELETE` inside `atx()` is
+> filtered by the tenant policy alone, which contributes nothing when
+> `app.tenant_id` is unset — so it matches **zero rows** and `eraseAccount`
+> reports `rounds: 0` while claiming success. A legal erasure duty that quietly
+> erases nothing.
+
+`test/repo.postgres.test.js` → *"erasure deletes tenant rows as a non-superuser
+under FORCE RLS"* pins both halves down through a dedicated plain role (§3's
+reasoning: CI's superuser bypasses RLS, so the contract suite cannot catch it).
+
+Three more things baked into the erasure and worth keeping:
+
+- **It refuses when a second account shares the tenant** (`'tenant_shared'` →
+  `409`). Erasure cascades the whole tenant, so co-tenant data would be deleted
+  unrequested. Unreachable today (registration mints a personal tenant) but
+  tenant sharing is #207, and this is the mistake with no undo.
+- **The log entry carries no erased personal data** — account id, tenant, date,
+  reason and counts only, explicitly *not* the e-mail every other action logs.
+  The record outlives the erasure, so copying the address into it would defeat
+  the erasure it exists to evidence.
+- **The route requires the account's own e-mail as `confirmEmail`**, checked
+  server-side, so a mis-clicked row refuses instead of erasing the wrong person.
+
+Related, and the sharper trap #273 uncovered:
+`.claude/rules/erased-account-token-fallback.md` — deleting a user row is not
+enough on its own, because their stateless access token outlives it.
 
 ## Smaller things worth remembering
 
