@@ -245,8 +245,9 @@ RLS.
 
 **Shipped (#139, 2026-07-19):** per-tenant quotas — a rounds-per-tenant cap, a
 games-per-round cap (which transitively bounds cover-image storage), and a
-per-tenant monthly cap on the billed buy-next call — enforced in accounts mode
-only, all env-tunable. Bounds abuse/cost before opening public sign-up (§12).
+tags-per-round cap — enforced in accounts mode only, all env-tunable. (A fourth
+cap bounded the billed buy-next spend until that feature was removed in #264.)
+Bounds abuse/cost before opening public sign-up (§12).
 
 ---
 
@@ -338,8 +339,8 @@ human can do: [`docs/deploy-railway.md`](./deploy-railway.md).
 
 **Rejected, as planned:** self-hosting Postgres, rolling your own TLS, or a
 Kubernetes setup — all add operational burden managed services remove at this
-scale. Cost envelope stayed hobby-scale (~€25–50/month before any
-pay-per-use Anthropic API usage).
+scale. Cost envelope stayed hobby-scale (~€25–50/month); since #264 removed the
+buy-next feature there is no pay-per-use AI spend on top of it.
 
 ---
 
@@ -378,16 +379,14 @@ to mandatory.
   per processing purpose, **data-subject rights** (access/export/deletion —
   the app already deletes cleanly), **data minimization**, and **retention**
   limits.
-- **Third-party processors** need **Data Processing Agreements**: the host +
-  managed DB + object storage, and **Anthropic** — the buy-next feature makes
-  an outbound call to the Claude API with a deliberately aggregated,
-  member-anonymous taste profile (see
-  [`.claude/rules/buy-next-recommendations.md`](../.claude/rules/buy-next-recommendations.md)),
-  which lowers exposure but is still a **US transfer** needing DPA/SCC
-  coverage and privacy-policy disclosure. **Keep the anonymization.**
+- **Third-party processors** need **Data Processing Agreements**: the host,
+  the managed DB, and object storage. Since **#264** removed the buy-next
+  feature, the app makes **no outbound AI call** and there is no US
+  LLM-processor transfer left to cover — the remaining processors are the
+  hosting stack itself.
 - **Confirm with a lawyer/DPO:** lawful basis per purpose, retention periods,
-  whether a DPIA is needed, and the international-transfer basis for the
-  Anthropic call.
+  whether a DPIA is needed, and the international-transfer basis for whichever
+  hosting processors sit outside the EU.
 
 ### 9.3 Cookie / consent banner — probably not required today (verify)
 
@@ -399,8 +398,8 @@ to mandatory.
   under the necessity exception, so a consent banner is likely **not
   required**. Fonts are self-hosted, so no Google-Fonts consent issue either.
 - **This changes** the moment analytics, ads, or other non-essential tracking
-  is added. **Confirm with a lawyer** that the Anthropic call and any auth
-  cookies qualify as "strictly necessary."
+  is added. **Confirm with a lawyer** that the auth cookies qualify as
+  "strictly necessary."
 
 ### 9.4 Terms of Service — nice-to-have → must for SaaS — open (#140)
 
@@ -532,8 +531,8 @@ See §7 for the reasoning behind each.
 | Account model (users, email verify, password reset) — built **token-first** so native apps share it (§2.4/§5) | **L** | **High** | Blocker for public sign-up (§5) — **shipped** (#135) |
 | **Tenant model + isolation** (`tenant_id` everywhere, central enforcement, RLS) | **L** | **Very High** | Blocker — cross-tenant leak is catastrophic (§6) — **shipped** (#136) |
 | Onboarding / first-run flow + empty states | M | Med | Blocker for usable sign-up (§11) — **shipped** (#138) |
-| Per-tenant quotas (esp. recommendation spend) | S–M | Med | Cost/abuse control — **shipped** (#139) |
-| Terms of Service / AGB, DPAs (host, DB, Anthropic), transfer basis | S (+external) | Med | Legal must for SaaS (§9) — **open** (#140) |
+| Per-tenant quotas (rounds, games, tags) | S–M | Med | Cost/abuse control — **shipped** (#139) |
+| Terms of Service / AGB, DPAs (host, DB), transfer basis | S (+external) | Med | Legal must for SaaS (§9) — **open** (#140) |
 | Consent mechanism **iff** non-essential tracking is added | S | Low | Conditional (§9.3) |
 
 **Roles/permissions and invitations/tenant-sharing live in Phase 4, not here:**

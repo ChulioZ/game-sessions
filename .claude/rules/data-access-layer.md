@@ -47,9 +47,9 @@ Non-obvious things baked into the design — keep them:
   cancelled") are validated in the route against the fetched snapshot *before*
   calling the mutator — that's why the snapshot read is there.
 
-- **`lib/store.js` stays backward-compatible.** `test/store.test.js` and one
-  recommendations test still assert against `store.id`/`pushActivity`/`saveData`/
-  `data`/`findRound` directly, and the repo uses them internally. Don't delete or
+- **`lib/store.js` stays backward-compatible.** `test/store.test.js` still
+  asserts against `store.id`/`pushActivity`/`saveData`/`data`/`findRound`
+  directly, and the repo uses them internally. Don't delete or
   change those exports as part of "moving everything to the repo".
 
 **Why:** the whole app was built around mutating one shared in-memory tree and

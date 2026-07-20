@@ -191,17 +191,6 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.addTag(T, 'missing', 'X'), null);
   });
 
-  test('saveRecommendationRuns stores runs and retires the legacy object', async () => {
-    const round = await freshRound();
-    const runs = [{ id: 'r1', items: [{ title: 'X' }] }];
-    const saved = await repo.saveRecommendationRuns(T, round.id, runs);
-    assert.deepEqual(saved, runs);
-    const fetched = await repo.getRound(T, round.id);
-    assert.deepEqual(fetched.recommendationRuns, runs);
-    assert.equal('recommendations' in fetched, false);
-    assert.equal(await repo.saveRecommendationRuns(T, 'missing', runs), null);
-  });
-
   test('listActivities serves the feed; rounds no longer embed it', async () => {
     const round = await freshRound();
     assert.equal('activities' in round, false); // not on the created round…
@@ -283,7 +272,6 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.setBackground(OTHER, round.id, { type: 'none' }), null);
     assert.equal(await repo.addTag(OTHER, round.id, 'evil'), null);
     assert.equal(await repo.deleteTag(OTHER, round.id, 'any'), false);
-    assert.equal(await repo.saveRecommendationRuns(OTHER, round.id, []), null);
     assert.equal(await repo.deleteActivity(OTHER, round.id, 'any'), false);
     assert.equal(await repo.deleteRound(OTHER, round.id), false);
 

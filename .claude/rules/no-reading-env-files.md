@@ -2,22 +2,22 @@
 
 Local env files — `.env`, `.env.local`, `.env.*.local`, or any file the running
 process loads via `--env-file` / `--env-file-if-exists` — hold **secrets**, in
-particular `ANTHROPIC_API_KEY` (the paid Anthropic API credential behind the
-buy-next suggestions). They are gitignored precisely so they never leave this
-machine.
+particular `SESSION_SECRET` (which signs account access tokens), `DATABASE_URL`,
+and the S3/Brevo credentials. They are gitignored precisely so they never leave
+this machine.
 
 **Rule:** agents must **not** read, open, `cat`, `grep`, copy, print, or
 otherwise inspect the contents of these env files. Treat them as strictly
 off-limits. Never paste their contents — or any value read from them — into
 responses, commits, logs, screenshots, or anywhere else. Do not echo
-`process.env.ANTHROPIC_API_KEY` (or any other secret env var) either.
+`process.env.SESSION_SECRET` (or any other secret env var) either.
 
 - The committed **`.env.example`** is safe to read and edit — it is a template
   with placeholders and **no real secrets**. Keep it in sync when you add or
   rename an env var (see `.claude/rules/keep-readme-current.md` for the sibling
   README check).
 - You may reference *which* env vars exist and what they do from the code
-  (`lib/store.js`, `routes/recommendations.js`, the providers) and from
+  (`lib/store.js`, `lib/accounts.js`, `lib/mail.js`, the providers) and from
   `.env.example` — never from a real `.env`.
 - Structural, non-content operations that don't reveal a value are fine when
   needed (e.g. checking whether `.env` exists). If a task seems to *require*

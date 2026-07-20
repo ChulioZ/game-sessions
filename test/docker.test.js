@@ -43,7 +43,7 @@ test('.dockerignore keeps secrets and user data out of the build context', () =>
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith('#'));
   // The critical guard: never bake the group's private data/ folder or a local
-  // .env (which may hold ANTHROPIC_API_KEY) into a shipped image.
+  // .env (which may hold SESSION_SECRET / BREVO_API_KEY) into a shipped image.
   for (const entry of ['data', '.env', 'node_modules', '.git']) {
     assert.ok(ignore.includes(entry), `.dockerignore must exclude ${entry}`);
   }

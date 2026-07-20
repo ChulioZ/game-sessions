@@ -20,7 +20,7 @@ Non-obvious things that cost effort — keep them:
   Knex/pg serialize a plain **object** to JSON fine, but turn a JS **array** into
   a Postgres *array literal* (`{...}`) — a raw array binding into a `jsonb` column
   throws `22P02` (or silently corrupts). So pass `data: J(value)` on every jsonb
-  insert/update (`recommendation_runs` is an array — this is not optional), and
+  insert/update (`tags` is an array — this is not optional), and
   use `mergeData(patch)` (= `knex.raw('data || ?::jsonb', [J(patch)])`) for a
   patch merge. pg casts the text to jsonb on assignment. Don't rely on "objects
   happen to work" — stringify uniformly so a value that turns out to be an array
@@ -55,9 +55,9 @@ Non-obvious things that cost effort — keep them:
   multi-tenant scale.
 
 - **Backend parity of *absent* keys.** The JSON model omits some keys until
-  written (a fresh round has no `recommendationRuns`; a fresh member no `color`).
-  Postgres matches this: `recommendation_runs` defaults to **NULL** and `assemble`
-  emits `recommendationRuns` only when non-null; member/game/session fields live in
+  written (a fresh round has no `tags`; a fresh member no `color`).
+  Postgres matches this: `tags` defaults to **NULL** and `assemble`
+  emits `tags` only when non-null; member/game/session fields live in
   a `data jsonb` blob so "key absent" round-trips naturally. `background` is the
   exception — always present (may be `null`), because the JSON model always sets
   it. If you add a sometimes-absent field, don't give its column a non-null

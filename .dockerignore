@@ -12,7 +12,7 @@ dist
 npm-debug.log*
 
 # User data & secrets — MUST never enter the image. data/ is the group's private
-# rounds/uploads; .env may hold ANTHROPIC_API_KEY. (Runtime uses the /data volume.)
+# rounds/uploads; .env may hold SESSION_SECRET. (Runtime uses the /data volume.)
 data
 .env
 .env.local

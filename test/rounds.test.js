@@ -149,3 +149,26 @@ test('importFromRoundId copies active games into the new round', async () => {
   assert.equal(res.body.games.length, 1);
   assert.equal(res.body.games[0].title, 'Catan');
 });
+
+// Issue #264: the buy-next recommendations feature (the app's only AI surface)
+// was removed entirely. Guard the removal so the route can't quietly come back.
+test('the recommendations endpoints are gone (#264)', async () => {
+  const round = await createRound(request, { name: 'NoRecs' });
+  for (const [method, path] of [
+    ['post', `/api/rounds/${round.id}/recommendations`],
+    ['get', `/api/rounds/${round.id}/recommendations`],
+    ['delete', `/api/rounds/${round.id}/recommendations/anything`],
+  ]) {
+    const res = await request(app)[method](path);
+    assert.equal(res.status, 404, `${method.toUpperCase()} ${path} must 404`);
+  }
+});
+
+// A round never carries a recommendation run history anymore (#264) — neither
+// backend writes the key, so the payload shape is one field smaller.
+test('a round snapshot carries no recommendationRuns key (#264)', async () => {
+  const round = await createRound(request, { name: 'CleanShape' });
+  assert.equal('recommendationRuns' in round, false);
+  const res = await request(app).get(`/api/rounds/${round.id}`);
+  assert.equal('recommendationRuns' in res.body, false);
+});
