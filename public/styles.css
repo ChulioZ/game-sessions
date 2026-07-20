@@ -1509,12 +1509,38 @@ body.auth-screen .crumbs { display: none; }
 .member-head__info h1 { margin: 0; font-size: 26px; }
 /* Curated tag-icon picker (#255) — the glyph counterpart to .member-swatches:
    a fixed grid, exactly one active. Auto-fill keeps it usable on a phone and
-   inside the narrow tag popover without a media query. */
+   inside the narrow tag popover without a media query.
+   Since #293 the grid is collapsed behind .icon-picker__trigger. Note the
+   [hidden] rule is load-bearing: `display: grid` beats the UA sheet's
+   `[hidden] { display: none }`, so without it the "collapsed" grid stays
+   fully visible and the whole change silently does nothing. */
 .icon-picker {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
   gap: 8px;
   margin-bottom: 14px;
+}
+.icon-picker[hidden] { display: none; }
+.icon-picker__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  height: 44px;
+  padding: 0 8px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.icon-picker__trigger .ti { font-size: 20px; }
+.icon-picker__trigger .icon-picker__caret { font-size: 14px; opacity: 0.7; }
+.icon-picker__trigger:hover { border-color: var(--brand); color: var(--brand-dark); }
+.icon-picker__trigger[aria-expanded='true'] {
+  background: var(--brand-tint);
+  border-color: var(--brand);
+  color: var(--brand-dark);
 }
 .icon-picker__btn {
   display: flex;
@@ -1589,8 +1615,12 @@ body.auth-screen .crumbs { display: none; }
 .popover--players .pp-row .input { width: 68px; }
 .popover--tags { max-width: 340px; }
 .popover--tags .filter-chips { margin-bottom: 10px; }
-.popover--tags .pp-row { display: flex; align-items: center; gap: 8px; }
-.popover--tags .pp-row .input { min-width: 0; flex: 1; }
+/* Wraps because the icon-picker trigger (#293) joined this row — four controls
+   don't always fit 340px, and squeezing the name input is worse than a wrap. */
+.popover--tags .pp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* The 120px basis is what makes the wrap above trigger: without a floor the
+   input just shrinks to a few characters instead of the buttons moving down. */
+.popover--tags .pp-row .input { min-width: 0; flex: 1 1 120px; }
 .popover--image { min-width: 220px; }
 .popover__hint { font-size: 13px; }
 

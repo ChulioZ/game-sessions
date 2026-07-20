@@ -310,10 +310,12 @@ function showAddGame(round) {
   }
   renderTagChips();
   const newTagInput = form.querySelector('#newTag');
-  // Icon picker for the inline "create new tag" (#255), directly under the
-  // new-tag input so it reads as part of that sub-form.
+  // Icon picker for the inline "create new tag" (#255). The trigger sits in the
+  // new-tag toolbar so the row reads as one sub-form; the grid it expands opens
+  // directly below it (#293).
   const tagPicker = tagIconPicker(null);
-  newTagInput.closest('.toolbar').after(tagPicker.el);
+  newTagInput.after(tagPicker.trigger);
+  newTagInput.closest('.toolbar').after(tagPicker.grid);
   const createTag = async () => {
     const name = newTagInput.value.trim();
     if (!name) return;

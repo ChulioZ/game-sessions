@@ -106,9 +106,11 @@ async function showTags(rid) {
        <button class="btn btn--primary"><i class="ti ti-plus" aria-hidden="true"></i> ${esc(t('tags.add'))}</button>
      </div>`);
   const input = addRow.querySelector('input');
-  // Icon picker for the new tag (#255), below the name row so the grid gets the
-  // full width instead of squeezing the input.
+  // Icon picker for the new tag (#255). The trigger sits inline in the name row
+  // so it reads as one sub-form (#293); the grid it expands still gets the full
+  // width on its own line below.
   const picker = tagIconPicker(null);
+  input.after(picker.trigger);
   // A duplicate name returns the existing tag (the server dedupes) — detected
   // here by its id already being known, for the right toast.
   const existingIds = new Set((round.tags || []).map((tg) => tg.id));
@@ -121,12 +123,15 @@ async function showTags(rid) {
       showTags(rid);
     } catch (e) { toast(e.message === 'quota_tags' ? t('tags.toast.quota') : e.message); }
   };
-  addRow.querySelector('button').addEventListener('click', add);
+  // Select the submit button explicitly: the icon-picker trigger (#293) is also
+  // a <button> and sits earlier in the row, so a bare `querySelector('button')`
+  // would silently bind "add" to the trigger and leave Hinzufügen inert.
+  addRow.querySelector('.btn--primary').addEventListener('click', add);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); add(); }
   });
   sec.appendChild(addRow);
-  sec.appendChild(picker.el);
+  sec.appendChild(picker.grid);
 
   const tags = round.tags || [];
   if (tags.length === 0) {
@@ -149,8 +154,10 @@ async function showTags(rid) {
           open.remove();
           return;
         }
-        const p = tagIconPicker(tg.icon);
-        p.el.querySelectorAll('.icon-picker__btn').forEach((btn) => {
+        // Expanded: the pencil button IS the disclosure here (#293), so the
+        // picker must not add a second one inside it.
+        const p = tagIconPicker(tg.icon, { expanded: true });
+        p.grid.querySelectorAll('.icon-picker__btn').forEach((btn) => {
           btn.addEventListener('click', async () => {
             try {
               await api('PATCH', `/api/rounds/${rid}/tags/${tg.id}`, { icon: btn.dataset.icon });
@@ -159,7 +166,7 @@ async function showTags(rid) {
             } catch (e) { toast(e.message); }
           });
         });
-        row.after(p.el);
+        row.after(p.grid);
       });
       row.querySelector('.ds-row__meta').appendChild(edit);
       const del = h(`<button class="btn btn--ghost" aria-label="${esc(t('tags.delete'))}" style="color:var(--danger)"><i class="ti ti-trash" aria-hidden="true"></i></button>`);
@@ -326,9 +333,10 @@ async function showGameDetail(rid, gameId) {
 
       const input = h(`<input class="input" maxlength="30" placeholder="${esc(t('tags.addPlaceholder'))}" />`);
       const addBtn = h(`<button class="btn">${esc(t('tags.add'))}</button>`);
-      // Icon picker for the inline "create new tag" (#255).
+      // Icon picker for the inline "create new tag" (#255). The trigger joins
+      // the input row and the grid opens below it (#293) — an always-open grid
+      // used to push the chips and the input out of this popover entirely.
       const picker = tagIconPicker(null);
-      el.appendChild(picker.el);
       // Returns false only when a real creation attempt failed, so the OK
       // handler below can keep the popover open instead of discarding the
       // typed name (an empty input is a no-op, not a failure).
@@ -361,9 +369,11 @@ async function showGameDetail(rid, gameId) {
       });
       const row = h('<div class="pp-row"></div>');
       row.appendChild(input);
+      row.appendChild(picker.trigger);
       row.appendChild(addBtn);
       row.appendChild(okBtn);
       el.appendChild(row);
+      el.appendChild(picker.grid);
       input.focus();
     });
   }
