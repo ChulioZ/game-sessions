@@ -2033,20 +2033,44 @@ kbd {
 .sheet {
   width: 100%;
   max-width: 720px;
-  max-height: 92vh;
+  /* Capped well below the viewport so the sheet reads as a surface docked over
+     the page, not a full-screen takeover. The head/actions bars are sticky
+     (below), so a lower cap costs nothing — only the field area scrolls. */
+  max-height: min(85vh, 660px);
+  /* `.sheet` itself stays the scroll container: the lookup dropdown is
+     positioned in JS off a capture-phase `scroll` listener on window, which
+     only fires while this element is what scrolls. See
+     .claude/rules/lookup-menu-fixed-position.md. */
   overflow-y: auto;
   background: var(--page-bg);
   border-radius: 24px 24px 0 0;
   border: 1px solid var(--line);
   border-bottom: none;
-  padding: 18px 22px 26px;
+  /* Vertical padding lives on the sticky head/actions instead, so they can sit
+     flush against the scrollport edges with nothing peeking above or below. */
+  padding: 0 22px;
 }
+/* Not every sheet ends in a `.sheet__actions` bar — the feedback sheet closes
+   with a plain block button. That one needs the bottom breathing room the
+   sheet's own padding used to provide; the actions bar brings its own. */
+.sheet > :last-child:not(.sheet__actions) { margin-bottom: 26px; }
 .sheet--dialog {
   width: calc(100% - 32px);
   max-width: 460px;
-  max-height: 86vh;
+  max-height: min(80vh, 560px);
   border-radius: 24px;
   border-bottom: 1px solid var(--line);
+}
+/* Wide viewports: every sheet becomes a centered, fully-rounded card with a
+   visible gap on all four sides. Below the breakpoint it stays a bottom sheet
+   docked to the edge, which is the right idiom on a phone. */
+@media (min-width: 640px) {
+  .sheet-backdrop { align-items: center; padding: 24px; }
+  .sheet-backdrop--center { padding-bottom: 120px; }
+  .sheet {
+    border-radius: 24px;
+    border-bottom: 1px solid var(--line);
+  }
 }
 @media (prefers-reduced-motion: no-preference) {
   .sheet { animation: sheet-up 0.25s ease-out; }
@@ -2055,12 +2079,21 @@ kbd {
     to { transform: translateY(0); opacity: 1; }
   }
 }
+/* Pinned so the dialog title never scrolls away mid-form. Sticky (rather than a
+   flex header over a body wrapper) because the sheets build their content as a
+   flat list of `.field` blocks with no body element — and because the
+   link-provider sheet appends its action bar at runtime, which a JS-built
+   wrapper would miss. */
 .sheet__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--page-bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  padding: 18px 0 14px;
 }
 .sheet__head h2 { margin: 0; font-size: 24px; }
 .sheet__close {
@@ -2077,7 +2110,27 @@ kbd {
 }
 .sheet__close .ti { font-size: 18px; }
 .sheet__close:hover { background: var(--sunken); color: var(--ink); }
-.sheet__actions { margin-top: 4px; }
+/* Pinned to the bottom edge so the primary action (Speichern) is reachable
+   without scrolling to the end of a long form. `env(safe-area-inset-bottom)`
+   keeps it clear of the iOS home indicator when the sheet is docked. */
+.sheet__actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--page-bg);
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+  padding: 14px 0 max(26px, env(safe-area-inset-bottom));
+}
+/* Narrow viewports: the add-game bar's two save buttons can't share a row, so
+   they wrap. At `btn--lg` metrics that bar cost a third of the sheet height —
+   stepping them down and stretching each to full width keeps the pinned bar
+   compact and reads as a deliberate stack rather than two ragged pills. */
+@media (max-width: 639px) {
+  .sheet__actions { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  .sheet__actions .btn { flex: 1 1 auto; }
+  .sheet__actions .btn--lg { font-size: 17px; padding: 11px 20px; }
+}
 .opt-cards { display: flex; gap: 10px; flex-wrap: wrap; }
 .opt-card {
   flex: 1;
