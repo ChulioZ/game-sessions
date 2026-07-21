@@ -28,18 +28,9 @@ adopting it over growing the homegrown version further. This does **not**
 relax discipline elsewhere: still build roadmap work deliberately when asked,
 not as a side effect of an unrelated change.
 
-Applying this lens to the previously "settled" architecture calls below
-(re-examined 2026-07-19): **no frontend build step/framework** and **no third
-persistence backend** still hold, on their own merits, not as leftover
-localhost-era minimalism — the first already survived a dedicated
-production-readiness review for the public multi-tenant end-state
-(`docs/production-readiness.md` §2.2: a framework rewrite buys nothing this
-app needs), the second is about not fragmenting round-data storage across
-more than one source of truth, not about dependency count (a Redis dependency
-for rate-limiting or caching wouldn't violate it — that's not round-data
-persistence). **"No ORM" did not hold up under the same scrutiny** and was
-reopened — and **decided (#211, 2026-07-19): Knex** (query builder + real
-migrations, not a full ORM). See the Architecture section below.
+The architecture calls below were re-examined under this lens on 2026-07-19
+and still hold on their own merits (with one revision: "no ORM" became "Knex,
+not a full ORM", #211) — they are not leftover localhost-era minimalism.
 
 ## Architecture (read before changing things)
 
@@ -85,19 +76,20 @@ migrations, not a full ORM). See the Architecture section below.
     `id`/`findRound`/`pushActivity` live here for that backend (and the store's own
     tests); new route code calls the repo, not these. Location via `DATA_DIR`. The
     Postgres backend (`repo/postgres.js`) is standalone — it does not use `store`.
-  - `lib/upload.js` is the multer config for cover images (stored under
-    `data/uploads/`, only the path is saved in `data.json`).
+  - `lib/upload.js` is the multer config for cover images (persisted via the
+    `lib/storage/` seam — disk under `data/uploads/` by default, S3 when
+    `S3_BUCKET` is set; only the `/uploads/<key>` path is saved in the data).
   - `routes/*.js` are Express routers, one per resource, mounted under
     `/api/rounds/...`. Nested routers use `{ mergeParams: true }` for `:rid`.
 - **Frontend:** `public/js/*.js` are plain classic `<script>`s sharing one global
-  scope. They are loaded in a fixed order (the authoritative list is the
-  `<script>` tags in `public/index.html` — don't let this summary drift from
-  it): `i18n.js` → `lang/en.js` → `lang/de.js` → `cover.js` → `core.js` →
-  `account.js` → `ranking.js` → `lookup-group.js` → the `views-*.js` files →
-  `router.js` → `main.js` → `pwa.js`. i18n + languages load first (so `t()` is
-  available everywhere), `core.js` holds shared helpers/state, and `main.js`
-  calls `initLocale()`/`showHome()` last. (`public/js/login.js` is a separate
-  IIFE loaded only by `login.html`, outside this shared scope.)
+  scope, loaded in a fixed order. The **authoritative list is the `<script>`
+  tags in `public/index.html`** — consult it rather than any summary. The
+  invariants: `i18n.js` + the `lang/*.js` tables load first (so `t()` is
+  available everywhere), small dependency-free helper modules and `core.js`
+  (shared helpers/state) load before the `views-*.js` files, and
+  `router.js` → `main.js` → `pwa.js` come last (`main.js` bootstraps).
+  (`login.js`, `kontakt.js` and `admin.js` are separate IIFEs loaded only by
+  their own standalone HTML pages, outside this shared scope.)
   - **Load-order trap:** a top-level statement in an earlier file must not
     reference a function/`const` defined in a later file at *load time* (it isn't
     defined yet). Defer such references (e.g. wrap in an arrow that runs on

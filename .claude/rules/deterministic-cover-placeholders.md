@@ -68,15 +68,7 @@ and `.archive-row__img`.
 
 ## Verifying a change here
 
-The service worker serves shell CSS **cache-first**, so editing `styles.css` and
-reloading keeps the stale bytes (same trap as
-`.claude/rules/tabler-icon-codepoints.md`). Unregister + clear caches before
-**every** re-check, then navigate fresh:
-
-```js
-(await navigator.serviceWorker.getRegistrations()).forEach(r => r.unregister());
-(await caches.keys()).forEach(k => caches.delete(k));
-```
-
-The SW re-registers on the next load, so this is needed once per CSS edit, not
-once per session.
+The service worker serves shell CSS **cache-first**, so a plain reload keeps
+the stale bytes after every `styles.css` edit. Unregister the SW + clear its
+caches before **every** re-check — snippet in
+`.claude/rules/pwa-service-worker.md` ("Verifying a shell-asset change").

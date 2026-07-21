@@ -117,7 +117,7 @@ npm run check:syntax
   the repo constraints above — not just "tests are green."
 - For **substantial** UI changes (new views/layouts, non-trivial interaction or
   state, anything easy to get visibly wrong), verify in a real browser via the
-  preview workflow (the `verify` skill / preview tools), not tests alone. For
+  preview workflow (the `run` skill / preview tools), not tests alone. For
   small, straightforward, low-risk UI tweaks (copy, a class, an icon, a spacing
   value), it's enough to confirm the diff looks correct — a human does the visual
   review. Use judgement; when unsure, verify.
@@ -135,11 +135,9 @@ gh pr create --fill   # or --title/--body; reference the issue ("Closes #42")
 ```
 
 - Write a real commit message (subject + body if the change warrants it), and end
-  it with the required trailer:
-
-  ```
-  Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
-  ```
+  it with the `Co-Authored-By: Claude … <noreply@anthropic.com>` trailer for the
+  model in use (the harness states the exact line — don't hard-code a model name
+  from this file).
 
 - The PR body should explain what and why, note that tests were added/updated,
   and link the issue. End the body with:

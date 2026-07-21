@@ -42,3 +42,20 @@ Non-obvious things that will bite if you forget them:
   the icons were rasterized once (a white die on the brand `#c2410c`) and
   committed as static files. Regenerate with a script if the brand changes; don't
   add an image build step just for icons.
+
+## Verifying a shell-asset change in a browser (the cache-first trap)
+
+Because shell assets are served cache-first, editing `styles.css` or a
+`public/js/*.js` and reloading keeps serving the **stale** bytes — even
+`fetch(..., {cache:'reload'})` goes through the SW. Before believing any
+in-browser check of a shell-asset change, unregister the SW and clear its
+caches, then navigate fresh:
+
+```js
+(await navigator.serviceWorker.getRegistrations()).forEach(r => r.unregister());
+(await caches.keys()).forEach(k => caches.delete(k));
+```
+
+The SW re-registers on the next load, so do this once per asset edit, not once
+per session. Several rules reference this section — it is the one canonical
+copy of the snippet.

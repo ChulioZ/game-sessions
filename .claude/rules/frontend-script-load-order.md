@@ -1,8 +1,9 @@
 # Frontend script load order (shared global scope)
 
 `public/js/*.js` are plain classic `<script>`s, not modules. They share one
-global scope, and each runs fully before the next (order set in
-`index.html`: core → views-home → views-round → views-session → main).
+global scope, and each runs fully before the next (the order is the `<script>`
+tags in `index.html` — roughly: i18n + languages → helpers → `core.js` →
+the `views-*.js` files → `router.js` → `main.js`).
 
 **Rule:** a top-level statement that runs at load time must not reference a
 function or top-level `const`/`let` that is defined in a *later* script — it
@@ -18,5 +19,5 @@ because its later top-level `const`s never initialize).
 
 **Why this rule exists:** it worked as a single file (function hoisting within
 one script), then broke silently when `app.js` was split into ordered files —
-`core.js` threw at load, so everything after the throw (incl. the `TEXTURES`
-const used by the design textures) was left uninitialized.
+`core.js` threw at load, so everything after the throw (including its own later
+top-level `const`s) was left uninitialized.

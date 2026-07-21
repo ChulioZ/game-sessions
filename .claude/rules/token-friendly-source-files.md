@@ -24,7 +24,7 @@ tokens):
   code already does this well — keep it that way.
 - **Consistency — one shape, generalized once.** Match the established patterns so
   an agent learns the shape once and reuses it: `routes/*.js` (`'use strict'`,
-  header comment, requires from `lib/store`, an `express.Router`), providers
+  header comment, data access via `req.repo`, an `express.Router`), providers
   (`search`/`detail` + pure `parse*` exports), and the frontend `show*` view
   convention. A new file that invents its own layout costs a re-learn every visit.
 
@@ -37,9 +37,9 @@ when the concern boundary is real, not reflexively by size.
 
 **Why:** the codebase was assessed against these four dimensions (issue #38). The
 backend (`routes/`, `lib/`, providers) and most frontend files were already
-token-friendly — uniform shape, purposeful comments, sensible size. The one clear
-outlier was `public/js/views-round.js` (~2237 lines spanning the hub dock, Start,
-Regal, Chronik, Pokale, retired, background/themes, game detail, sheets, the
-lookup/provider helpers, add-game and link-provider) — a one-line change there
-forces loading everything. That refactor is its own follow-up issue; this rule
-keeps future files from repeating the pattern.
+token-friendly. The one clear outlier was `public/js/views-round.js` (~2237
+lines spanning ten unrelated screens — a one-line change forced loading
+everything). It has since been split along its real seams into `views-round.js`
+(hub + Start), `views-round-tabs.js`, `views-round-detail.js` and
+`views-round-lookup.js`; this rule keeps future files from regrowing the
+pattern.

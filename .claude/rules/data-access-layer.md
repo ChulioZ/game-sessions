@@ -41,7 +41,7 @@ Non-obvious things baked into the design — keep them:
   (!round) 404`, then calls the mutator, which returns `null` when the *sub-entity*
   is missing → the second, specific 404. A couple of methods return a small
   marker instead of a bare entity where a 400 is needed (`deleteGame` →
-  `'not_retired'`; `setBackground`/`deleteGame` return the previous background /
+  `'not_archived'`; `setBackground`/`deleteGame` return the previous background /
   freed image path so the route can do the filesystem cleanup). Preconditions that
   need round/session data (e.g. "game belongs to this session", "session is
   cancelled") are validated in the route against the fetched snapshot *before*

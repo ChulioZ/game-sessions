@@ -7,7 +7,7 @@ mis-fires on this pattern. `eslint.config.js` handles it with a dedicated
 override for `public/js/**`:
 
 - **`globals` lists every top-level name** the scripts share (`t`, `showHome`,
-  `api`, `TEXTURES`, …) so a use of one in *another* file isn't a `no-undef`
+  `api`, `THEMES`, …) so a use of one in *another* file isn't a `no-undef`
   error. **When you add/rename/remove a top-level `function`/`const` in
   `public/js`, update that list** or lint will (wrongly) flag it — or miss a typo.
 - **`no-redeclare` is off** there: each shared name is both declared in its home

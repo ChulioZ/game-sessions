@@ -33,18 +33,9 @@ except the eye.
    shows as tofu / zero width; a wrong glyph shows as the wrong picture.
 
 **Also:** the service worker serves shell CSS **cache-first**, so after editing
-`tabler-icons.css` a plain reload keeps the stale bytes (even `fetch(...,
-{cache:'reload'})` — the SW intercepts). To verify an icon change in the preview,
-unregister the SW and clear its caches first:
-
-```js
-(await navigator.serviceWorker.getRegistrations()).forEach(r => r.unregister());
-(await caches.keys()).forEach(k => caches.delete(k));
-// then navigate again
-```
-
-See also the `tabler-glyph-and-icon-regen` memory note and
-`.claude/rules/pwa-service-worker.md` (cache-first shell assets).
+`tabler-icons.css` a plain reload keeps the stale bytes. Unregister the SW and
+clear its caches before re-checking — snippet in
+`.claude/rules/pwa-service-worker.md` ("Verifying a shell-asset change").
 
 ## A `ti-*` class in the markup does NOT mean it's declared
 

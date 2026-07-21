@@ -25,7 +25,7 @@ config, and any `preview_start`) default to the production `data/`, so a
 screenshot, `read_page`, `get_page_text`, or console/network dump of that running
 app **renders the group's real rounds, members and ratings into the transcript** —
 the same leak as reading the file, just laundered through the UI. So when you
-launch the app to *see a change work* (preview tools, the `run`/`verify` skills,
+launch the app to *see a change work* (preview tools, the `run` skill,
 a manual `curl`):
 
 - **Point it at an isolated temp `DATA_DIR`** seeded with your own generated data

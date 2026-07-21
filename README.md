@@ -311,7 +311,11 @@ public/
     ranking.js       tie-aware podium places ("1, 2, 2, 4")
     cover.js         deterministic per-title gradient for games with no cover
     cover-size.js    rewrites provider cover URLs to a frame-appropriate size
+    tag-icons.js     the curated tag-icon set (mirrors lib/tag-icons.js)
+    swr.js           stale-while-revalidate cache: views render instantly from
+                     the last known data while a background fetch refreshes
     lookup-group.js  collapses same-title provider hits into one multi-badge row
+    lookup-cover.js  which cover image a picked provider match yields
     focus-trap.js    keeps Tab inside an open sheet + restores focus on close
     feedback.js      top-bar feedback button + submission sheet (issue #260)
     views-home.js    lobby + new round
@@ -448,70 +452,39 @@ production is a deliberate step (it replaces the shared gate and starts sending
 mail); *inviting other people into a shared tenant is still follow-up work (#207),
 as are roles (#137)*.
 
-Operator moderation (issue #268): setting `ADMIN_PASSWORD` exposes `/admin.html`
-— a small standalone operator page (plus `/api/admin`) for acting on an abuse
-notice: resolve a reported `/uploads/…` cover image to the game, round, tenant and
-account behind it; take the image down (deletes the object *and* clears every
-reference, leaving the rest of the data intact); suspend or restore an account
-without deleting anything, so evidence survives; and read the log of those actions
-that a DSA Art. 17 statement of reasons needs. Suspension takes effect immediately
-— existing access tokens stop working, not just new logins.
+Operator moderation (issues #268/#273/#274/#275): setting `ADMIN_PASSWORD`
+exposes `/admin.html` + `/api/admin`, the standalone operator panel for acting
+on abuse notices and data-subject requests. It can resolve a notice by reported
+cover path, round link, e-mail address or tenant id (with a per-tenant summary
+shown against the quota ceilings); take a cover image down (deletes the object
+*and* clears every reference); **redact** any user-authored text — round name,
+game title, member name, tag name, feedback message — by overwriting the field
+with `[entfernt]` while preserving the original wording on the log entry a DSA
+Art. 17 statement of reasons has to quote (redaction never deletes a row);
+suspend or restore an account without deleting anything, effective immediately
+(existing access tokens stop working); **export** everything held for one
+account as JSON (GDPR Art. 15/20); and perform an Art. 17 **erasure** — the
+account, its tenant's rounds and the stored cover objects — which demands a
+reason plus the account's own e-mail typed as confirmation and refuses if a
+second account still shares the tenant. Every action lands in a log filterable
+by tenant, action and date range; the erasure entry records only ids, date,
+reason and counts, never the erased content, since the log outlives the erasure
+it evidences.
 
-Issue #275 widened that from "images only": a notice can now be resolved by
-**round link, e-mail address or tenant id** as well as by cover path, and the
-result carries a **per-tenant summary** — rounds, games, sessions, members, tags
-and the storage those uploads occupy, each shown against the quota ceiling that
-would start refusing writes. Any user-authored **text** (round name, game title,
-member name, tag name, feedback message) can be **redacted**: the field is
-overwritten with `[entfernt]` and the original wording is preserved on the log
-entry, which is what an Art. 17 statement of reasons has to quote. Redaction
-never deletes a row — a redacted tag keeps its id, so no game loses a tag as a
-side effect; deleting data stays erasure (#273). The action log is filterable by
-tenant, action and date range, and the CSV export honours the same filter, so a
-hand-over prepared for one account can't silently widen to every tenant.
+The panel opens with an **Instanz-Status** card: how the running instance is
+*actually* configured — accounts mode, whether the secrets are distinct, mail
+delivery, image/data backends, pending migrations, quota ceilings, canonical
+host, whether built `dist/` assets are served, and the running version. Every
+field is a derived boolean, enum or number — **no secret value is ever
+returned**. A **Feedback** card shows what users sent through the in-app
+feedback button (with the sender's address only where they opted in); tune
+submissions per IP with `FEEDBACK_RATE_LIMIT_MAX` (per 15 min, default 10).
+The Feedback and Protokoll cards page rather than truncate (`100 von 342`,
+**Mehr laden**) and export *every* entry as UTF-8 CSV (BOM included, so Excel
+renders umlauts correctly).
 
-The panel also opens with an **Instanz-Status** card (issue #274): how the running
-instance is *actually* configured — accounts mode and whether `SESSION_SECRET` is
-a secret of its own, whether `ADMIN_PASSWORD` differs from `AUTH_PASSWORD`, mail
-delivery vs. the in-memory outbox, the image and data backends, pending schema
-migrations, quota ceilings and whether they bite, the canonical host, whether the
-built `dist/` assets are being served, and the running version/commit. Every field
-is a derived boolean, enum or number — **no secret value is ever returned**, so a
-screenshot of the card is harmless. It exists so the go-live checklist can be
-verified from the app instead of by eye against the Railway dashboard.
-
-Data-subject requests (issue #273) are handled from the same Konten card:
-**Exportieren** downloads everything held for one account as JSON (its rounds
-with members, games, sessions *and* the activity feed, plus the account's own
-non-secret fields) for a GDPR Art. 15/20 access request; **Löschen** performs an
-Art. 17 erasure — the account row, every round of its tenant with all children,
-and the stored cover objects. Erasure is irreversible, so it demands a reason
-*and* the account's own e-mail address typed as confirmation, and it refuses
-outright if a second account still shares the tenant. Both actions are logged;
-the erasure entry deliberately records only the account id, tenant, date, reason
-and counts — never the erased address or any content, since the log outlives the
-erasure it evidences. Suspension remains the right first response to an abuse
-case: it preserves evidence, which erasure by definition destroys.
-
-The same panel carries the **Feedback** card (issue #260): what users have sent
-through the in-app feedback button, newest first, with the screen, language and
-tenant each message came from — plus the sender's address on the messages where
-they opted in to be contacted. It is read-only, and it lives behind
-`ADMIN_PASSWORD` rather than getting a credential of its own. Tune how often one
-IP may submit with `FEEDBACK_RATE_LIMIT_MAX` (per 15 min, default 10).
-
-Both the Feedback and the Protokoll card page rather than truncate (issue #288):
-each shows how much of the whole it is displaying (`100 von 342`), loads older
-entries on demand with **Mehr laden**, and offers a **CSV herunterladen** button
-that exports *every* entry — not just the loaded page — as a UTF-8 CSV (BOM
-included, so Excel renders umlauts correctly). Previously both stopped silently
-at the newest 100, which for the moderation log — the record backing an Art. 17
-statement of reasons — was the wrong failure mode. The exports need no reason and
-write no log entry: unlike the account export, they disclose nothing the operator
-cannot already read by scrolling the card.
-
-`ADMIN_PASSWORD` must be a **separate** secret from `AUTH_PASSWORD`: the latter is
-shared with everyone using the instance, while these powers cross tenant
+`ADMIN_PASSWORD` must be a **separate** secret from `AUTH_PASSWORD`: the latter
+is shared with everyone using the instance, while these powers cross tenant
 boundaries. Optionally set `ADMIN_SESSION_SECRET` to sign the admin cookie
 (otherwise `SESSION_SECRET`, then the password itself). Leave `ADMIN_PASSWORD`
 unset — the default — and the entire surface `404`s.
