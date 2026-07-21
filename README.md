@@ -257,7 +257,8 @@ routes/
   contact.js         /api/contact           (public contact form → e-mails the
                                              operator; no auth, own rate limit,
                                              honeypot; fails loud in production)
-  legal.js           /impressum, /datenschutz  (server-rendered legal pages,
+  legal.js           /impressum, /datenschutz,
+                     /nutzungsbedingungen    (server-rendered legal pages,
                                              identity from IMPRESSUM_* env;
                                              404 until configured)
   admin.js           /api/admin             (operator moderation: instance
@@ -398,12 +399,15 @@ reports the instance ready: mail configured **and** the Impressum identity set
 (all-or-nothing, so a half-configured deploy shows no public footer rather than
 a broken one).
 
-Legal pages (issue #134): `GET /impressum` and `GET /datenschutz` serve the
-server-rendered DDG Impressum and DSGVO privacy policy (German authoritative,
+Legal pages (issues #134/#140): `GET /impressum`, `GET /datenschutz` and
+`GET /nutzungsbedingungen` serve the server-rendered DDG Impressum, the DSGVO
+privacy policy and the terms of use / DSA content rules (German authoritative,
 English courtesy translation on the same page). The operator identity comes from
 env at request time — `IMPRESSUM_ADDRESS` (postal address, may be multi-line)
 and `IMPRESSUM_EMAIL` — so no address ever lives in the repo; while either is
-unset both routes answer 404 and the site footer stays hidden.
+unset all three routes answer 404 and the site footer stays hidden. The
+registration form links the terms; the internal notice-and-action workflow and
+retention schedule live in `docs/legal/`.
 
 Serving one deployment under several domains: `CANONICAL_HOST` + `REDIRECT_HOSTS`
 (issue #230) 301 the branded non-canonical domains onto a single canonical origin

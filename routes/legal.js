@@ -1,10 +1,11 @@
 'use strict';
 
 /*
- * Legal pages (issue #134): GET /impressum and GET /datenschutz, mounted ahead
- * of the auth gate in createApp() — a legal notice must be reachable without a
- * login (§ 5 DDG: "leicht erkennbar, unmittelbar erreichbar, ständig
- * verfügbar").
+ * Legal pages (issues #134/#140): GET /impressum, GET /datenschutz and
+ * GET /nutzungsbedingungen, mounted ahead of the auth gate in createApp() — a
+ * legal notice must be reachable without a login (§ 5 DDG: "leicht erkennbar,
+ * unmittelbar erreichbar, ständig verfügbar"), and the DSA Art. 14 content
+ * rules must be publicly available.
  *
  * Both routes answer 404 while the operator identity is not configured
  * (IMPRESSUM_ADDRESS + IMPRESSUM_EMAIL — checked per request, like every other
@@ -28,5 +29,6 @@ function page(render) {
 
 router.get('/impressum', page(legal.renderImpressum));
 router.get('/datenschutz', page(legal.renderDatenschutz));
+router.get('/nutzungsbedingungen', page(legal.renderNutzungsbedingungen));
 
 module.exports = router;

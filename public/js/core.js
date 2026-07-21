@@ -211,6 +211,7 @@ function applyStaticTexts() {
   document.getElementById('footerKontakt').textContent = t('footer.contact');
   document.getElementById('footerImpressum').textContent = t('footer.impressum');
   document.getElementById('footerPrivacy').textContent = t('footer.privacy');
+  document.getElementById('footerTerms').textContent = t('footer.terms');
 }
 
 // Shared site footer visibility (issues #224/#134). The footer starts hidden in

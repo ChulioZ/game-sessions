@@ -1117,6 +1117,9 @@ body.auth-screen .crumbs { display: none; }
 .auth__error { color: var(--danger); font-size: 14px; margin: -8px 0 12px; }
 .auth__links { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
 .auth__links .link-btn { font-size: 15px; }
+/* Terms-of-use notice under the register button (#140). */
+.auth__terms { text-align: center; font-size: 13px; margin: 10px 0 0; }
+.auth__terms a { color: var(--brand); }
 
 .topbar__acct {
   flex: none;

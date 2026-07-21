@@ -18,11 +18,11 @@ keine 20 Personen, kein besonderes Risiko).
 | 3 | Runden-/Spieldaten | Nutzer + von ihnen eingetragene Mitglieder | Rundennamen, Spieltitel, Mitgliedsnamen, Stimmen/Bewertungen, Tags, Aktivitäten | Kernfunktion des Dienstes | Art. 6 (1) b | Railway (DB) | USA (EU-Region; SCC) | bis Löschung durch Nutzer / Kontolöschung |
 | 4 | Hochgeladene Cover-Bilder | Nutzer | Bilddateien | Kernfunktion | Art. 6 (1) b | Cloudflare, Inc. (R2, AVV; DPF-zertifiziert) | USA (DPF/SCC) | bis Löschung des Spiels/Kontos |
 | 5 | Transaktions-E-Mails | Registrierte Nutzer, Kontaktformular-Nutzer | Empfänger-Adresse, Betreff, Inhalt | Verifikation, Passwort-Reset, Kontakt-Zustellung | Art. 6 (1) b | Brevo (Sendinblue SAS), Paris (AVV) | nein (EU) | Versandprotokolle des Anbieters |
-| 6 | Kontaktformular / E-Mail-Kontakt | Absender | E-Mail, Nachricht, optional Name/Betreff | Bearbeitung von Anfragen; DSA Notice-and-Action | Art. 6 (1) b/f | Brevo (Zustellung), Betreiber-Postfach bei Heinlein Hosting GmbH (mailbox.org, AVV) | nein (DE/EU) | bis Abschluss der Bearbeitung |
+| 6 | Kontaktformular / E-Mail-Kontakt | Absender | E-Mail, Nachricht, optional Name/Betreff | Bearbeitung von Anfragen; DSA Notice-and-Action | Art. 6 (1) b/f | Brevo (Zustellung), Betreiber-Postfach bei Heinlein Hosting GmbH (mailbox.org, AVV) | nein (DE/EU) | bis Abschluss der Bearbeitung; DSA-Meldungen 3 Jahre (`retention.md`) |
 | 7 | In-App-Feedback | Nutzer (anonym, E-Mail optional) | Nachricht, optional E-Mail, App-Bereich, Sprache, Tenant-Id | Produktverbesserung | Art. 6 (1) f | Railway (DB) | USA (EU-Region; SCC) | nach Bearbeitung gelöscht |
 | 8 | Produkt-Ereignisse (Logs) | Nutzer (nur Tenant-Id) | Ereignisname + Tenant-Id, keine Inhalte | Nutzungsüberblick ohne Analytics | Art. 6 (1) f | Railway (Logs) | USA (EU-Region; SCC) | wie Zeile 1 |
 | 9 | Anbieter-Cover (Hotlinking) | Besucher, deren Runde Cover verknüpft hat | IP + Browser-Header (durch den Browser des Besuchers) | Anzeige verknüpfter Cover ohne eigene Vervielfältigung | Art. 6 (1) f | Sony, Valve, Nintendo, Microsoft, BoardGameGeek (eigene Verantwortliche, keine AV) | USA/Japan | keine Speicherung bei uns |
-| 10 | Moderation/Betreiber-Panel | Nutzer im Einzelfall | Konto-/Inhaltsdaten des Einzelfalls, Moderations-Log (ohne erlöschte Personendaten) | Missbrauchsbekämpfung, Art.-17-Nachweis | Art. 6 (1) c/f | Railway (DB) | USA (EU-Region; SCC) | Log dauerhaft (Nachweis), Inhalte gem. Maßnahme |
+| 10 | Moderation/Betreiber-Panel | Nutzer im Einzelfall | Konto-/Inhaltsdaten des Einzelfalls, Moderations-Log (Löschnachweise ohne E-Mail-Adresse) | Missbrauchsbekämpfung, Art.-17-Nachweis | Art. 6 (1) c/f | Railway (DB) | USA (EU-Region; SCC) | Log-Einträge mit Personendaten: 3 Jahre ab Jahresende (`retention.md`); Löschnachweise (ohne E-Mail) dauerhaft; Inhalte gem. Maßnahme |
 | 11 | Post an die Empfangsanschrift | Absender von Briefpost | Absenderdaten, Briefinhalt | Erreichbarkeit unter ladungsfähiger Anschrift | Art. 6 (1) c/f | Anschriften-Dienstleister (Entgegennahme/Weiterleitung) | nein (DE) | Weiterleitung; keine Speicherung beim Dienstleister über Vertragszweck hinaus |
 
 **Hinweise**
@@ -37,6 +37,9 @@ keine 20 Personen, kein besonderes Risiko).
   2026-07-21, Antwort ausstehend).
 - Es findet **kein** Tracking, keine Analyse, keine Werbung und kein Verkauf
   von Daten statt; es gibt keine automatisierte Einzelentscheidung (Art. 22).
+- Löschfristen und Prüf-Rhythmus im Detail: `retention.md`; das
+  Notice-and-Action-Verfahren (DSA Art. 16/17) samt Begründungs-Vorlagen:
+  `notice-and-action.md` (beide #140).
 - Eine Datenschutz-Folgenabschätzung (Art. 35) ist nicht erforderlich: keine
   umfangreiche Verarbeitung besonderer Kategorien, kein systematisches
   Monitoring; Umfang und Risiko sind gering.

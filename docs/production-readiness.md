@@ -412,11 +412,28 @@ to mandatory.
   self-reviewed position published in the #134 policy; a lawyer's confirmation
   is optional post-launch hardening.
 
-### 9.4 Terms of Service — nice-to-have → must for SaaS — open (#140)
+### 9.4 Terms of use / DSA content rules — implemented (#140)
 
-A single private instance can skip ToS; a public multi-tenant service offering
-accounts to strangers should have **Terms of Service / AGB** (acceptable use,
-liability limits, account termination). Lawyer-drafted for launch.
+**Recorded conclusion (#173, 2026-07-21): no AGB obligation and no
+Widerrufsbelehrung are due** — the service is free with unconditional
+voluntary donations, so there is no consideration and no consumer contract.
+That is a decision, not a gap. What *does* apply to any hosting service
+regardless of size are the **DSA base duties** (Arts. 11/12/14/16–18 —
+contact points, publicly stated content rules, notice-and-action, statements
+of reasons, criminal-offence notification), and #140 shipped them as
+**Nutzungsbedingungen** at
+`/nutzungsbedingungen` (`lib/legal.js`, DE authoritative + EN, env-gated like
+the other legal pages): explicit prohibited-content list, takedown/measures
+clause, liability cascade, DSA contact points, plus the internal workflow +
+Art. 17 statement-of-reasons templates (`docs/legal/notice-and-action.md`)
+and a retention schedule (`docs/legal/retention.md` — moderation-log entries
+with personal data: 3 years, § 195 BGB-aligned). Drafted Claude-only under
+the same self-review bar as #134; there is deliberately **no minimum-age
+clause** (no consent-based processing → Art. 8 DSGVO not triggered; hosting
+service, not platform → no Art. 28 DSA duty) — the re-evaluation triggers
+live in `.claude/rules/keep-legal-docs-current.md`. A lawyer pass remains
+optional post-launch hardening, effectively mandatory before any paid tier
+(#173).
 
 ---
 
@@ -544,7 +561,7 @@ See §7 for the reasoning behind each.
 | **Tenant model + isolation** (`tenant_id` everywhere, central enforcement, RLS) | **L** | **Very High** | Blocker — cross-tenant leak is catastrophic (§6) — **shipped** (#136) |
 | Onboarding / first-run flow + empty states | M | Med | Blocker for usable sign-up (§11) — **shipped** (#138) |
 | Per-tenant quotas (rounds, games, tags) | S–M | Med | Cost/abuse control — **shipped** (#139) |
-| Terms of Service / AGB, DPAs (host, DB), transfer basis | S (+external) | Med | Legal must for SaaS (§9) — **open** (#140) |
+| Terms of use (DSA content rules), DPAs (host, DB), transfer basis, retention | S (+external) | Med | Legal must for SaaS (§9) — **implemented** (#140; no AGB/Widerruf due per #173 — recorded in §9.4) |
 | Consent mechanism **iff** non-essential tracking is added | S | Low | Conditional (§9.3) |
 
 **Roles/permissions and invitations/tenant-sharing live in Phase 4, not here:**

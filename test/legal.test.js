@@ -1,13 +1,15 @@
 'use strict';
 
 /*
- * Legal pages (issue #134): /impressum + /datenschutz are server-rendered from
- * the IMPRESSUM_ADDRESS / IMPRESSUM_EMAIL env identity and must
+ * Legal pages (issues #134/#140): /impressum + /datenschutz +
+ * /nutzungsbedingungen are server-rendered from the IMPRESSUM_ADDRESS /
+ * IMPRESSUM_EMAIL env identity and must
  *
  *  1. answer 404 while EITHER var is unset (no placeholder Impressum, ever),
- *  2. render both documents (DE authoritative + EN courtesy) once configured,
+ *  2. render all documents (DE authoritative + EN courtesy) once configured,
  *  3. escape the env values (they are interpolated into HTML),
- *  4. stay reachable without any auth (a legal notice must be public), and
+ *  4. stay reachable without any auth (a legal notice must be public, and the
+ *     DSA Art. 14 content rules must be publicly available), and
  *  5. never link the shut-down EU ODR platform (Reg. (EU) 2024/3228) or cite
  *     the repealed § 5 TMG — the stale-boilerplate traps #134 documents.
  */
@@ -29,8 +31,8 @@ test.afterEach(() => {
   for (const k of ['IMPRESSUM_ADDRESS', 'IMPRESSUM_EMAIL', 'AUTH_PASSWORD']) delete process.env[k];
 });
 
-test('both routes 404 while the identity is not configured', async () => {
-  for (const path of ['/impressum', '/datenschutz']) {
+test('all legal routes 404 while the identity is not configured', async () => {
+  for (const path of ['/impressum', '/datenschutz', '/nutzungsbedingungen']) {
     const res = await request(app).get(path);
     assert.equal(res.status, 404, `${path} must 404 unconfigured`);
     assert.ok(!res.text.includes('<html'), 'no shell/app markup on the 404');
@@ -83,6 +85,51 @@ test('configured: the privacy policy covers the real processors and no ODR link'
   assert.ok(!res.text.includes('TTDSG'), 'uses the current TDDDG name');
 });
 
+test('configured: the policy states the moderation-log retention decision (#140)', async () => {
+  Object.assign(process.env, IDENTITY);
+  const res = await request(app).get('/datenschutz');
+  assert.equal(res.status, 200);
+  // The 3-year rule (operator decision 2026-07-21) in both languages, tied to
+  // the norm it is derived from — vvt.md row 10 and docs/legal/retention.md
+  // state the same period; changing one means changing all of them.
+  assert.ok(res.text.includes('drei Jahre'), 'DE names the 3-year period');
+  assert.ok(res.text.includes('three years'), 'EN names the 3-year period');
+  assert.ok(res.text.includes('§§ 195, 199 BGB'), 'cites the limitation-period basis');
+});
+
+test('configured: the Nutzungsbedingungen carry the DSA content rules (#140)', async () => {
+  Object.assign(process.env, IDENTITY);
+  const res = await request(app).get('/nutzungsbedingungen');
+  assert.equal(res.status, 200);
+  assert.match(res.headers['content-type'], /text\/html/);
+  for (const marker of [
+    legal.OPERATOR_NAME,
+    'kontakt@example.test',            // notice channel + DSA contact point from env
+    'unentgeltlich',                   // free service, donations unlock nothing
+    '§§ 86, 86a StGB', '§ 130 StGB',   // prohibited-content list is explicit, not generic
+    'sexuellen Missbrauchs von Kindern',
+    'Cover-Bilder',                    // the #172 uploader-rights clause
+    '2022/2065',                       // cites the DSA by regulation number
+    'Art. 16 Abs. 2',                  // notice elements (URL, reasoning, good faith)
+    'Art. 17 DSA',                     // statement of reasons promised
+    'Art. 11, 12 DSA',                 // contact points named
+    'Produkthaftungsgesetz',           // liability cascade
+    'Courtesy translation',            // EN half present
+    'Terms of use',
+  ]) {
+    assert.ok(res.text.includes(marker), `terms must mention ${marker}`);
+  }
+  // Deliberately NO minimum-age clause (#140 operator decision 2026-07-21):
+  // no consent-based processing (Art. 8 DSGVO not triggered), hosting service
+  // not platform (no Art. 28 DSA duty). The re-evaluation triggers live in
+  // .claude/rules/keep-legal-docs-current.md — if an age clause is ever added
+  // on purpose, update this assertion together with that rule.
+  assert.ok(!res.text.includes('Mindestalter'), 'no age clause (recorded decision)');
+  assert.ok(!/16\s*Jahre/.test(res.text), 'no 16-years wording (recorded decision)');
+  assert.ok(!res.text.includes('ec.europa.eu/consumers/odr'), 'no ODR link');
+  assert.ok(!/§\s*5\s*TMG/.test(res.text), 'never the repealed TMG');
+});
+
 test('env values are escaped before interpolation', async () => {
   process.env.IMPRESSUM_ADDRESS = 'Weg 1 <script>alert(1)</script>';
   process.env.IMPRESSUM_EMAIL = 'a"b@example.test';
@@ -100,6 +147,7 @@ test('reachable without a session under the shared-password gate', async () => {
   assert.equal((await request(gatedApp).get('/api/rounds')).status, 401);
   assert.equal((await request(gatedApp).get('/impressum')).status, 200);
   assert.equal((await request(gatedApp).get('/datenschutz')).status, 200);
+  assert.equal((await request(gatedApp).get('/nutzungsbedingungen')).status, 200);
 });
 
 test('renderAddress: trims, drops blank lines, handles real newlines', () => {

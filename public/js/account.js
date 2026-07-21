@@ -241,6 +241,10 @@ function showRegister() {
       </div>
       <p class="auth__error" hidden></p>
       <button class="btn btn--primary btn--block" type="submit">${esc(t('auth.register.submit'))}</button>
+      <p class="auth__terms muted">${esc(t('auth.register.termsPre'))}
+        <a href="/nutzungsbedingungen" target="_blank" rel="noopener">${esc(t('auth.register.termsLinkLabel'))}</a>.
+        ${esc(t('auth.register.privacyPre'))}
+        <a href="/datenschutz" target="_blank" rel="noopener">${esc(t('auth.register.privacyLinkLabel'))}</a>.</p>
       <div class="auth__links">
         <button class="link-btn" type="button" id="toLogin">${esc(t('auth.register.toLogin'))}</button>
       </div>
