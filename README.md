@@ -255,10 +255,12 @@ routes/
                                              forgot/reset password, me —
                                              404 unless ACCOUNTS_ENABLED)
   admin.js           /api/admin             (operator moderation: instance
-                                             status, image→tenant lookup,
-                                             takedown, account suspend/restore,
-                                             GDPR export + erasure, action log,
-                                             user feedback —
+                                             status, lookup by image/round/
+                                             e-mail/tenant, per-tenant summary,
+                                             round text + redaction, takedown,
+                                             account suspend/restore, GDPR
+                                             export + erasure, filterable action
+                                             log, user feedback —
                                              404 unless ADMIN_PASSWORD)
   feedback.js        /api/feedback          (in-app user feedback: submit one
                                              message; read side lives on
@@ -419,6 +421,19 @@ reference, leaving the rest of the data intact); suspend or restore an account
 without deleting anything, so evidence survives; and read the log of those actions
 that a DSA Art. 17 statement of reasons needs. Suspension takes effect immediately
 — existing access tokens stop working, not just new logins.
+
+Issue #275 widened that from "images only": a notice can now be resolved by
+**round link, e-mail address or tenant id** as well as by cover path, and the
+result carries a **per-tenant summary** — rounds, games, sessions, members, tags
+and the storage those uploads occupy, each shown against the quota ceiling that
+would start refusing writes. Any user-authored **text** (round name, game title,
+member name, tag name, feedback message) can be **redacted**: the field is
+overwritten with `[entfernt]` and the original wording is preserved on the log
+entry, which is what an Art. 17 statement of reasons has to quote. Redaction
+never deletes a row — a redacted tag keeps its id, so no game loses a tag as a
+side effect; deleting data stays erasure (#273). The action log is filterable by
+tenant, action and date range, and the CSV export honours the same filter, so a
+hand-over prepared for one account can't silently widen to every tenant.
 
 The panel also opens with an **Instanz-Status** card (issue #274): how the running
 instance is *actually* configured — accounts mode and whether `SESSION_SECRET` is

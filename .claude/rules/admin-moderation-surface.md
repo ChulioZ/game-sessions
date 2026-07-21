@@ -77,8 +77,9 @@ fail-closed probe next to it (see `.claude/rules/tenancy-rls.md`).
 ## 4. The moderation methods are global on purpose — keep them out of TENANT_METHODS
 
 `findImageOwner`, `takedownImage`, `logModeration`, `listModeration`,
-`listUsers` and (since #273) `exportTenant`/`eraseAccount` are **absent** from
-`TENANT_METHODS` in `lib/repo/index.js`. That is
+`listUsers`, (since #273) `exportTenant`/`eraseAccount` and (since #275)
+`findRoundOwner`/`tenantSummary`/`roundContent`/`redactText`/`moderationActions`
+are **absent** from `TENANT_METHODS` in `lib/repo/index.js`. That is
 the enforcement, not an oversight: an ordinary request handler only ever holds
 `req.repo` (the tenant-scoped facade), so it *cannot* reach them. They live on
 the module-level repo, which only the admin-gated `routes/admin.js` requires.
@@ -179,6 +180,100 @@ pending:0 }` rather than throwing, so the panel renders one shape for both. The
 field that matters is `pending` — non-zero means the code shipped but the schema
 did not, which otherwise surfaces only later as a column-not-found error under
 real traffic.
+
+## 7. Redaction (#275) walks into the §2 trap — and a plain-role probe alone does NOT catch it
+
+Redaction is the third operator **write** after takedown (#268) and erasure
+(#273), and it is the one where the wrong shape is most tempting: its *reads*
+(`findRoundOwner`, `tenantSummary`, `roundContent`) are genuinely cross-tenant, so
+doing the whole method inside `atx()` looks natural. On a hardened
+(non-superuser) deploy that produces the worst outcome yet:
+
+- the `SELECT` succeeds — the admin policy is `FOR SELECT`;
+- the `UPDATE` matches **zero rows** — it consults only the tenant policy, which
+  contributes nothing while `app.tenant_id` is unset;
+- and because `redactText` derives its return value from the row it *read*, it
+  answers `{ previous: 'the illegal title' }`, the route writes a moderation-log
+  entry, and the panel reports success — while the reported content is still live
+  for every user. **A takedown that took nothing down, on the record as done.**
+
+So `redactText` resolves the tenant under `atx()` and performs every write
+through the ordinary `tx(tenant, …)` path, exactly like `takedownImage`.
+
+**The testing lesson is the sharper half.** The obvious guard — a plain-role probe
+asserting "UPDATE under `app.admin` = 0 rows, under `app.tenant_id` = 1 row" — is
+**vacuous for this regression**, and that was verified rather than assumed: with
+`redactText` deliberately rewritten onto `atx()`, the whole suite still passed,
+because the probe only exercises hand-written SQL while the end-to-end assertion
+runs on this file's **superuser** connection, which bypasses RLS entirely. (The
+pre-existing erasure probe in §5 has the same blind spot.)
+
+What actually catches it is running **the repo method itself as the plain role**,
+which `test/repo.postgres.test.js` → *"redaction writes tenant-scoped, never under
+the read-only admin escape"* does by spawning a **child process** with
+`DATABASE_URL` pointed at the probe role — `lib/repo/postgres.js` builds its knex
+from `knexfile.js` at require time, so a child is the only way to get a
+non-superuser instance of it. The parent then asserts the **stored value changed**,
+not merely that the call reported success. Re-verified by breaking the code again:
+that one assertion is the only thing in the suite that goes red.
+
+**Rule:** any future operator write gets an end-to-end plain-role probe, not just
+a hand-written-SQL policy probe. And before trusting a probe like this, break the
+code on purpose and watch it fail — a green suite against broken code is the only
+proof that matters here.
+
+## 8. Redaction blanks TEXT; it must never delete a row
+
+`redactText` overwrites one field with the fixed marker `'[entfernt]'` and returns
+the previous value. Three deliberate choices:
+
+- **A tag is redacted by name only — its id survives.** Tags are referenced by
+  `game.tagIds`, so deleting the tag (or minting a new id) would silently strip a
+  tag from every game carrying it. The contract suite asserts the id and the
+  referencing `tagIds` are untouched.
+- **The replacement is FIXED, not operator-supplied.** A free-text replacement
+  would let the panel write arbitrary content into a user's own data — a larger
+  power than the one being exercised — and an empty string renders as a blank row
+  that reads like a bug rather than a moderation action.
+- **The original wording lives on the log entry (`previous`), and in the CSV's
+  `Vorher` column.** Once the field is blanked that entry is the *only* remaining
+  evidence of what was removed, which is precisely what Art. 17 requires to be
+  stated. An export without it is not a complete record.
+
+Note there are **no rating comments** in this schema (votes are numeric), so the
+user-authored text is exactly: round name, game title, member name, tag name, and
+feedback message. Feedback is global/un-scoped, so it redacts by id alone with no
+tenant transaction — like every other `feedback` access.
+
+## 9. Inclusive date bounds are load-bearing, and asymmetric
+
+The log filter accepts a bare `YYYY-MM-DD` (what a date input sends) and widens
+the two ends in **opposite** directions: `from` → `T00:00:00.000Z`, `to` →
+`T23:59:59.999Z`. A naive `at <= '2026-07-20'` compared against an ISO timestamp
+excludes **everything that happened on the 20th** — silently hiding a full day
+from the record backing Art. 17. The widening happens in the ROUTE so both
+backends receive exact instants and cannot disagree; `at` is then compared as
+**text** (ISO-8601 sorts lexicographically) rather than cast to `timestamptz`, so
+one malformed historical value can't error the whole query.
+
+`countModeration` takes the same filter as `listModeration` — a total that ignored
+it would make the card's "20 von 300" a lie about what "Mehr laden" can reach —
+and `/log.csv` honours it too, so "export what I'm looking at" cannot silently
+widen a one-account hand-over to every tenant.
+
+## 10. Per-tenant storage bytes are best-effort and capped
+
+`storage.size(publicPath)` (`fs.stat` / `HeadObject`) is guarded in
+`lib/storage/index.js` the same way `remove()` is, and for the same reason: both
+backends take `path.basename()`, so a hotlinked provider URL (#172) ending in
+`/pic123.jpg` would size **our** object of that name and report a stranger's bytes
+as this tenant's. A provider cover costs us nothing, so `null` is also the honest
+answer.
+
+The route sizes at most `SIZE_SAMPLE_MAX` (500) objects — a tenant at the games
+quota would otherwise fire thousands of HeadObjects to render one card — and
+reports `{ count, sized, bytes, complete }` so the panel can render a "≥" rather
+than a wrong total. An unreadable object is skipped, never guessed.
 
 ## Smaller things worth remembering
 

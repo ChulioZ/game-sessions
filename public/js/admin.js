@@ -100,7 +100,7 @@
     loadStatus();
     loadUsers();
     loadFeedback();
-    loadLog();
+    refreshLog();
   }
 
   // ---- instance status (#274) ----------------------------------------------
@@ -231,35 +231,94 @@
 
   // ---- lookup --------------------------------------------------------------
 
+  // [label, placeholder] per selector. A notice names an e-mail address or a
+  // round link far more often than a cover path (#275).
+  const LOOKUP_FIELDS = {
+    image: ['Bildpfad', '/uploads/abc123.jpg'],
+    round: ['Runden-ID', 'z. B. 8f3a1c2b4d5e6f70'],
+    email: ['E-Mail-Adresse', 'name@example.com'],
+    tenant: ['Tenant-ID', 'z. B. 4d9e7a10bc2f3e58'],
+  };
+
+  $('lookupBy').addEventListener('change', () => {
+    const [label, placeholder] = LOOKUP_FIELDS[$('lookupBy').value];
+    $('lookupValueLabel').textContent = label;
+    $('lookupValue').placeholder = placeholder;
+    $('lookupValue').value = '';
+  });
+
   $('lookupForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     hide($('lookupError'));
     hide($('lookupResult'));
     $('takedownCard').hidden = true;
+    $('contentCard').hidden = true;
     currentImage = null;
 
-    const image = $('image').value.trim();
+    const by = $('lookupBy').value;
     try {
-      const owner = await api(`/lookup?image=${encodeURIComponent(image)}`);
-      renderLookup(owner);
-      currentImage = owner.image;
-      $('takedownCard').hidden = false;
-      hide($('takedownMsg'));
+      const out = await api(`/lookup?${by}=${encodeURIComponent($('lookupValue').value.trim())}`);
+      renderLookup(out);
+      // The takedown card is for an image and only an image — offering it after
+      // an e-mail lookup would have no target.
+      if (out.owner) {
+        currentImage = out.owner.image;
+        $('takedownCard').hidden = false;
+        hide($('takedownMsg'));
+      }
+      // A round lookup is almost always ABOUT that round's text, so open the
+      // drill-down immediately rather than making the operator click again.
+      if (out.round) loadContent(out.round.roundId);
     } catch (err) {
       show($('lookupError'), message(err), 'err');
     }
   });
 
-  function renderLookup(owner) {
+  const KB = 1024;
+  function formatBytes(n) {
+    if (!Number.isFinite(n)) return '—';
+    if (n < KB) return `${n} B`;
+    if (n < KB * KB) return `${(n / KB).toFixed(1)} kB`;
+    return `${(n / KB / KB).toFixed(1)} MB`;
+  }
+
+  // Usage against a ceiling, as the same pill verdict the status card uses: red
+  // at or past the cap, amber from 80 %, else neutral-good. When quotas are not
+  // enforced (accounts off) the cap is inert — showing "3 / 10" would imply a
+  // refusal that cannot happen, so only the bare count is rendered.
+  function quotaPill(used, limit, enforced) {
+    const pill = document.createElement('span');
+    if (!enforced) {
+      pill.className = 'pill';
+      pill.textContent = String(used);
+      return pill;
+    }
+    const ratio = limit > 0 ? used / limit : 0;
+    let verdict = 'ok';
+    if (ratio >= 1) verdict = 'off';
+    else if (ratio >= 0.8) verdict = 'warn';
+    pill.className = `pill pill--${verdict}`;
+    pill.textContent = `${used} / ${limit}`;
+    return pill;
+  }
+
+  function renderLookup(out) {
     const box = $('lookupResult');
     box.replaceChildren();
+
+    const pairs = [];
+    if (out.owner) pairs.push(['Spiel', out.owner.gameTitle], ['Runde', out.owner.roundName]);
+    if (out.round) pairs.push(['Runde', out.round.roundName]);
+    pairs.push(['Tenant', out.tenantId || '—']);
+    pairs.push(['Konten', out.users.length
+      ? out.users.map((u) => u.email + (u.disabled ? ' (gesperrt)' : '')).join(', ')
+      : 'keine (Alt-Tenant)']);
+    // "≥" when only a sample was measured: past SIZE_SAMPLE_MAX covers the
+    // server stops sizing objects, so the figure is a lower bound, not a total.
+    const up = out.uploads;
+    pairs.push(['Uploads', `${up.count} · ${up.complete ? '' : '≥ '}${formatBytes(up.bytes)}`]);
+
     const dl = document.createElement('dl');
-    const pairs = [
-      ['Spiel', owner.gameTitle],
-      ['Runde', owner.roundName],
-      ['Tenant', owner.tenantId],
-      ['Konten', owner.users.length ? owner.users.map((u) => u.email).join(', ') : 'keine (Alt-Tenant)'],
-    ];
     for (const [k, v] of pairs) {
       const dt = document.createElement('dt');
       dt.textContent = k;
@@ -268,7 +327,140 @@
       dl.append(dt, dd);
     }
     box.appendChild(dl);
+
+    if (out.summary) renderTenantRounds(box, out);
     box.hidden = false;
+  }
+
+  // The per-tenant summary: what they hold, and how close each round sits to the
+  // quotas that would start refusing writes (#275 item 5) — visible before
+  // someone hits a cap and sees a deliberately number-free toast.
+  function renderTenantRounds(box, out) {
+    const { summary } = out;
+    const q = out.quota;
+    const t = summary.totals;
+
+    const totals = document.createElement('p');
+    totals.className = 'totals';
+    for (const [label, value] of [
+      ['Runden', q.enforced ? `${t.rounds} / ${q.roundsPerTenant}` : t.rounds],
+      ['Spiele', `${t.games} (${t.activeGames} aktiv)`],
+      ['Sessions', t.sessions],
+      ['Mitglieder', t.members],
+      ['Tags', t.tags],
+    ]) {
+      const span = document.createElement('span');
+      span.append(`${label}: `);
+      const b = document.createElement('b');
+      b.textContent = String(value);
+      span.appendChild(b);
+      totals.appendChild(span);
+    }
+    box.appendChild(totals);
+
+    if (!summary.rounds.length) return;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'scroll';
+    const table = document.createElement('table');
+    const tbody = document.createElement('tbody');
+    const head = document.createElement('tr');
+    ['Runde', 'Spiele', 'Tags', 'Sessions', ''].forEach((h) => cell(head, h, { head: true }));
+    tbody.appendChild(head);
+
+    for (const r of summary.rounds) {
+      const row = document.createElement('tr');
+      cell(row, r.name);
+      cell(row, '').appendChild(quotaPill(r.games, q.gamesPerRound, q.enforced));
+      cell(row, '').appendChild(quotaPill(r.tags, q.tagsPerRound, q.enforced));
+      cell(row, String(r.sessions));
+      const btn = document.createElement('button');
+      btn.className = 'small ghost';
+      btn.textContent = 'Texte';
+      btn.addEventListener('click', () => loadContent(r.id));
+      cell(row, '').appendChild(btn);
+      tbody.appendChild(row);
+    }
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    box.appendChild(wrap);
+  }
+
+  // ---- content & redaction (#275) ------------------------------------------
+
+  // One round's user-authored text, each row redactable. This is the drill-down
+  // a text notice needs: the report names the offending words, not an id.
+  async function loadContent(roundId) {
+    const card = $('contentCard');
+    const body = $('contentTable').querySelector('tbody');
+    body.replaceChildren();
+    hide($('contentMsg'));
+    card.hidden = false;
+
+    let content;
+    try {
+      ({ content } = await api(`/content?round=${encodeURIComponent(roundId)}`));
+    } catch (err) {
+      show($('contentMsg'), message(err), 'err');
+      return;
+    }
+
+    const head = document.createElement('tr');
+    ['Art', 'Text', ''].forEach((h) => cell(head, h, { head: true }));
+    body.appendChild(head);
+
+    for (const [label, kind, id, text] of [
+      ['Runde', 'round', content.roundId, content.roundName],
+      ...content.members.map((m) => ['Mitglied', 'member', m.id, m.name]),
+      ...content.games.map((g) => ['Spiel', 'game', g.id, g.title]),
+      ...content.tags.map((tg) => ['Tag', 'tag', tg.id, tg.name]),
+    ]) {
+      const row = document.createElement('tr');
+      cell(row, label);
+      cell(row, text == null ? '—' : text).style.wordBreak = 'break-word';
+      const btn = document.createElement('button');
+      btn.className = 'small danger';
+      btn.textContent = 'Redigieren';
+      btn.addEventListener('click', () => redact({ kind, roundId: content.roundId, id }, text));
+      cell(row, '').appendChild(btn);
+      body.appendChild(row);
+    }
+  }
+
+  async function redact(target, text) {
+    if (!window.confirm(`„${text}“ mit [entfernt] überschreiben?\n\n`
+      + 'Der ursprüngliche Wortlaut wird protokolliert; gelöscht wird nichts.')) return;
+    const reason = askReason('Redigieren');
+    if (!reason) return;
+
+    try {
+      await api('/redact', { method: 'POST', body: JSON.stringify({ ...target, reason }) });
+      // Refresh BEFORE reporting: loadContent() clears this same message element.
+      await loadContent(target.roundId);
+      show($('contentMsg'), 'Text redigiert.', 'ok');
+      refreshLog();
+    } catch (err) {
+      show($('contentMsg'), message(err), 'err');
+    }
+  }
+
+  // Feedback is global rather than round-scoped, so it redacts by id alone and
+  // refreshes its own card.
+  async function redactFeedback(entry) {
+    if (!window.confirm('Diesen Feedback-Text mit [entfernt] überschreiben?')) return;
+    const reason = askReason('Redigieren');
+    if (!reason) return;
+
+    try {
+      await api('/redact', {
+        method: 'POST',
+        body: JSON.stringify({ kind: 'feedback', id: entry.id, reason }),
+      });
+      loadFeedback();
+      refreshLog();
+    } catch (err) {
+      show($('feedbackError'), message(err), 'err');
+    }
   }
 
   // ---- takedown ------------------------------------------------------------
@@ -289,7 +481,7 @@
       $('takedownReason').value = '';
       hide($('lookupResult'));
       currentImage = null;
-      loadLog();
+      refreshLog();
     } catch (err) {
       show($('takedownMsg'), message(err), 'err');
     } finally {
@@ -375,7 +567,7 @@
         body: JSON.stringify({ disabled: disabling, reason }),
       });
       loadUsers();
-      loadLog();
+      refreshLog();
     } catch (err) {
       show($('usersError'), message(err), 'err');
     }
@@ -414,7 +606,7 @@
       // before the browser has read the blob.
       setTimeout(() => URL.revokeObjectURL(url), 0);
       show($('usersError'), `Export erstellt: ${out.export.rounds.length} Runde(n).`, 'ok');
-      loadLog();
+      refreshLog();
     } catch (err) {
       show($('usersError'), message(err), 'err');
     }
@@ -441,7 +633,7 @@
       const failed = out.imagesFailed ? `, ${out.imagesFailed} Bild(er) nicht entfernt` : '';
       // Refresh BEFORE reporting: loadUsers() clears this same message element.
       await loadUsers();
-      loadLog();
+      refreshLog();
       show($('usersError'),
         `Gelöscht: ${out.rounds} Runde(n), ${out.imagesRemoved} Bild(er)${failed}.`, 'ok');
     } catch (err) {
@@ -469,14 +661,31 @@
     const errorEl = $(opts.error);
     let loaded = 0;
 
+    // Extra 'k=v' parameters (the log's filters, #275), read fresh on every
+    // request so paging and the CSV always carry whatever is in the filter bar
+    // right now — an export that widened back to everything would leak
+    // unrelated tenants into a hand-over prepared for one.
+    const query = () => (opts.query ? opts.query() : []);
+    let lastQuery = '';
+
     // append=false restarts from the newest entry; append=true fetches the next
     // page and adds it below what is already rendered.
     async function load(append) {
+      const parts = query();
+      const key = parts.join('&');
+      // Editing a filter field and hitting "Mehr laden" WITHOUT "Filtern" would
+      // otherwise page the new filter at the old filter's offset and append the
+      // result to a list built from the old one — a silently wrong log. Treat a
+      // changed filter as a fresh load instead.
+      if (append && key !== lastQuery) append = false;
+      lastQuery = key;
+
       if (!append) loaded = 0;
       let entries;
       let total;
+      const extra = parts.map((p) => `&${p}`).join('');
       try {
-        ({ entries, total } = await api(`${opts.path}?limit=${PAGE}&offset=${loaded}`));
+        ({ entries, total } = await api(`${opts.path}?limit=${PAGE}&offset=${loaded}${extra}`));
       } catch (err) {
         show(errorEl, message(err), 'err');
         return;
@@ -512,8 +721,9 @@
     async function downloadCsv() {
       const button = $(opts.csv);
       button.disabled = true;
+      const extra = query();
       try {
-        const res = await fetch(`/api/admin${opts.path}.csv`);
+        const res = await fetch(`/api/admin${opts.path}.csv${extra.length ? `?${extra.join('&')}` : ''}`);
         if (!res.ok) {
           const failed = await res.json().catch(() => ({}));
           throw new Error(failed.error || `HTTP ${res.status}`);
@@ -540,6 +750,18 @@
 
   // ---- log -----------------------------------------------------------------
 
+  // The filter bar's current state as 'k=v' pairs; an empty field is simply
+  // omitted, which the server reads as "don't filter on it".
+  function logQuery() {
+    const parts = [];
+    const add = (key, value) => { if (value) parts.push(`${key}=${encodeURIComponent(value)}`); };
+    add('action', $('logAction').value);
+    add('tenant', $('logTenant').value.trim());
+    add('from', $('logFrom').value);
+    add('to', $('logTo').value);
+    return parts;
+  }
+
   const loadLog = listCard({
     path: '/log',
     name: 'protokoll',
@@ -548,22 +770,60 @@
     more: 'logMore',
     csv: 'logCsv',
     error: 'logError',
+    query: logQuery,
     headers: ['Zeitpunkt', 'Aktion', 'Ziel', 'Begründung'],
-    empty: 'Noch keine Einträge.',
+    empty: 'Keine Einträge für diesen Filter.',
     row: (e) => {
       const row = document.createElement('tr');
       cell(row, fmt(e.at));
       cell(row, e.action);
       cell(row, e.gameTitle ? `${e.gameTitle} (${e.target})` : e.email || e.target);
-      cell(row, e.reason || '—');
+      // A redaction's whole point is the original wording, which exists nowhere
+      // else once the field is blanked — so show it next to the reason.
+      cell(row, e.previous ? `${e.reason || '—'} · vorher: „${e.previous}“` : (e.reason || '—'));
       return row;
     },
   });
 
+  // Offer exactly the actions that can match, rather than a hardcoded list that
+  // drifts as new ones are added (this issue added the redact_* kinds).
+  async function loadLogActions() {
+    let actions;
+    try {
+      ({ actions } = await api('/log/actions'));
+    } catch {
+      return; // the list is a convenience; the log itself already reported any error
+    }
+    const select = $('logAction');
+    const chosen = select.value;
+    select.replaceChildren();
+    for (const [value, label] of [['', 'Alle Aktionen'], ...actions.map((a) => [a, a])]) {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      select.appendChild(opt);
+    }
+    select.value = chosen;
+  }
+
+  // Every action that writes a log entry may also have introduced a new action
+  // NAME, so the two always refresh together.
+  function refreshLog() {
+    loadLog();
+    loadLogActions();
+  }
+
+  $('logApply').addEventListener('click', () => loadLog());
+  $('logReset').addEventListener('click', () => {
+    for (const id of ['logAction', 'logTenant', 'logFrom', 'logTo']) $(id).value = '';
+    loadLog();
+  });
+
   // ---- feedback (#260) -----------------------------------------------------
 
-  // In-app user feedback, newest first. Read-only: there is no action to take
-  // here beyond reading, so unlike the accounts table this renders no buttons.
+  // In-app user feedback, newest first. Since #275 the message is redactable
+  // too: it is user-authored free text like any other, so it can carry the same
+  // illegal content a game title can.
   const loadFeedback = listCard({
     path: '/feedback',
     name: 'feedback',
@@ -572,7 +832,7 @@
     more: 'feedbackMore',
     csv: 'feedbackCsv',
     error: 'feedbackError',
-    headers: ['Zeitpunkt', 'Nachricht', 'Kontext', 'Kontakt'],
+    headers: ['Zeitpunkt', 'Nachricht', 'Kontext', 'Kontakt', ''],
     empty: 'Noch kein Feedback.',
     row: (f) => {
       const ctx = f.context || {};
@@ -586,6 +846,11 @@
       // Only present when the submitter explicitly opted in; anonymous is the
       // default, so an em dash here is the normal case, not missing data.
       cell(row, ctx.email || '—');
+      const btn = document.createElement('button');
+      btn.className = 'small danger';
+      btn.textContent = 'Redigieren';
+      btn.addEventListener('click', () => redactFeedback(f));
+      cell(row, '').appendChild(btn);
       return row;
     },
   });

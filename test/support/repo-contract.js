@@ -925,6 +925,131 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.isImageReferenced(T, '/uploads/ok.jpg'), true);
   });
 
+  /* ------------------- Broader lookup & redaction (#275) -------------------- */
+  /*
+   * Cross-tenant like the #268 methods above, and for the same reason: a notice
+   * names a round link or an e-mail address, not a tenant. Note what these
+   * assertions can and cannot prove on Postgres — the suite connects as a
+   * SUPERUSER, which bypasses RLS entirely, so "the redaction landed" here does
+   * not prove it would land on a hardened deploy. That is what the plain-role
+   * probe in test/repo.postgres.test.js exists for.
+   */
+
+  test('findRoundOwner resolves a round to its tenant, across tenants', async () => {
+    const mine = await freshRound({ name: 'Mine' });
+    const theirs = await repo.createRound(OTHER, { name: 'Theirs', members: ['Zoe'] });
+
+    const own = await repo.findRoundOwner(mine.id);
+    assert.deepEqual(own, { roundId: mine.id, roundName: 'Mine', tenantId: T });
+
+    // The point of the operator lookup: another tenant's round resolves too.
+    const other = await repo.findRoundOwner(theirs.id);
+    assert.equal(other.tenantId, OTHER);
+    assert.equal(other.roundName, 'Theirs');
+
+    assert.equal(await repo.findRoundOwner('nosuchround'), null);
+  });
+
+  test('tenantSummary counts what a tenant holds and collects its cover paths', async () => {
+    const round = await freshRound({ name: 'Summary' });
+    await repo.createGame(T, round.id, gameFields({ title: 'Active', image: '/uploads/s1.jpg' }));
+    const gone = await repo.createGame(T, round.id, gameFields({ title: 'Gone', image: '/uploads/s2.jpg' }));
+    // A second reference to an already-collected path: an imported round shares
+    // the path rather than the file, so `images` must be deduped.
+    await repo.createGame(T, round.id, gameFields({ title: 'Dup', image: '/uploads/s1.jpg' }));
+    await repo.retireGame(T, round.id, gone.id, true);
+    await repo.addTag(T, round.id, 'Koop', null);
+    await repo.createSession(T, round.id, {
+      createdAt: 't', gameIds: [], votes: {}, chosenGameId: null, chosenAt: null,
+      finished: false, finishedAt: null, winnerIds: [], cancelled: false, cancelledAt: null, done: false,
+    });
+
+    const summary = await repo.tenantSummary(T);
+    const row = summary.rounds.find((r) => r.id === round.id);
+    assert.equal(row.name, 'Summary');
+    assert.equal(row.games, 3);
+    // An archived game still holds a row and a cover, so it counts here — but
+    // not as ACTIVE (.claude/rules/active-games-filter-sites.md).
+    assert.equal(row.activeGames, 2);
+    assert.equal(row.members, 2);
+    assert.equal(row.sessions, 1);
+    assert.equal(row.tags, 1);
+
+    // Counts must be real numbers on both backends: Postgres count() is a
+    // bigint that pg hands back as a STRING, which would make the totals below
+    // concatenate instead of add (#288's lesson, applied to new counts).
+    for (const key of ['rounds', 'games', 'activeGames', 'sessions', 'members', 'tags']) {
+      assert.equal(typeof summary.totals[key], 'number', key);
+    }
+    assert.equal(summary.totals.rounds, summary.rounds.length);
+    assert.equal(
+      summary.totals.games,
+      summary.rounds.reduce((n, r) => n + r.games, 0),
+    );
+
+    // Deduped, and scoped to this tenant.
+    assert.equal(summary.images.filter((i) => i === '/uploads/s1.jpg').length, 1);
+    assert.ok(summary.images.includes('/uploads/s2.jpg'));
+
+    // A tenant with nothing is an empty summary, not null — the operator asked
+    // about a real account and gets a real (empty) answer.
+    const empty = await repo.tenantSummary('tenant-with-no-rounds');
+    assert.deepEqual(empty.rounds, []);
+    assert.equal(empty.totals.rounds, 0);
+    assert.deepEqual(empty.images, []);
+  });
+
+  test('roundContent lists a round\'s user-authored text', async () => {
+    const round = await freshRound({ name: 'Content' });
+    const game = await repo.createGame(T, round.id, gameFields({ title: 'Catan' }));
+    const tag = await repo.addTag(T, round.id, 'Koop', null);
+
+    const content = await repo.roundContent(round.id);
+    assert.equal(content.roundId, round.id);
+    assert.equal(content.roundName, 'Content');
+    assert.equal(content.tenantId, T);
+    assert.deepEqual(content.members.map((m) => m.name), ['Alice', 'Bob']);
+    assert.deepEqual(content.games, [{ id: game.id, title: 'Catan' }]);
+    assert.deepEqual(content.tags, [{ id: tag.id, name: 'Koop' }]);
+
+    assert.equal(await repo.roundContent('nosuchround'), null);
+  });
+
+  test('redactText blanks one text field and returns what was there', async () => {
+    const round = await freshRound({ name: 'Bad round name' });
+    const game = await repo.createGame(T, round.id, gameFields({ title: 'Bad title' }));
+    const tag = await repo.addTag(T, round.id, 'Bad tag', null);
+    await repo.updateGame(T, round.id, game.id, { tagIds: [tag.id] });
+    const before = await repo.getRound(T, round.id);
+    const member = before.members[0];
+
+    const r = await repo.redactText({ kind: 'round', roundId: round.id, id: round.id }, '[x]');
+    assert.equal(r.previous, 'Bad round name');
+    assert.equal(r.tenantId, T);
+    assert.equal((await repo.getRound(T, round.id)).name, '[x]');
+
+    const g = await repo.redactText({ kind: 'game', roundId: round.id, id: game.id }, '[x]');
+    assert.equal(g.previous, 'Bad title');
+    const m = await repo.redactText({ kind: 'member', roundId: round.id, id: member.id }, '[x]');
+    assert.equal(m.previous, member.name);
+    const tg = await repo.redactText({ kind: 'tag', roundId: round.id, id: tag.id }, '[x]');
+    assert.equal(tg.previous, 'Bad tag');
+
+    const after = await repo.getRound(T, round.id);
+    assert.equal(after.games[0].title, '[x]');
+    assert.equal(after.members[0].name, '[x]');
+    assert.equal(after.tags[0].name, '[x]');
+    // Redaction blanks TEXT and never deletes a row: the tag keeps its id, so
+    // the game that carries it does not silently lose a tag as a side effect.
+    assert.equal(after.tags[0].id, tag.id);
+    assert.deepEqual(after.games[0].tagIds, [tag.id]);
+
+    // Unknown targets are not-found, never a silent success.
+    assert.equal(await repo.redactText({ kind: 'game', roundId: round.id, id: 'nope' }, '[x]'), null);
+    assert.equal(await repo.redactText({ kind: 'round', roundId: 'nope', id: 'nope' }, '[x]'), null);
+    assert.equal(await repo.redactText({ kind: 'tag', roundId: round.id, id: 'nope' }, '[x]'), null);
+  });
+
   test('logModeration appends and listModeration returns newest first', async () => {
     const a = await repo.logModeration({ action: 'takedown', target: '/uploads/a.jpg', reason: 'notice 1', at: '2026-07-20T10:00:00.000Z' });
     assert.match(a.id, /^[0-9a-f]{16}$/);
@@ -969,6 +1094,74 @@ module.exports = function repoContract(repo) {
     const walked = [];
     for (let off = 0; off < before + 3; off += 2) walked.push(...await repo.listModeration(2, off));
     assert.deepEqual(walked.map((e) => e.id), whole.map((e) => e.id));
+  });
+
+  // Filtering (#275). The two backends implement it very differently — a JS
+  // predicate over an array vs. `data->>'…'` SQL — so a disagreement about what
+  // a filter MEANS (especially the inclusive date bounds) is exactly the split
+  // only a shared contract catches.
+  test('listModeration and countModeration narrow to a tenant, action and date range', async () => {
+    const marker = 'filter-fixture';
+    for (const [action, tenantId, at] of [
+      ['takedown', 'f-tenant-1', '2026-07-18T09:00:00.000Z'],
+      ['redact_game', 'f-tenant-1', '2026-07-19T09:00:00.000Z'],
+      ['redact_game', 'f-tenant-2', '2026-07-20T09:00:00.000Z'],
+      ['user_disabled', 'f-tenant-1', '2026-07-21T09:00:00.000Z'],
+    ]) {
+      await repo.logModeration({
+        action, target: marker, reason: marker, at, tenantId,
+      });
+    }
+
+    const reasons = async (filters) => (await repo.listModeration(100, 0, filters)).map((e) => e.at);
+
+    // One tenant.
+    const byTenant = { tenantId: 'f-tenant-1' };
+    assert.equal(await repo.countModeration(byTenant), 3);
+    assert.equal((await repo.listModeration(100, 0, byTenant)).every((e) => e.tenantId === 'f-tenant-1'), true);
+
+    // One action, across tenants.
+    assert.equal(await repo.countModeration({ action: 'redact_game' }), 2);
+
+    // Combined filters are AND, not OR.
+    assert.equal(await repo.countModeration({ action: 'redact_game', tenantId: 'f-tenant-2' }), 1);
+
+    // Date bounds are INCLUSIVE at both ends — an entry exactly on the boundary
+    // instant must be inside the range, not silently dropped from the record.
+    const range = { from: '2026-07-19T00:00:00.000Z', to: '2026-07-20T23:59:59.999Z' };
+    assert.deepEqual(await reasons({ ...range, action: 'redact_game' }), [
+      '2026-07-20T09:00:00.000Z', '2026-07-19T09:00:00.000Z',
+    ]);
+    assert.equal(
+      await repo.countModeration({ from: '2026-07-20T09:00:00.000Z', to: '2026-07-20T09:00:00.000Z', target: null }),
+      1,
+    );
+
+    // The count must agree with the list, or the panel's "n von m" lies about
+    // what the "Mehr laden" button can still reach.
+    const combined = { tenantId: 'f-tenant-1', from: '2026-07-19T00:00:00.000Z' };
+    assert.equal(await repo.countModeration(combined), (await repo.listModeration(100, 0, combined)).length);
+
+    // Paging still partitions once a filter is on.
+    assert.deepEqual(
+      (await repo.listModeration(1, 1, byTenant)).map((e) => e.at),
+      [(await repo.listModeration(100, 0, byTenant))[1].at],
+    );
+
+    // No filter (and an all-empty filter) means everything — the pre-#275 call.
+    const all = await repo.countModeration();
+    assert.equal(await repo.countModeration({}), all);
+    assert.equal(await repo.countModeration({ tenantId: null, action: null, from: null, to: null }), all);
+  });
+
+  test('moderationActions lists the distinct action names present', async () => {
+    await repo.logModeration({
+      action: 'redact_member', target: 't', reason: 'r', at: '2026-07-21T12:00:00.000Z', tenantId: T,
+    });
+    const actions = await repo.moderationActions();
+    assert.ok(actions.includes('redact_member'));
+    // Distinct and sorted, so the panel's select has no duplicate options.
+    assert.deepEqual(actions, [...new Set(actions)].sort());
   });
 
   // Feedback (#260) is global and un-scoped like the moderation log, so it is
@@ -1029,6 +1222,37 @@ module.exports = function repoContract(repo) {
   // must answer in ONE shape, so the panel renders the same card either way —
   // the JSON backend has no schema, and says so, rather than throwing or
   // returning null and forcing a special case into the view.
+  // Sits AFTER the feedback cases rather than with the other #275 ones on
+  // purpose: this suite shares one dataset, and those cases assert absolute
+  // feedback counts, so creating an entry before them would break them.
+  test('redactText reaches another tenant\'s round and one feedback message', async () => {
+    // Cross-tenant IS the contract for an operator method — a notice about
+    // another tenant's round has to be actionable.
+    const theirs = await repo.createRound(OTHER, { name: 'Their bad name', members: ['Zoe'] });
+    const done = await repo.redactText({ kind: 'round', roundId: theirs.id, id: theirs.id }, '[x]');
+    assert.equal(done.previous, 'Their bad name');
+    assert.equal(done.tenantId, OTHER);
+    assert.equal((await repo.getRound(OTHER, theirs.id)).name, '[x]');
+
+    const fb = await repo.createFeedback({
+      message: 'illegal text',
+      context: { path: '/', locale: 'de', tenantId: OTHER },
+      createdAt: '2026-07-21T10:00:00.000Z',
+    });
+    const red = await repo.redactText({ kind: 'feedback', roundId: null, id: fb.id }, '[x]');
+    assert.equal(red.previous, 'illegal text');
+    // Feedback is global, so its tenant comes off the stored context.
+    assert.equal(red.tenantId, OTHER);
+    assert.equal(red.roundId, null);
+
+    const stored = (await repo.listFeedback(50)).find((f) => f.id === fb.id);
+    assert.equal(stored.message, '[x]');
+    // The rest of the entry is untouched — the redaction is one field, not the row.
+    assert.equal(stored.context.path, '/');
+
+    assert.equal(await repo.redactText({ kind: 'feedback', roundId: null, id: 'nope' }, '[x]'), null);
+  });
+
   test('migrationStatus reports the schema state in a backend-agnostic shape', async () => {
     const status = await repo.migrationStatus();
     assert.ok(['json', 'postgres'].includes(status.backend));

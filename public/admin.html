@@ -38,12 +38,12 @@
     h2 { font-size: 1rem; margin: 0 0 0.9rem; color: #aab2c4; font-weight: 600; }
     .sub { color: #8b93a6; font-size: 0.85rem; margin: 0 0 1.5rem; }
     label { display: block; font-size: 0.85rem; margin: 0.9rem 0 0.4rem; color: #aab2c4; }
-    input, textarea {
+    input, textarea, select {
       width: 100%; padding: 0.65rem 0.8rem; font-size: 0.95rem; border-radius: 10px;
       border: 1px solid #2c3240; background: #14161c; color: #e8eaf0;
       font-family: inherit;
     }
-    input:focus, textarea:focus { outline: 2px solid #6c7ae0; outline-offset: 1px; }
+    input:focus, textarea:focus, select:focus { outline: 2px solid #6c7ae0; outline-offset: 1px; }
     textarea { resize: vertical; min-height: 4.5rem; }
     button {
       margin-top: 1rem; padding: 0.65rem 1.1rem; font-size: 0.95rem; font-weight: 600;
@@ -77,6 +77,11 @@
     .scroll { overflow-x: auto; }
     /* "100 von 342" (#288) — a card must never hide entries silently. */
     .count { margin: -0.4rem 0 0.9rem; }
+    /* Filter bar (#275): inputs shrink to fit the row instead of filling it. */
+    .filters { gap: 0.5rem; margin-bottom: 0.9rem; }
+    .filters input, .filters select { width: auto; flex: 1 1 8rem; min-width: 7rem; padding: 0.4rem 0.55rem; font-size: 0.85rem; }
+    .totals { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; margin: 0.75rem 0 0; color: #aab2c4; font-size: 0.85rem; }
+    .totals b { color: #e8eaf0; font-weight: 600; }
     code { background: #14161c; padding: 0.1rem 0.35rem; border-radius: 6px; font-size: 0.85em; }
     [hidden] { display: none !important; }
   </style>
@@ -110,10 +115,20 @@
     </section>
 
     <section class="card">
-      <h2>Bild zuordnen</h2>
+      <h2>Zuordnen</h2>
+      <p class="sub" style="margin-bottom: 0.9rem;">
+        Eine Meldung nennt meist eine E-Mail-Adresse oder einen Rundenlink — nicht den Bildpfad.
+      </p>
       <form id="lookupForm">
-        <label for="image">Bildpfad</label>
-        <input id="image" placeholder="/uploads/abc123.jpg" required />
+        <label for="lookupBy">Suchen nach</label>
+        <select id="lookupBy">
+          <option value="image">Bildpfad</option>
+          <option value="round">Runden-ID</option>
+          <option value="email">E-Mail-Adresse</option>
+          <option value="tenant">Tenant-ID</option>
+        </select>
+        <label for="lookupValue" id="lookupValueLabel">Bildpfad</label>
+        <input id="lookupValue" placeholder="/uploads/abc123.jpg" required />
         <button type="submit">Suchen</button>
       </form>
       <div id="lookupResult" hidden></div>
@@ -121,7 +136,7 @@
     </section>
 
     <section class="card" id="takedownCard" hidden>
-      <h2>Entfernen</h2>
+      <h2>Bild entfernen</h2>
       <p class="sub" style="margin-bottom: 0;">
         Löscht das Objekt und entfernt die Referenz aus jedem Spiel. Nicht umkehrbar.
       </p>
@@ -131,6 +146,17 @@
         <button type="submit" class="danger">Endgültig entfernen</button>
       </form>
       <p class="msg" id="takedownMsg" role="alert" hidden></p>
+    </section>
+
+    <section class="card" id="contentCard" hidden>
+      <h2>Texte der Runde</h2>
+      <p class="sub" style="margin-bottom: 0.9rem;">
+        Von Nutzer:innen verfasste Texte. „Redigieren“ überschreibt den Text mit
+        <code>[entfernt]</code> und protokolliert den ursprünglichen Wortlaut —
+        es wird nichts gelöscht.
+      </p>
+      <div class="scroll"><table id="contentTable"><tbody></tbody></table></div>
+      <p class="msg" id="contentMsg" role="alert" hidden></p>
     </section>
 
     <section class="card">
@@ -152,6 +178,17 @@
 
     <section class="card">
       <h2>Protokoll</h2>
+      <!-- Filtering (#275): the log is also what gets handed over on a
+           law-enforcement request, where "every action ever" is the wrong
+           answer to a question about one account. -->
+      <div class="row filters">
+        <select id="logAction" aria-label="Aktion"><option value="">Alle Aktionen</option></select>
+        <input id="logTenant" placeholder="Tenant" aria-label="Tenant" />
+        <input id="logFrom" type="date" aria-label="Von" />
+        <input id="logTo" type="date" aria-label="Bis" />
+        <button class="ghost small" id="logApply">Filtern</button>
+        <button class="ghost small" id="logReset">Zurücksetzen</button>
+      </div>
       <p class="sub count" id="logCount" hidden></p>
       <div class="scroll"><table id="logTable"><tbody></tbody></table></div>
       <div class="row" style="margin-top: 1rem;">

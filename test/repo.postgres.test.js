@@ -21,6 +21,7 @@ if (!process.env.DATABASE_URL) {
   test('postgres backend contract (skipped: set DATABASE_URL to run)', { skip: true }, () => {});
 } else {
   const { Client } = require('pg');
+  const { execFileSync } = require('node:child_process');
   const repo = require('../lib/repo'); // DATABASE_URL is set -> Postgres backend
 
   before(async () => {
@@ -371,5 +372,125 @@ if (!process.env.DATABASE_URL) {
       await admin.query('DROP ROLE IF EXISTS gs_esc_probe').catch(() => {});
       await admin.end();
     }
+  });
+
+  // Redaction (#275) is the third operator WRITE, after takedown (#268) and
+  // erasure (#273), and it walks into the same trap as both — with a nastier
+  // failure mode than either.
+  //
+  // The reads it needs (findRoundOwner / tenantSummary / roundContent) are
+  // genuinely cross-tenant, so the tempting shape is to do the whole thing
+  // inside atx(). Under that shape, on a hardened (non-superuser) deploy:
+  //   - the SELECT succeeds     (the admin policy is FOR SELECT)
+  //   - the UPDATE matches ZERO rows (it consults only the tenant policy, which
+  //     contributes nothing when app.tenant_id is unset)
+  // and because redactText derives its return value from the row it READ, it
+  // would answer with a perfectly plausible { previous: 'the illegal title' },
+  // the route would write a moderation-log entry, and the panel would report
+  // success — while the reported content is still live for every user. A
+  // takedown that did not take anything down, on the record as done.
+  //
+  // The contract suite cannot catch it (superuser connection, RLS bypassed), so
+  // this pins the shape down through a plain role: admin-escape UPDATE = 0 rows,
+  // tenant-scoped UPDATE = 1 row, and the repo method actually changes the value.
+  test('redaction writes tenant-scoped, never under the read-only admin escape', async () => {
+    const assert = require('node:assert/strict');
+    const tenant = `pg-redact-${Math.random().toString(16).slice(2)}`;
+    const round = await repo.createRound(tenant, { name: 'Illegal round name', members: ['Ann'] });
+    const game = await repo.createGame(tenant, round.id, {
+      title: 'Illegal title', minPlayers: 1, maxPlayers: 4, image: null, source: null,
+    });
+
+    const admin = new Client({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+    });
+    await admin.connect();
+    try {
+      await admin.query('DROP ROLE IF EXISTS gs_redact_probe');
+      await admin.query("CREATE ROLE gs_redact_probe LOGIN PASSWORD 'probe'");
+      await admin.query('GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gs_redact_probe');
+      await admin.query('GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO gs_redact_probe');
+
+      const url = new URL(process.env.DATABASE_URL);
+      url.username = 'gs_redact_probe';
+      url.password = 'probe';
+      const probe = new Client({
+        connectionString: url.toString(),
+        ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+      });
+      await probe.connect();
+      try {
+        await probe.query('BEGIN');
+        await probe.query("SELECT set_config('app.admin', 'on', true)");
+        // The read the escape exists for still works — that is what makes the
+        // wrong shape look correct in review.
+        const seen = await probe.query('SELECT name FROM rounds WHERE id = $1', [round.id]);
+        assert.equal(seen.rows[0].name, 'Illegal round name', 'the escape must still read');
+        // …and the write silently does nothing.
+        const viaAdmin = await probe.query(
+          'UPDATE rounds SET name = $2 WHERE id = $1', [round.id, '[entfernt]'],
+        );
+        assert.equal(viaAdmin.rowCount, 0, 'the FOR SELECT admin escape must not update');
+        const viaAdminGame = await probe.query(
+          'UPDATE games SET data = data || \'{"title":"[entfernt]"}\'::jsonb WHERE id = $1', [game.id],
+        );
+        assert.equal(viaAdminGame.rowCount, 0, 'the FOR SELECT admin escape must not update games');
+        await probe.query('ROLLBACK');
+
+        // The path redactText actually uses does write.
+        await probe.query('BEGIN');
+        await probe.query("SELECT set_config('app.tenant_id', $1, true)", [tenant]);
+        const viaTenant = await probe.query(
+          'UPDATE rounds SET name = $2 WHERE id = $1', [round.id, '[entfernt]'],
+        );
+        assert.equal(viaTenant.rowCount, 1, 'the tenant-scoped path must update');
+        await probe.query('ROLLBACK'); // leave the row for the repo call below
+      } finally {
+        await probe.end();
+      }
+
+      // The decisive step — and the reason this probe is not just the erasure
+      // one again. Everything above proves the POLICY shape; none of it proves
+      // redactText USES the right path, because this file's own repo connection
+      // is a superuser that bypasses RLS entirely: a redactText rewritten onto
+      // atx() passes every assertion above and every case in the contract suite.
+      //
+      // So run the method itself as the plain role, in a child process, where
+      // lib/repo/postgres.js builds its knex against the probe connection. Under
+      // the wrong shape the SELECT still succeeds (FOR SELECT escape) so the
+      // child still prints a plausible `previous`, and the UPDATE silently
+      // matches nothing — which the stored-value assertion after this block is
+      // what catches. Verified by deliberately breaking redactText: this is the
+      // only assertion in the file that goes red.
+      const url2 = new URL(process.env.DATABASE_URL);
+      url2.username = 'gs_redact_probe';
+      url2.password = 'probe';
+      const child = execFileSync(process.execPath, ['-e', `
+        const repo = require(${JSON.stringify(require.resolve('../lib/repo/postgres'))});
+        repo.redactText(${JSON.stringify({ kind: 'game', roundId: round.id, id: game.id })}, '[entfernt]')
+          .then((out) => { console.log('RESULT:' + JSON.stringify(out)); return repo.end(); })
+          .catch((err) => { console.error(err.stack); process.exit(1); });
+      `], { env: { ...process.env, DATABASE_URL: url2.toString() }, encoding: 'utf8' });
+
+      const line = child.split('\n').find((l) => l.startsWith('RESULT:'));
+      assert.ok(line, `the probe child produced no result: ${child}`);
+      assert.equal(JSON.parse(line.slice('RESULT:'.length)).previous, 'Illegal title');
+    } finally {
+      await admin.query('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM gs_redact_probe').catch(() => {});
+      await admin.query('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM gs_redact_probe').catch(() => {});
+      await admin.query('DROP ROLE IF EXISTS gs_redact_probe').catch(() => {});
+      await admin.end();
+    }
+
+    // The value must actually have CHANGED, not merely been reported as changed.
+    const after = await repo.getRound(tenant, round.id);
+    assert.equal(after.games[0].title, '[entfernt]', 'the redaction did not land as a non-superuser');
+
+    // The cross-tenant reads resolve without any tenant scope in hand — that is
+    // the half the admin escape legitimately provides.
+    assert.equal((await repo.findRoundOwner(round.id)).tenantId, tenant);
+    assert.equal((await repo.tenantSummary(tenant)).totals.games, 1);
+    assert.equal((await repo.roundContent(round.id)).games[0].title, '[entfernt]');
   });
 }

@@ -133,8 +133,12 @@ test('image lookup resolves across tenants and takedown clears the reference', a
   await t.test('lookup names the game, round, tenant and account', async () => {
     const res = await request(app).get('/api/admin/lookup?image=/uploads/reported.jpg').set('Cookie', cookie);
     assert.equal(res.status, 200);
-    assert.equal(res.body.gameTitle, 'Reported Game');
-    assert.equal(res.body.roundName, 'Their round');
+    // The image-specific hit is nested under `owner` since #275 — the same
+    // response now also answers a round / e-mail / tenant lookup, which have no
+    // game or image to report.
+    assert.equal(res.body.by, 'image');
+    assert.equal(res.body.owner.gameTitle, 'Reported Game');
+    assert.equal(res.body.owner.roundName, 'Their round');
     assert.equal(res.body.tenantId, owner.user.tenantId);
     assert.deepEqual(res.body.users.map((u) => u.email), ['owner@example.com']);
   });
@@ -550,10 +554,13 @@ test('the list cards page and export the full set', async (t) => {
     assert.ok(!res.text.includes('"=cmd|'), 'a raw formula cell reached the file');
   });
 
-  await t.test('the log export carries the reason column', async () => {
+  await t.test('the log export carries the reason and the redacted original', async () => {
     const res = await request(app).get('/api/admin/log.csv').set('Cookie', cookie);
     assert.equal(res.status, 200);
-    assert.match(res.text, /"Zeitpunkt","Aktion","Ziel","Spiel","E-Mail","Tenant","Begründung"/);
+    // 'Vorher' (#275) holds the text a redaction overwrote. It exists nowhere
+    // else once the field is blanked, so an export without it is not a
+    // complete record of what was removed.
+    assert.match(res.text, /"Zeitpunkt","Aktion","Ziel","Spiel","E-Mail","Tenant","Vorher","Begründung"/);
   });
 });
 
@@ -571,6 +578,278 @@ function countCsvRecords(text) {
   }
   return records;
 }
+
+/*
+ * #275: the operator panel could only start from a cover path, and could only
+ * act on images. These cover the two halves that closes — finding a tenant the
+ * way a notice actually names one, and blanking user-authored TEXT.
+ */
+test('lookup resolves a tenant by round, e-mail or tenant id (#275)', async (t) => {
+  const cookie = await adminCookie();
+  const owner = await makeAccount('lookup@example.com');
+  const auth = (r) => r.set('Authorization', `Bearer ${owner.token}`);
+
+  const round = await auth(request(app).post('/api/rounds'))
+    .send({ name: 'Findable', members: ['Zoe', 'Ann'] });
+  const rid = round.body.id;
+  await auth(request(app).post(`/api/rounds/${rid}/games`))
+    .send({ title: 'Catan', minPlayers: 1, maxPlayers: 4 });
+
+  await t.test('exactly one selector is required', async () => {
+    for (const query of ['', '?image=/uploads/a.jpg&round=abc', '?round=a&tenant=b']) {
+      const res = await request(app).get(`/api/admin/lookup${query}`).set('Cookie', cookie);
+      assert.equal(res.status, 400, query || '(none)');
+    }
+  });
+
+  await t.test('a malformed id is rejected before any lookup', async () => {
+    for (const bad of ['../etc', 'a b', 'x/y']) {
+      const res = await request(app)
+        .get(`/api/admin/lookup?round=${encodeURIComponent(bad)}`).set('Cookie', cookie);
+      assert.equal(res.status, 400, bad);
+    }
+  });
+
+  await t.test('by round id: names the round and summarises the tenant', async () => {
+    const res = await request(app).get(`/api/admin/lookup?round=${rid}`).set('Cookie', cookie);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.by, 'round');
+    assert.equal(res.body.round.roundName, 'Findable');
+    assert.equal(res.body.tenantId, owner.user.tenantId);
+    // No image was named, so there is no owner to report — the takedown card
+    // keys off exactly this.
+    assert.equal(res.body.owner, null);
+
+    const row = res.body.summary.rounds.find((r) => r.id === rid);
+    assert.equal(row.games, 1);
+    assert.equal(row.members, 2);
+    assert.equal(res.body.summary.totals.rounds, 1);
+  });
+
+  await t.test('by e-mail: the same tenant, found the way a notice names it', async () => {
+    const res = await request(app)
+      .get('/api/admin/lookup?email=lookup@example.com').set('Cookie', cookie);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.tenantId, owner.user.tenantId);
+    assert.deepEqual(res.body.users.map((u) => u.email), ['lookup@example.com']);
+    // Case and padding must not decide whether an abuse report is actionable.
+    const loud = await request(app)
+      .get('/api/admin/lookup?email=%20LOOKUP%40example.com%20').set('Cookie', cookie);
+    assert.equal(loud.status, 200);
+    assert.equal(loud.body.tenantId, owner.user.tenantId);
+  });
+
+  await t.test('by tenant id: reports the quota ceilings alongside the usage', async () => {
+    const res = await request(app)
+      .get(`/api/admin/lookup?tenant=${owner.user.tenantId}`).set('Cookie', cookie);
+    assert.equal(res.status, 200);
+    // Accounts are on in this file, so the caps are live (lib/quota.js).
+    assert.equal(res.body.quota.enforced, true);
+    assert.equal(typeof res.body.quota.roundsPerTenant, 'number');
+    assert.equal(typeof res.body.quota.gamesPerRound, 'number');
+    assert.equal(typeof res.body.quota.tagsPerRound, 'number');
+    // Nothing was uploaded, so there is nothing of ours to size.
+    assert.deepEqual(res.body.uploads, {
+      count: 0, sized: 0, bytes: 0, complete: true,
+    });
+  });
+
+  await t.test('unknown selectors are 404s, not empty-but-plausible cards', async () => {
+    for (const query of ['round=deadbeef', 'email=nobody@example.com', 'tenant=nosuchtenant']) {
+      const res = await request(app).get(`/api/admin/lookup?${query}`).set('Cookie', cookie);
+      assert.equal(res.status, 404, query);
+    }
+  });
+
+  await t.test('content lists the round\'s user-authored text', async () => {
+    const res = await request(app).get(`/api/admin/content?round=${rid}`).set('Cookie', cookie);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.content.roundName, 'Findable');
+    assert.deepEqual(res.body.content.games.map((g) => g.title), ['Catan']);
+    assert.deepEqual(res.body.content.members.map((m) => m.name), ['Zoe', 'Ann']);
+
+    const missing = await request(app).get('/api/admin/content?round=deadbeef').set('Cookie', cookie);
+    assert.equal(missing.status, 404);
+  });
+});
+
+test('redaction blanks user text, logs the original and deletes nothing (#275)', async (t) => {
+  const cookie = await adminCookie();
+  const owner = await makeAccount('redact@example.com');
+  const auth = (r) => r.set('Authorization', `Bearer ${owner.token}`);
+
+  const round = await auth(request(app).post('/api/rounds'))
+    .send({ name: 'Offensive round name', members: ['Zoe'] });
+  const rid = round.body.id;
+  const game = await auth(request(app).post(`/api/rounds/${rid}/games`))
+    .send({ title: 'Offensive title', minPlayers: 1, maxPlayers: 4 });
+  const gid = game.body.id;
+  const tag = await auth(request(app).post(`/api/rounds/${rid}/tags`)).send({ name: 'Offensive tag' });
+
+  const redact = (body) => request(app).post('/api/admin/redact').set('Cookie', cookie).send(body);
+
+  await t.test('a reason is mandatory, as on every other logged action', async () => {
+    const res = await redact({ kind: 'game', roundId: rid, id: gid });
+    assert.equal(res.status, 400);
+  });
+
+  await t.test('an unknown kind is refused', async () => {
+    assert.equal((await redact({ kind: 'password', roundId: rid, id: gid, reason: 'x' })).status, 400);
+  });
+
+  await t.test('the required ids are enforced per kind', async () => {
+    // A non-feedback kind needs a round...
+    assert.equal((await redact({ kind: 'game', id: gid, reason: 'x' })).status, 400);
+    // ...and everything but a round needs a target id.
+    assert.equal((await redact({ kind: 'member', roundId: rid, reason: 'x' })).status, 400);
+  });
+
+  await t.test('a game title is blanked and the original lands in the log', async () => {
+    const res = await redact({
+      kind: 'game', roundId: rid, id: gid, reason: 'Notice 2026-07-21, illegal content',
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.redacted.previous, 'Offensive title');
+    assert.equal(res.body.redacted.replacement, '[entfernt]');
+
+    // The owner's own view shows the redaction...
+    const after = await auth(request(app).get(`/api/rounds/${rid}`));
+    const g = after.body.games.find((x) => x.id === gid);
+    assert.equal(g.title, '[entfernt]');
+    // ...and the game itself survives. Redaction blanks text; deleting data is
+    // erasure (#273) and stays a separate, harder act.
+    assert.equal(g.id, gid);
+    assert.equal(after.body.games.length, 1);
+
+    const log = await request(app).get('/api/admin/log').set('Cookie', cookie);
+    assert.equal(log.body.entries[0].action, 'redact_game');
+    assert.equal(log.body.entries[0].previous, 'Offensive title');
+    assert.equal(log.body.entries[0].tenantId, owner.user.tenantId);
+  });
+
+  await t.test('a round name redacts with no separate target id', async () => {
+    const res = await redact({ kind: 'round', roundId: rid, reason: 'Notice 2026-07-21' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.redacted.previous, 'Offensive round name');
+    const after = await auth(request(app).get(`/api/rounds/${rid}`));
+    assert.equal(after.body.name, '[entfernt]');
+  });
+
+  await t.test('a tag keeps its id, so no game loses a tag as a side effect', async () => {
+    await auth(request(app).patch(`/api/rounds/${rid}/games/${gid}`)).send({ tagIds: [tag.body.id] });
+
+    const res = await redact({ kind: 'tag', roundId: rid, id: tag.body.id, reason: 'Notice' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.redacted.previous, 'Offensive tag');
+
+    const after = await auth(request(app).get(`/api/rounds/${rid}`));
+    assert.equal(after.body.tags[0].name, '[entfernt]');
+    assert.equal(after.body.tags[0].id, tag.body.id);
+    assert.deepEqual(after.body.games.find((x) => x.id === gid).tagIds, [tag.body.id]);
+  });
+
+  await t.test('an unknown target is a 404, never a silent success', async () => {
+    assert.equal((await redact({ kind: 'game', roundId: rid, id: 'deadbeef', reason: 'x' })).status, 404);
+    assert.equal((await redact({ kind: 'round', roundId: 'deadbeef', reason: 'x' })).status, 404);
+    assert.equal((await redact({ kind: 'feedback', id: 'deadbeef', reason: 'x' })).status, 404);
+  });
+
+  await t.test('feedback text redacts by id alone, leaving the rest of the entry', async () => {
+    const posted = await request(app).post('/api/feedback')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ message: 'illegal feedback text' });
+    assert.equal(posted.status, 201);
+
+    const before = await request(app).get('/api/admin/feedback').set('Cookie', cookie);
+    const entry = before.body.entries[0];
+    assert.equal(entry.message, 'illegal feedback text');
+
+    const res = await redact({ kind: 'feedback', id: entry.id, reason: 'Notice' });
+    assert.equal(res.status, 200);
+    assert.equal(res.body.redacted.previous, 'illegal feedback text');
+
+    const after = await request(app).get('/api/admin/feedback').set('Cookie', cookie);
+    assert.equal(after.body.entries[0].message, '[entfernt]');
+    // One field, not the row: the context that makes the entry useful survives.
+    assert.equal(after.body.entries[0].context.path, entry.context.path);
+  });
+});
+
+test('the moderation log filters by tenant, action and date (#275)', async (t) => {
+  const cookie = await adminCookie();
+  const log = (query) => request(app).get(`/api/admin/log?${query}`).set('Cookie', cookie);
+
+  // Seeded straight through the repo: the point under test is the filtering,
+  // not the routes that happen to write entries.
+  for (const [action, tenantId, at] of [
+    ['takedown', 'filt-a', '2026-07-10T09:00:00.000Z'],
+    ['redact_game', 'filt-a', '2026-07-11T09:00:00.000Z'],
+    ['redact_game', 'filt-b', '2026-07-12T09:00:00.000Z'],
+  ]) {
+    await repo.logModeration({
+      action, target: 'seed', reason: 'seed', at, tenantId,
+    });
+  }
+
+  await t.test('by tenant, and the total counts the filtered set', async () => {
+    const res = await log('tenant=filt-a');
+    assert.equal(res.status, 200);
+    assert.equal(res.body.total, 2);
+    assert.equal(res.body.entries.length, 2);
+    assert.ok(res.body.entries.every((e) => e.tenantId === 'filt-a'));
+  });
+
+  await t.test('by action, across tenants', async () => {
+    // Windowed to the seeds above: earlier tests in this file redact things
+    // too, and those entries are stamped with the real clock.
+    const res = await log('action=redact_game&from=2026-07-10&to=2026-07-12');
+    assert.equal(res.body.total, 2);
+    assert.ok(res.body.entries.every((e) => e.action === 'redact_game'));
+    // The filter must not have quietly become tenant-scoped.
+    assert.deepEqual(res.body.entries.map((e) => e.tenantId), ['filt-b', 'filt-a']);
+  });
+
+  await t.test('filters combine as AND', async () => {
+    assert.equal((await log('action=redact_game&tenant=filt-b')).body.total, 1);
+  });
+
+  await t.test('a bare date bound covers the whole day at BOTH ends', async () => {
+    // The trap: to=2026-07-12 compared naively against an ISO timestamp would
+    // exclude everything that happened ON the 12th.
+    const res = await log('from=2026-07-11&to=2026-07-12');
+    assert.deepEqual(res.body.entries.map((e) => e.at), [
+      '2026-07-12T09:00:00.000Z', '2026-07-11T09:00:00.000Z',
+    ]);
+    const oneDay = await log('from=2026-07-12&to=2026-07-12');
+    assert.equal(oneDay.body.total, 1);
+  });
+
+  await t.test('a malformed date is refused rather than silently ignored', async () => {
+    for (const query of ['from=yesterday', 'to=2026-13', 'from=2026-07-11T00:00:00.000Z&to=nope']) {
+      const res = await log(query);
+      assert.equal(res.status, 400, query);
+    }
+  });
+
+  await t.test('the CSV export honours the same filters', async () => {
+    const res = await request(app).get('/api/admin/log.csv?tenant=filt-a').set('Cookie', cookie);
+    assert.equal(res.status, 200);
+    assert.ok(res.text.includes('filt-a'));
+    // An export that widened back to everything would leak unrelated tenants
+    // into a hand-over prepared for one.
+    assert.ok(!res.text.includes('filt-b'));
+
+    const bad = await request(app).get('/api/admin/log.csv?from=nope').set('Cookie', cookie);
+    assert.equal(bad.status, 400);
+  });
+
+  await t.test('the action list offers only values that can match', async () => {
+    const res = await request(app).get('/api/admin/log/actions').set('Cookie', cookie);
+    assert.equal(res.status, 200);
+    assert.ok(res.body.actions.includes('redact_game'));
+    assert.deepEqual(res.body.actions, [...new Set(res.body.actions)].sort());
+  });
+});
 
 test('with no ADMIN_PASSWORD the whole surface 404s', async () => {
   const saved = process.env.ADMIN_PASSWORD;

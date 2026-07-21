@@ -60,6 +60,16 @@ function fakeS3() {
         }
         return { Body: Readable.from(obj.body), ContentType: obj.contentType };
       }
+      // size() (#275) — a HEAD carries only the metadata, never the bytes.
+      if (name === 'HeadObjectCommand') {
+        const obj = objects.get(input.Key);
+        if (!obj) {
+          const err = new Error('NotFound');
+          err.name = 'NotFound';
+          throw err;
+        }
+        return { ContentLength: obj.body.length, ContentType: obj.contentType };
+      }
       throw new Error('unexpected command ' + name);
     },
   };
@@ -94,6 +104,20 @@ test('disk: serve streams the bytes, remove deletes them (404 after)', async () 
 test('disk: remove is a no-op for a missing/absent path (never throws)', async () => {
   await disk.remove(null);
   await disk.remove('/uploads/does-not-exist.png');
+});
+
+// size() backs the operator panel's per-tenant storage figure (#275). It is
+// best-effort by contract: an unreadable object must report "unknown" rather
+// than fail the whole lookup it is one line of.
+test('disk: size reports the bytes, and null for anything it cannot stat', async () => {
+  const p = await disk.save(PNG, '.png');
+  assert.equal(await disk.size(p), PNG.length);
+
+  assert.equal(await disk.size('/uploads/does-not-exist.png'), null);
+  assert.equal(await disk.size(null), null);
+
+  await disk.remove(p);
+  assert.equal(await disk.size(p), null);
 });
 
 /* ---------------------------------- s3 ------------------------------------ */
@@ -156,4 +180,39 @@ test('s3: remove swallows client errors (best effort)', async () => {
   const client = { async send() { throw new Error('network down'); } };
   const s3 = createS3Storage({ client, bucket: 'test-bucket' });
   await s3.remove('/uploads/x.png'); // must not throw
+});
+
+test('s3: size HEADs the prefixed key and degrades to null (#275)', async () => {
+  const { client } = fakeS3();
+  const s3 = createS3Storage({ client, bucket: 'test-bucket', prefix: 'covers/' });
+
+  const p = await s3.save(PNG, '.png');
+  assert.equal(await s3.size(p), PNG.length);
+  // The public path never carries the prefix, so size() must rebuild the key the
+  // same way serve/remove do — otherwise every object reads as "unknown" on a
+  // prefixed bucket and the panel silently reports 0 bytes.
+  assert.equal(await s3.size('/uploads/missing.png'), null);
+  assert.equal(await s3.size(null), null);
+});
+
+test('s3: size swallows client errors (best effort, like remove)', async () => {
+  const client = { async send() { throw new Error('network down'); } };
+  const s3 = createS3Storage({ client, bucket: 'test-bucket' });
+  assert.equal(await s3.size('/uploads/x.png'), null);
+});
+
+// The seam guard (lib/storage/index.js) applies to size() for the same reason it
+// applies to remove(): both backends take path.basename() of what they are
+// handed, so a hotlinked provider URL (#172) ending in '/pic123.jpg' would size
+// OUR object of that name and report a stranger's bytes as this tenant's.
+test('index: size ignores anything that is not a hosted /uploads path', async () => {
+  const storage = require('../lib/storage');
+  const p = await storage.save(PNG, '.png');
+  assert.equal(await storage.size(p), PNG.length);
+
+  assert.equal(await storage.size(`https://cf.geekdo-images.com/x/${path.basename(p)}`), null);
+  assert.equal(await storage.size('https://image.api.playstation.com/a/b.png'), null);
+  assert.equal(await storage.size(null), null);
+
+  await storage.remove(p);
 });
