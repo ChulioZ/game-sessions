@@ -16,15 +16,19 @@ function showStartSession(round) {
 
   const activeGames = round.games.filter((g) => !g.retired && !g.completed);
 
+  // These two headings label a group of buttons, not a form control, so they are
+  // <div class="label">, not <label> (#145): a <label> with no `for` and no
+  // wrapped input labels nothing at all. `aria-labelledby` on the group is what
+  // actually ties the text to the seats/chips.
   const form = h(`<div>
       <div class="field">
-        <label>${esc(t('startSession.membersLabel'))}</label>
+        <div class="field__label" id="seatsLabel">${esc(t('startSession.membersLabel'))}</div>
         <div id="seatMount"></div>
         <div class="muted field__hint center">${esc(t('startSession.membersNote'))}</div>
       </div>
       <div class="field" id="gamesFilterField" hidden>
-        <label>${esc(t('startSession.whichGames'))}</label>
-        <div class="filter-chips" id="filterChips"></div>
+        <div class="field__label" id="tagFilterLabel">${esc(t('startSession.whichGames'))}</div>
+        <div class="filter-chips" id="filterChips" role="group" aria-labelledby="tagFilterLabel"></div>
       </div>
       <div class="field">
         <label for="count">${esc(t('startSession.countLabel'))}</label>
@@ -87,7 +91,12 @@ function showStartSession(round) {
     )}</span><span class="pool-thumbs">${thumbs}${more}</span>`;
   };
   // Seats around the table: tap a member to toggle whether they join tonight.
-  form.querySelector('#seatMount').replaceWith(renderSeatPicker(round, joining, updateHint));
+  // The group attributes go on the table itself, not on #seatMount — replaceWith
+  // swaps the mount out, so anything set on it in the markup would be lost.
+  const seatTable = renderSeatPicker(round, joining, updateHint);
+  seatTable.setAttribute('role', 'group');
+  seatTable.setAttribute('aria-labelledby', 'seatsLabel');
+  form.querySelector('#seatMount').replaceWith(seatTable);
   updateHint();
 
   // Custom-tag chips (#238, tri-state #241) are the only game filter now (#242).
@@ -220,11 +229,11 @@ function startVoting(round, session, games, members) {
         <div class="vote__who">${esc(t('vote.who'))} <strong style="color:${color}">${esc(member.name)}</strong></div>
         <div class="vote__img" ${imgStyle}>${fallback}</div>
         <div class="vote__title">${esc(game.title)}</div>
-        <div class="vote__q">${esc(t('vote.question'))}</div>
-        <div class="rating"></div>
+        <div class="vote__q" id="voteQ">${esc(t('vote.question'))}</div>
+        <div class="rating" role="group" aria-labelledby="voteQ"></div>
         <div class="rating-scale"><span>${esc(t('vote.scaleLow'))}</span><span>${esc(t('vote.scaleHigh'))}</span></div>
         <div class="vote__sort">
-          <button class="sortBtn ${current.retire ? 'is-selected' : ''}"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('vote.suggestRetire'))}</button>
+          <button class="sortBtn ${current.retire ? 'is-selected' : ''}" aria-pressed="${!!current.retire}"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('vote.suggestRetire'))}</button>
         </div>
         <div class="vote__nav">
           <button class="btn" id="backBtn"><i class="ti ti-chevron-left" aria-hidden="true"></i> ${esc(t('vote.back'))}</button>
@@ -237,7 +246,12 @@ function startVoting(round, session, games, members) {
     const ratingEl = card.querySelector('.rating');
     for (let n = 1; n <= 5; n++) {
       const sel = current.rating === n;
-      const b = h(`<button class="mood${sel ? ' is-selected' : ''}" aria-label="${n}">
+      // aria-pressed carries the choice (#145): the selected face is otherwise
+      // marked only by its traffic-light fill, so nothing announced which rating
+      // was picked — on the app's central action. The label spells out the scale
+      // too; a bare "1" gave no hint of what the number meant or how far it ran.
+      const b = h(`<button class="mood${sel ? ' is-selected' : ''}"
+           aria-pressed="${sel}" aria-label="${esc(t('vote.ratingLabel', { n, max: 5 }))}">
            <i class="ti ${MOODS[n - 1]}" aria-hidden="true"></i><span class="mood__n">${n}</span>
          </button>`);
       if (sel) {
@@ -516,9 +530,11 @@ async function showResults(round, session, gamesHint, reveal) {
          <div class="row-finish" hidden></div>
        </div>`);
     // Title and cover open the game's detail page (the action buttons below
-    // live in sibling elements, so they keep working independently).
+    // live in sibling elements, so they keep working independently). The cover
+    // is flagged redundant: it targets the same game as the title beside it, so
+    // it stays mouse-clickable but is not a second (nameless) tab stop.
     makeGameLink(row.querySelector('.result-row__title'), round.id, g.id);
-    makeGameLink(row.querySelector('.result-row__img'), round.id, g.id);
+    makeGameLink(row.querySelector('.result-row__img'), round.id, g.id, { redundant: true });
     const sortBtn = row.querySelector('.sortflag-btn');
     if (sortBtn) {
       sortBtn.addEventListener('click', async () => {
@@ -637,7 +653,7 @@ async function showResults(round, session, gamesHint, reveal) {
     finishWrap.hidden = false;
     const chosenGame = games.find((g) => g.id === chosenId);
     finishWrap.appendChild(
-      h(`<h3>${finished ? iconText('ti-trophy', t('result.finishTitleDone')) : esc(t('result.finishTitle'))}</h3>`)
+      h(`<h2>${finished ? iconText('ti-trophy', t('result.finishTitleDone')) : esc(t('result.finishTitle'))}</h2>`)
     );
     // Finishing comes first and needs no winners; the winner picker only shows
     // up afterwards, so it can't read as a prerequisite (#254).

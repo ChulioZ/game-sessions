@@ -20,7 +20,10 @@ function renderRegalTab(round, activeGames) {
   activeGames.forEach((g) => (statsByGame[g.id] = gameStats(round, g.id)));
 
   const gamesSec = h('<div class="section"></div>');
-  const gamesHead = h(`<div class="section-head"><h3>${esc(t('games.title', { n: activeGames.length }))}</h3><div class="section-tools"></div></div>`);
+  // h1, not h3: on the Regal/Chronik/Pokale tabs this is the top-level heading of
+  // the view — only the Start tab renders the round-name hero (#145). The
+  // section-label look is unchanged; `.section-head :is(h1,h2,h3)` styles it.
+  const gamesHead = h(`<div class="section-head"><h1>${esc(t('games.title', { n: activeGames.length }))}</h1><div class="section-tools"></div></div>`);
   const gamesTools = gamesHead.querySelector('.section-tools');
   gamesSec.appendChild(gamesHead);
 
@@ -216,7 +219,7 @@ async function showMoveGames(round) {
 
   const onKey = (e) => { if (e.key === 'Escape') closeSheet(); };
   document.addEventListener('keydown', onKey, true);
-  activeSheet = { el: backdrop, onKey };
+  openSheet(backdrop, onKey);
   backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) closeSheet(); });
   form.querySelector('.sheet__close').addEventListener('click', closeSheet);
 
@@ -276,7 +279,7 @@ function renderChronikTab(round, activities) {
   entries.sort((a, b) => String(b.at).localeCompare(String(a.at)));
 
   const sec = h('<div class="section"></div>');
-  sec.appendChild(h(`<div class="section-head"><h3>${esc(t('chronik.title'))}</h3></div>`));
+  sec.appendChild(h(`<div class="section-head"><h1>${esc(t('chronik.title'))}</h1></div>`));
 
   // Filter chips: everything / sessions only / shelf changes only.
   let filter = 'all';
@@ -413,7 +416,7 @@ function renderPokaleTab(round) {
   const finished = round.sessions.filter((s) => s.finished);
 
   const sec = h('<div class="section"></div>');
-  sec.appendChild(h(`<div class="section-head"><h3>${esc(t('pokale.title'))}</h3></div>`));
+  sec.appendChild(h(`<div class="section-head"><h1>${esc(t('pokale.title'))}</h1></div>`));
 
   if (finished.length === 0) {
     sec.appendChild(h(`<div class="empty"><p>${esc(t('pokale.empty'))}</p></div>`));

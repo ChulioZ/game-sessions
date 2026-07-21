@@ -27,12 +27,24 @@ const esc = (s) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
   );
 
+// Toasts carry confirmations AND errors, so they must reach a screen reader
+// (#145). The element is an aria-live region declared in index.html, and it must
+// stay in the accessibility tree permanently for that to work: a live region
+// that is inserted (or un-`hidden`) with its text already in place is NOT
+// announced. So visibility is a class, never the `hidden` attribute — the empty
+// region sits in the tree and only its text content changes, which is exactly
+// the mutation aria-live listens for.
 let toastTimer;
 function toast(msg) {
   toastEl.textContent = msg;
-  toastEl.hidden = false;
+  toastEl.classList.add('is-on');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (toastEl.hidden = true), 2200);
+  toastTimer = setTimeout(() => {
+    toastEl.classList.remove('is-on');
+    // Clear the text too, so the next identical message is still a change the
+    // live region reports rather than a no-op mutation.
+    toastEl.textContent = '';
+  }, 2200);
 }
 
 async function api(method, url, body, _retried) {
@@ -180,12 +192,20 @@ function joinNames(names) {
 
 // Texts that live outside the rendered views (top bar). Re-applied on language change.
 function applyStaticTexts() {
-  document.getElementById('homeBtn').innerHTML =
+  const home = document.getElementById('homeBtn');
+  home.innerHTML =
     `<i class="ti ti-tornado" aria-hidden="true"></i> <span class="topbar__word">${esc(t('app.title'))}</span>`;
-  // The feedback button is icon-only, so its accessible name is the only thing a
-  // screen reader announces — localize it here (this runs on locale init AND on
-  // every change) rather than leaving the static English label from index.html.
+  // These controls are icon-only (or, for the picker, unlabelled), so the
+  // aria-label is the ONLY thing a screen reader announces. index.html can only
+  // carry one hardcoded language, so every one of them is localized here — this
+  // runs on locale init AND on every change. Leaving the static markup in place
+  // announced "Home"/"Language"/"Account" in English over an otherwise German UI
+  // (#145); only the feedback button was being localized.
+  home.setAttribute('aria-label', t('a11y.home'));
+  document.getElementById('langPicker').setAttribute('aria-label', t('a11y.language'));
   document.getElementById('feedbackBtn').setAttribute('aria-label', t('feedback.button'));
+  document.getElementById('accountBtn').setAttribute('aria-label', t('a11y.account'));
+  crumbs.setAttribute('aria-label', t('a11y.breadcrumb'));
 }
 
 // Language picker in the top bar.
@@ -385,6 +405,20 @@ const minimizedRecs = new Set();
 
 const STANDARD_ACCENT = '#c2410c';
 
+// The accent a stored design should actually paint with. Rounds save a snapshot
+// of the palette, so when a theme's accent is corrected — as Sand and Pfirsich
+// were for contrast (#145) — a round that picked it earlier still carries the
+// old, failing value. Resolving against the current THEMES on every render fixes
+// those rounds the next time they are drawn, which is the same render-time (not
+// capture-time) approach cover sizing takes and keeps the repo free of one-time
+// migration code (CLAUDE.md). An unknown page — a legacy or hand-edited design —
+// keeps whatever was stored. THEMES lives in a later-loaded file and is only
+// read here at call time, which the load order allows.
+function resolveAccent(bg) {
+  const theme = THEMES.find((th) => th.page.toLowerCase() === String(bg.page).toLowerCase());
+  return theme ? theme.accent : bg.accent;
+}
+
 // Apply the round's design: page background + accent color. Everything else —
 // placeholders, borders, accent surfaces, the page glow and the finale stage —
 // derives from these two custom properties via CSS color-mix (see styles.css).
@@ -392,7 +426,7 @@ function applyBackground(bg) {
   const root = document.documentElement.style;
   if (bg && bg.type === 'theme' && bg.page && bg.accent) {
     root.setProperty('--page-bg', bg.page);
-    root.setProperty('--brand', bg.accent);
+    root.setProperty('--brand', resolveAccent(bg));
   } else if (bg && bg.type === 'color' && bg.color) {
     // Legacy stored design: only a page color, standard accent.
     root.setProperty('--page-bg', bg.color);
@@ -405,22 +439,34 @@ function applyBackground(bg) {
 }
 
 // Color for an average 1–5: red (bad) → yellow → green (good).
+// The lightness is 30%, not the more obvious 42%, for contrast (#145): the scale
+// is used BOTH as a fill under white text (.score-pill) and as text/stroke on the
+// page (.gd-ring__num, the ring). At 42% the yellow-green middle only reached
+// 2.4:1 under white — every rating badge in the app failed WCAG AA. 30% is the
+// lightest value that clears 4.5:1 under white across the whole hue range (worst
+// case 4.5 at avg 3.0) while the ring still clears the 3:1 large-text bar on
+// every theme page. The hue is untouched, so the red→yellow→green reading is
+// unchanged; don't lighten it back without re-checking both uses.
 function avgColor(avg) {
   const hue = Math.max(0, Math.min(120, ((avg - 1) / 4) * 120));
-  return `hsl(${hue}, 60%, 42%)`;
+  return `hsl(${hue}, 60%, 30%)`;
 }
 
 // Fixed, friendly palette for member avatars. A member keeps "their" color
 // everywhere in the app; assignment is by position in round.members, which is
 // append-only, so colors stay stable for the life of the round.
+// Every entry carries white initials (.avatar, .nr-seat__avatar), so each one is
+// tuned to clear 4.5:1 against white (#145 — the original palette sat at
+// 3.4–3.9:1). Hues are the originals; six were darkened 7–15% to reach the bar,
+// slate blue and berry already cleared it. Keep any new color at ≥4.5:1 on white.
 const MEMBER_COLORS = [
-  '#d85a30', // coral
-  '#1d9e75', // teal
-  '#7f77dd', // violet
-  '#ba7517', // amber
-  '#d4537e', // pink
+  '#c6522c', // coral
+  '#198663', // teal
+  '#726bc7', // violet
+  '#a66815', // amber
+  '#c34d74', // pink
   '#2f6f9e', // slate blue
-  '#639922', // green
+  '#54821d', // green
   '#993556', // berry
 ];
 function memberColor(round, memberId) {
@@ -458,7 +504,12 @@ function renderSeatPicker(round, joining, onChange) {
     round.members.forEach((m, i) => {
       const angle = ((-90 + (i * 360) / round.members.length) * Math.PI) / 180;
       const joined = joining.has(m.id);
-      const seat = h(`<button type="button" class="nr-seat${joined ? '' : ' nr-seat--out'}" title="${esc(m.name)}">
+      // aria-pressed carries the in/out state (#145). Without it the seat is
+      // announced as a bare name and whether that member is playing tonight is
+      // conveyed by color and a "+" glyph alone — unusable without sight, on the
+      // control that decides who is in the session.
+      const seat = h(`<button type="button" class="nr-seat${joined ? '' : ' nr-seat--out'}"
+           aria-pressed="${joined}" title="${esc(m.name)}">
            <span class="nr-seat__avatar"${joined ? ` style="background:${memberColor(round, m.id)}"` : ''}>${
              joined ? esc(initials(m.name)) : '<i class="ti ti-plus" aria-hidden="true"></i>'
            }</span>
@@ -486,7 +537,9 @@ function renderSeatPicker(round, joining, onChange) {
 // Accent color of a round's stored design (fallback: the standard accent).
 // Works with both the full round object and the home-screen summary.
 function themeAccent(bg) {
-  return bg && bg.type === 'theme' && bg.accent ? bg.accent : STANDARD_ACCENT;
+  // Same normalization as applyBackground, so a home-screen emblem never shows a
+  // different accent than the round screen it opens.
+  return bg && bg.type === 'theme' && bg.accent ? resolveAccent(bg) : STANDARD_ACCENT;
 }
 
 // --- Anchored popover (small floating menu next to a clicked element) ---
@@ -610,10 +663,21 @@ function createCoverLoader() {
 // affordance (the `.game-link` class carries cursor/hover/focus styling).
 // Used from the session results and Pokale screens; `showGameDetail` is
 // resolved at call time (it lives in a later-loaded script).
-function makeGameLink(el, rid, gid) {
+//
+// `opts.redundant` marks a link that only repeats an adjacent one pointing at
+// the same game — a cover thumbnail next to its own title (#145). It stays
+// clickable with the mouse but leaves the tab order and the accessibility tree,
+// because the alternative is a second, *nameless* "button" on every result row:
+// an image element has no text, so it announced as an unlabelled control.
+function makeGameLink(el, rid, gid, opts) {
   el.classList.add('game-link');
-  el.setAttribute('role', 'button');
-  el.setAttribute('tabindex', '0');
+  if (opts && opts.redundant) {
+    el.setAttribute('aria-hidden', 'true');
+    el.setAttribute('tabindex', '-1');
+  } else {
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+  }
   el.addEventListener('click', () => showGameDetail(rid, gid));
   el.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {

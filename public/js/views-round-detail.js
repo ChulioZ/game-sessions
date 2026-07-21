@@ -12,9 +12,14 @@ const THEMES = [
   { labelKey: 'theme.salbei', page: '#eaf1ea', accent: '#397a4b' },
   { labelKey: 'theme.rose', page: '#f6ecf1', accent: '#b23a72' },
   { labelKey: 'theme.lavendel', page: '#efedf8', accent: '#6d55c4' },
-  { labelKey: 'theme.sand', page: '#f6efe2', accent: '#a2701d' },
+  // Sand and Pfirsich were darkened for contrast (#145): the accent is not just
+  // a fill, it is also link/breadcrumb TEXT on the page (`--brand`), and at
+  // #a2701d / #c95633 those two sat at 3.8:1 — so picking either theme put every
+  // link in the app below AA. Both now clear 4.5:1 on their own page and on
+  // white. Any new theme has to clear both; test/a11y-contrast.test.js checks it.
+  { labelKey: 'theme.sand', page: '#f6efe2', accent: '#91641a' },
   { labelKey: 'theme.schiefer', page: '#e9eef3', accent: '#33688f' },
-  { labelKey: 'theme.pfirsich', page: '#f8ede6', accent: '#c95633' },
+  { labelKey: 'theme.pfirsich', page: '#f8ede6', accent: '#b34d2e' },
 ];
 
 async function showBackground(rid) {
@@ -34,7 +39,7 @@ async function showBackground(rid) {
   app.innerHTML = '';
   app.appendChild(h(`<div class="page-head"><h1>${esc(t('design.title'))}</h1></div>`));
 
-  const sec = h(`<div class="section"><h3>${esc(t('design.scheme'))}</h3></div>`);
+  const sec = h(`<div class="section"><h2>${esc(t('design.scheme'))}</h2></div>`);
   sec.appendChild(
     h(`<div class="muted" style="margin-bottom:14px">${esc(t('design.note'))}</div>`)
   );
@@ -102,7 +107,8 @@ async function showTags(rid) {
   sec.appendChild(h(`<div class="muted" style="margin-bottom:14px">${esc(t('tags.note'))}</div>`));
 
   const addRow = h(`<div class="toolbar" style="margin-bottom:14px">
-       <input class="input" style="flex:1" maxlength="30" placeholder="${esc(t('tags.addPlaceholder'))}" />
+       <input class="input" style="flex:1" maxlength="30" placeholder="${esc(t('tags.addPlaceholder'))}"
+              aria-label="${esc(t('tags.addPlaceholder'))}" />
        <button class="btn btn--primary"><i class="ti ti-plus" aria-hidden="true"></i> ${esc(t('tags.add'))}</button>
      </div>`);
   const input = addRow.querySelector('input');
@@ -620,7 +626,7 @@ async function showGameDetail(rid, gameId) {
          <div class="gd-onboard__head">
            <i class="ti ti-sparkles gd-onboard__icon" aria-hidden="true"></i>
            <div>
-             <h3>${esc(t('detail.onboard.title'))}</h3>
+             <h2>${esc(t('detail.onboard.title'))}</h2>
              <p class="muted">${esc(t('detail.onboard.text'))}</p>
            </div>
          </div>
@@ -679,7 +685,7 @@ async function showGameDetail(rid, gameId) {
   // On a sparse page the section is omitted entirely: the onboarding panel
   // already explains that ratings and sessions appear once the game is played,
   // so a heading over one line of muted text only adds to the emptiness.
-  const sec = h(`<div class="section"><h3>${esc(t('detail.relatedTitle'))}</h3></div>`);
+  const sec = h(`<div class="section"><h2>${esc(t('detail.relatedTitle'))}</h2></div>`);
   if (related.length === 0) {
     sec.appendChild(h(`<div class="muted">${esc(t('detail.relatedEmpty'))}</div>`));
   } else {
@@ -731,10 +737,25 @@ async function showGameDetail(rid, gameId) {
 
 // The active sheet (backdrop element), so navigation/reopen can close it.
 let activeSheet = null;
+
+// Register a just-appended sheet as the active one and contain the keyboard in
+// it (#145). Every sheet is aria-modal, which only constrains a screen reader —
+// without trapFocus, Tab walked out of the dialog into the page behind the
+// backdrop. Call this instead of assigning `activeSheet` directly, so no sheet
+// can be added later that silently misses the trap.
+function openSheet(backdrop, onKey) {
+  const release = trapFocus(backdrop);
+  activeSheet = { el: backdrop, onKey, release };
+}
+
 function closeSheet() {
   if (!activeSheet) return;
   document.removeEventListener('keydown', activeSheet.onKey, true);
   activeSheet.el.remove();
+  // Release AFTER removing the sheet: the trap restores focus to the opener, and
+  // focusing an element inside a still-attached, about-to-vanish dialog would be
+  // undone a moment later.
+  if (activeSheet.release) activeSheet.release();
   activeSheet = null;
 }
 

@@ -278,6 +278,9 @@ I18N.en = {
   'vote.back': 'Back',
   'vote.who': 'Now rating:',
   'vote.question': 'How much would you like to play this?',
+  // Spoken label for the 1–5 mood buttons — the visible face/number alone says
+  // nothing about the scale to a screen reader (#145).
+  'vote.ratingLabel': '{n} out of {max}',
   'vote.scaleLow': 'not at all',
   'vote.scaleHigh': 'absolutely',
   'vote.suggestRetire': 'Suggest retiring',
@@ -440,6 +443,13 @@ I18N.en = {
   'auth.error.network': 'Something went wrong. Please try again.',
   'auth.error.invalidEmail': 'Please enter a valid e-mail address.',
   'auth.error.shortPassword': 'Password must be at least 8 characters.',
+
+  // Accessible names for the icon-only top bar and the two landmark navs (#145).
+  'a11y.home': 'Go to home screen',
+  'a11y.language': 'Language',
+  'a11y.account': 'Account',
+  'a11y.breadcrumb': 'Breadcrumb',
+  'a11y.hubTabs': 'Round sections',
 
   'feedback.button': 'Feedback',
   'feedback.title': 'Your feedback',

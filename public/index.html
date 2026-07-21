@@ -35,8 +35,10 @@
     <!-- Content is rendered by the js/* files -->
   </main>
 
-  <!-- small toast for feedback -->
-  <div id="toast" class="toast" hidden></div>
+  <!-- Small toast for feedback. A permanent aria-live region (#145): it stays in
+       the accessibility tree and is shown/hidden with a class, because a live
+       region that only appears together with its text is never announced. -->
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
   <!-- Order matters: i18n + languages first, core next, main (bootstrap) last. -->
   <script src="/js/i18n.js"></script>
@@ -46,6 +48,7 @@
   <script src="/js/cover-size.js"></script>
   <script src="/js/tag-icons.js"></script>
   <script src="/js/swr.js"></script>
+  <script src="/js/focus-trap.js"></script>
   <script src="/js/core.js"></script>
   <script src="/js/account.js"></script>
   <script src="/js/ranking.js"></script>

@@ -278,6 +278,9 @@ I18N.de = {
   'vote.back': 'Zurück',
   'vote.who': 'Es bewertet:',
   'vote.question': 'Wie gern möchtest du das spielen?',
+  // Spoken label for the 1–5 mood buttons — the visible face/number alone says
+  // nothing about the scale to a screen reader (#145).
+  'vote.ratingLabel': '{n} von {max}',
   'vote.scaleLow': 'gar nicht',
   'vote.scaleHigh': 'unbedingt',
   'vote.suggestRetire': 'Aussortieren vorschlagen',
@@ -440,6 +443,13 @@ I18N.de = {
   'auth.error.network': 'Etwas ist schiefgelaufen. Bitte versuche es erneut.',
   'auth.error.invalidEmail': 'Bitte gib eine gültige E-Mail-Adresse ein.',
   'auth.error.shortPassword': 'Das Passwort muss mindestens 8 Zeichen haben.',
+
+  // Accessible names for the icon-only top bar and the two landmark navs (#145).
+  'a11y.home': 'Zur Startseite',
+  'a11y.language': 'Sprache',
+  'a11y.account': 'Konto',
+  'a11y.breadcrumb': 'Brotkrümelnavigation',
+  'a11y.hubTabs': 'Rundenbereiche',
 
   'feedback.button': 'Feedback',
   'feedback.title': 'Dein Feedback',
