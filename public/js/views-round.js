@@ -51,12 +51,16 @@ function renderHubDock(rid, activeTab) {
     { id: 'chronik', icon: 'ti-history', label: t('hub.tab.chronik') },
     { id: 'pokale', icon: 'ti-trophy', label: t('hub.tab.pokale') },
   ];
-  const dock = h('<nav class="dock"></nav>');
+  const dock = h(`<nav class="dock" aria-label="${esc(t('a11y.hubTabs'))}"></nav>`);
   tabs.forEach(({ id: tabId, icon, label }) => {
-    const item = h(`<button class="dock__item${tabId === activeTab ? ' is-active' : ''}">
+    // aria-current marks the tab you are on (#145). It was signalled by the
+    // is-active class alone, i.e. by color — and since the active tab also has
+    // no click handler, a screen-reader user met a dead button with no clue why.
+    const active = tabId === activeTab;
+    const item = h(`<button class="dock__item${active ? ' is-active' : ''}"${active ? ' aria-current="page"' : ''}>
          <i class="ti ${icon}" aria-hidden="true"></i>${esc(label)}
        </button>`);
-    if (tabId !== activeTab) item.addEventListener('click', () => showRound(rid, tabId));
+    if (!active) item.addEventListener('click', () => showRound(rid, tabId));
     dock.appendChild(item);
   });
   app.appendChild(dock);

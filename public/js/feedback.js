@@ -55,7 +55,7 @@ function showFeedback() {
 
   const onKey = (e) => { if (e.key === 'Escape') closeSheet(); };
   document.addEventListener('keydown', onKey, true);
-  activeSheet = { el: backdrop, onKey };
+  openSheet(backdrop, onKey);
   backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) closeSheet(); });
   sheet.querySelector('.sheet__close').addEventListener('click', closeSheet);
 

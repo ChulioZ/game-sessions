@@ -45,9 +45,17 @@
 
   --ink: #2b2620;
   --ink-soft: #6b6358;
-  --good: #16a34a;
-  --warn: #b45309;
-  --danger: #dc2626;
+  /* All three are used as TEXT, and not only on white --surface: `.link-btn`
+     ("Session löschen", "Aus Session entfernen") sits straight on the page. So
+     the bar each has to clear is 4.5:1 against the DARKEST theme page, Schiefer
+     #e9eef3 — measuring against white alone is too lenient and was how --good
+     (3.3:1 on white) and, less obviously, --warn and --danger (4.3/4.1:1 on
+     Schiefer) all shipped below AA (#145). These three land at 4.54–4.55:1
+     there. Re-check against the darkest THEMES page, not white, if you retune
+     them or add a darker theme. */
+  --good: #117c38;
+  --warn: #ae5009;
+  --danger: #d02424;
 
   /* Trophies, crowns, winners: one gold family across the app. */
   --gold: #d99a06;
@@ -347,7 +355,10 @@ h1, h2, h3 { font-family: var(--font-display); }
 }
 
 .section { margin-top: 32px; }
-.section h3 {
+/* Matches h1/h2/h3 alike: the heading LEVEL is chosen for document structure
+   (#145 — the hub tabs needed an h1, sub-sections an h2), the look is the
+   section-label style regardless. Don't narrow this back to a single tag. */
+.section :is(h1, h2, h3) {
   font-size: 16px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -362,7 +373,7 @@ h1, h2, h3 { font-family: var(--font-display); }
   margin-bottom: 12px;
   flex-wrap: wrap;
 }
-.section-head h3 { margin: 0; }
+.section-head :is(h1, h2, h3) { margin: 0; }
 .section-toggle {
   flex: none;
   border: none;
@@ -503,7 +514,7 @@ h1, h2, h3 { font-family: var(--font-display); }
   gap: 6px;
 }
 .card:hover { box-shadow: var(--shadow); transform: translateY(-2px) rotate(-0.3deg); }
-.card h3 { font-size: 20px; margin: 0; text-transform: none; letter-spacing: 0; color: var(--ink); }
+.card :is(h2, h3) { font-size: 20px; margin: 0; text-transform: none; letter-spacing: 0; color: var(--ink); }
 .card__meta { color: var(--ink-soft); font-size: 15px; }
 .card__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 
@@ -1037,7 +1048,9 @@ h1, h2, h3 { font-family: var(--font-display); }
 
 /* ---- Formulare ---- */
 .field { margin-bottom: 18px; }
-.field label { display: block; font-weight: 600; margin-bottom: 6px; }
+/* .field__label is the same look for a heading that labels a GROUP of buttons
+   rather than a form control — a bare <label> there labels nothing (#145). */
+.field label, .field .field__label { display: block; font-weight: 600; margin-bottom: 6px; }
 .input, .select {
   width: 100%;
   font-family: inherit;
@@ -1358,7 +1371,7 @@ body.auth-screen .crumbs { display: none; }
   border-top: 1px dashed var(--brand-edge);
   padding-top: 14px;
 }
-.row-finish h3 { margin: 0 0 6px; }
+.row-finish :is(h2, h3) { margin: 0 0 6px; }
 .member-chips { display: flex; flex-wrap: wrap; gap: 10px; }
 .member-chip {
   font-family: var(--font-display);
@@ -1486,7 +1499,7 @@ body.auth-screen .crumbs { display: none; }
 }
 .gd-onboard__head { display: flex; gap: 14px; align-items: flex-start; }
 .gd-onboard__icon { font-size: 26px; color: var(--brand-dark); flex: none; line-height: 1.2; }
-.gd-onboard h3 { margin: 0 0 4px; font-size: 19px; }
+.gd-onboard :is(h2, h3) { margin: 0 0 4px; font-size: 19px; }
 .gd-onboard p { margin: 0; max-width: 62ch; line-height: 1.55; }
 .gd-onboard__acts { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 0 40px; }
 @media (max-width: 520px) {
@@ -1654,6 +1667,9 @@ body.auth-screen .crumbs { display: none; }
 
 
 /* ---- Toast ---- */
+/* Hidden by default via the class, NOT the `hidden` attribute: the element is a
+   permanent aria-live region (#145) and must stay in the accessibility tree, so
+   only `.is-on` decides whether it is painted. */
 .toast {
   position: fixed;
   bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -1661,7 +1677,9 @@ body.auth-screen .crumbs { display: none; }
   padding: 12px 22px; border-radius: 999px;
   box-shadow: var(--shadow); font-weight: 600;
   z-index: 50;
+  display: none;
 }
+.toast.is-on { display: block; }
 
 /* ---- Diverses ---- */
 .spacer { height: 12px; }

@@ -27,6 +27,8 @@ const frontendGlobals = {
   swrStore: 'readonly', swrRenderToken: 'writable', uiBusy: 'readonly',
   // swr.js
   createSwrStore: 'readonly',
+  // focus-trap.js
+  trapFocus: 'readonly', focusables: 'readonly', FOCUSABLE: 'readonly',
   applyStaticTexts: 'readonly', setupLangPicker: 'readonly', gamesSort: 'writable',
   regalFilters: 'writable', regalFiltersRid: 'writable',
   TAG_STATES: 'readonly', cycleTagState: 'readonly',
@@ -39,7 +41,7 @@ const frontendGlobals = {
   applyBackground: 'readonly', avgColor: 'readonly',
   MEMBER_COLORS: 'readonly', memberColor: 'readonly', initials: 'readonly',
   renderSeatPicker: 'readonly',
-  themeAccent: 'readonly',
+  themeAccent: 'readonly', resolveAccent: 'readonly',
   activePopover: 'writable', closePopover: 'readonly', openPopover: 'readonly',
   readClipboardImage: 'readonly', shuffled: 'readonly', iconText: 'readonly',
   createCoverLoader: 'readonly',
@@ -80,7 +82,8 @@ const frontendGlobals = {
   showTags: 'readonly', showMoveGames: 'readonly', showProviders: 'readonly',
   HUB_TABS: 'readonly', renderHubDock: 'readonly', renderStartTab: 'readonly',
   renderRegalTab: 'readonly', renderChronikTab: 'readonly', renderPokaleTab: 'readonly',
-  activeSheet: 'writable', closeSheet: 'readonly', startDirectSession: 'readonly',
+  activeSheet: 'writable', closeSheet: 'readonly', openSheet: 'readonly',
+  startDirectSession: 'readonly',
   showLinkProvider: 'readonly', attachLookup: 'readonly', searchProvider: 'readonly',
   enabledProviders: 'readonly', lookupDetail: 'readonly',
   scoreHit: 'readonly', providerLabel: 'readonly',

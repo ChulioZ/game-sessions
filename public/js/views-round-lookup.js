@@ -310,7 +310,7 @@ function showAddGame(round) {
     if (e.key === 'Escape') dismiss();
   };
   document.addEventListener('keydown', onKey, true);
-  activeSheet = { el: backdrop, onKey };
+  openSheet(backdrop, onKey);
   backdrop.addEventListener('mousedown', (e) => {
     if (e.target === backdrop) dismiss();
   });
@@ -560,7 +560,7 @@ function showLinkProvider(round, game) {
 
   const onKey = (e) => { if (e.key === 'Escape') closeSheet(); };
   document.addEventListener('keydown', onKey, true);
-  activeSheet = { el: backdrop, onKey };
+  openSheet(backdrop, onKey);
   backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) closeSheet(); });
   form.querySelector('.sheet__close').addEventListener('click', closeSheet);
 
@@ -732,7 +732,7 @@ function startDirectSession(round, game) {
   const dismiss = () => closeSheet();
   const onKey = (e) => { if (e.key === 'Escape') dismiss(); };
   document.addEventListener('keydown', onKey, true);
-  activeSheet = { el: backdrop, onKey };
+  openSheet(backdrop, onKey);
   backdrop.addEventListener('mousedown', (e) => {
     if (e.target === backdrop) dismiss();
   });

@@ -125,7 +125,7 @@ async function showMember(rid, mid) {
 
   // Color picker: the curated MEMBER_COLORS palette (no free hex).
   const colorSec = h(`<div class="section">
-       <h3>${esc(t('member.colorLabel'))}</h3>
+       <h2>${esc(t('member.colorLabel'))}</h2>
        <div class="member-swatches"></div>
      </div>`);
   const swatches = colorSec.querySelector('.member-swatches');
@@ -142,7 +142,7 @@ async function showMember(rid, mid) {
   // Statistics, computed on demand from the sessions.
   const st = memberStats(round, mid);
   const statsSec = h(`<div class="section">
-       <h3>${esc(t('member.statsTitle'))}</h3>
+       <h2>${esc(t('member.statsTitle'))}</h2>
        <div class="pokale-cards"></div>
      </div>`);
   if (st.joined === 0) {
