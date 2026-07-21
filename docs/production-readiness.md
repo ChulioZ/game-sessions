@@ -1,14 +1,14 @@
 # Production readiness: status, decisions & roadmap
 
 > Originated as issue #40's gap analysis for "local-only → publicly hosted."
-> Phases 1 and 2 below (the hard blockers) have since **shipped** — this doc is
-> now the living record of what was decided and why, kept current as work
-> lands, not a one-off report. Sections describing already-shipped work are
-> deliberately short **pointers to the code / `.claude/rules/` file that now
-> owns the operative detail** — read those, not this doc, for how something
-> works today. Sections describing still-open decisions (legal, branding,
-> Phase 1.5 hardening) stay in full, since nothing else captures that
-> reasoning yet.
+> The going-live spine and the SaaS blockers below (the hard blockers) have
+> since **shipped** — this doc is now the living record of what was decided
+> and why, kept current as work lands, not a one-off report. Sections
+> describing already-shipped work are deliberately short **pointers to the
+> code / `.claude/rules/` file that now owns the operative detail** — read
+> those, not this doc, for how something works today. Sections describing
+> still-open decisions (legal, branding, the remaining go-live blockers) stay
+> in full, since nothing else captures that reasoning yet.
 >
 > The Legal section (§9) is **research, not legal advice**; the Branding
 > section's (§10) domain-availability checks are a snapshot, **not** a
@@ -28,7 +28,7 @@
 - **The three hard blockers — all shipped (2026-07-19):** (1) authentication +
   authorization on every route, (2) a real database replacing the
   process-local in-memory store, (3) transport security + production hosting
-  (#127–#133, live on Railway — §12 Phase 1). What remains before opening
+  (#127–#133, live on Railway — see §12's shipped list). What remains before opening
   **public** sign-up is the legal pack (Impressum #134, blocked externally;
   ToS/DPAs #140); per-tenant quotas (#139) shipped 2026-07-19 — see §12.
 - **Kept the stack, no rewrite.** Node/Express, the no-build vanilla frontend,
@@ -139,7 +139,7 @@ for any native client; no backend rewrite is needed to go native.
   planned: a second full frontend codebase to build and maintain forever, not
   warranted for this UX.
 
-**What going native still cascades into, when picked up (Phase 3):**
+**What going native still cascades into, when picked up (#143/#144, both waiting on go-live #219 — see §12):**
 - Auth is already token-first (#135), so web and native can share it without
   rework.
 - Store compliance: Apple App Review + Google Play policies, privacy nutrition
@@ -225,7 +225,7 @@ alongside it behind `ACCOUNTS_ENABLED`, staged for opening public registration
 (see [`.claude/rules/accounts-mode-gate.md`](../.claude/rules/accounts-mode-gate.md)).
 "Member" stayed decoupled from "user" as recommended — a name-only seat at a
 round, optionally nothing more — which is what let a single-owner tenant
-launch without building roles or invitations first (see §6, Phase 4).
+launch without building roles or invitations first (see §6, §12).
 
 **Rejected, as planned:** a full home-grown password stack beyond the hashing
 itself (would concentrate high-risk surface for no product benefit) and
@@ -324,7 +324,7 @@ version further. Filed as #211–#215 (2026-07-19).
    a JWT and doesn't need to be. Filed and shipped as **#214**.
 5. **Rate-limit store** — `express-rate-limit`'s default in-memory store only
    works correctly for exactly one process. Fine today (single Railway
-   instance); becomes wrong the moment horizontal scaling (§12 Phase 3) adds a
+   instance); becomes wrong the moment horizontal scaling (§12) adds a
    second process. Track `rate-limit-redis` (or similar) as a prerequisite for
    scaling out, not an immediate fix. Filed as **#215**.
 
@@ -492,13 +492,15 @@ most hobby projects and a real launch asset.
 - **Onboarding / empty states — shipped** (#138): sign-up → create-round →
   empty states. No invite step (see below).
 - **Invitations** — a way to invite a *second account* into a tenant so it's a
-  genuine co-member rather than a name-only seat. **Deferred to Phase 4
-  (#207)**, not a launch requirement: a public first-run already works
-  end-to-end with a single owner account adding name-only members.
-- **Accessibility — still open.** No evidence of an a11y pass (focus
-  management, ARIA, contrast — the color-mix-derived theme system, see
-  [`.claude/rules/theme-derived-colors.md`](../.claude/rules/theme-derived-colors.md),
-  helps but isn't a guarantee). Run an audit before public sign-up.
+  genuine co-member rather than a name-only seat. **Deferred (#207, no
+  relation to go-live #219 either way — see §12)**, not a launch requirement:
+  a public first-run already works end-to-end with a single owner account
+  adding name-only members.
+- **Accessibility — shipped** (#145, see
+  [`.claude/rules/accessibility-contrast-and-modals.md`](../.claude/rules/accessibility-contrast-and-modals.md)):
+  focus management, ARIA, contrast (checked against the color-mix-derived
+  theme system, see
+  [`.claude/rules/theme-derived-colors.md`](../.claude/rules/theme-derived-colors.md)).
 - **Mobile web — still open, verify.** The app is used on a couch; mobile is
   likely the primary device. Separate from the **native apps** covered in
   §2.4.
@@ -508,22 +510,36 @@ most hobby projects and a real launch asset.
 
 ---
 
-## 12. Phased roadmap
+## 12. Roadmap: shipped, go-live dependencies, and everything else
+
+**No more "phases."** This section used to group work into numbered phases
+(0–4); that framing was retired 2026-07-22 in favor of what actually
+determines build order: **GitHub's native issue-blocking relations** on
+**#219** ("Go live: open public registration on the production instance").
+The rule is simple and machine-checkable via `gh issue view <N>` /
+`pick-issue`, instead of living in prose that drifts:
+
+- **Blocks go-live** — #219 is "blocked by" the issue; it must land before
+  public sign-up opens.
+- **Waits for go-live** — the issue is "blocked by" #219; it must not land
+  before public sign-up opens (e.g. shipping native store apps before the
+  web launch would mean running two go-lives in parallel).
+- **No relation to #219 either way** — genuinely optional relative to
+  launch: build it before, after, or never, purely on value-for-effort.
+  `pick-issue` no longer down-ranks these just for being "post-launch" —
+  only their own merits matter.
 
 Effort: **S** ≈ hours–1 day · **M** ≈ days · **L** ≈ 1–2 weeks · **XL** ≈ weeks.
-Risk = chance of getting it subtly wrong / blast radius.
+Risk = chance of getting it subtly wrong / blast radius. These are historical
+labels on already-decided/shipped work below, not a live prioritization
+signal — the open issues' own `gh issue view` state is the current source of
+truth.
 
-### Phase 0 — Decide & prepare (no user impact)
-| Item | Effort | Risk | Notes |
-|---|---|---|---|
-| Confirm end-state (multi-tenant SaaS) & this roadmap | S | Low | Decided (§1). |
-| Attorney: trademark clearance for chosen name | S (external) | Med | **Blocker for brand spend**, not for code. |
-| Register domain set (`.com`/`.app`/`.de`) | S | Low | Do early; cheap; reversible-ish. |
+### Shipped — the going-live spine and the SaaS blockers
 
-### Phase 1 — Milestone one: single authenticated instance 🔒 *(the going-live spine)*
 **Status: shipped and live** — see [`docs/deploy-railway.md`](./deploy-railway.md).
 
-| Item | Effort | Risk | Blocker? |
+| Item | Effort | Risk | Notes |
 |---|---|---|---|
 | **Move to PostgreSQL** + object storage for uploads; one-time file→DB migration | **L** | **High** | HARD BLOCKER (§3, §2.3) — **shipped** (#127, #128) |
 | Make backend **stateless / single-writer-safe** (falls out of DB move) | M | High | HARD BLOCKER — **shipped** (#127) |
@@ -533,74 +549,80 @@ Risk = chance of getting it subtly wrong / blast radius.
 | Central error handler, `/healthz`, structured logging, error tracking | M | Low | **shipped** (#132); see §7 for the follow-up (real error tracking, not the webhook stand-in) |
 | Harden file uploads (content sniff/re-encode, safe extension) | S–M | Med | **shipped** (#133) |
 | Impressum + privacy policy | S (+external) | Med | Required if not "purely private" (§9) — **implemented** (#134, self-reviewed per its revised completion bar); pages activate when the rented address is configured at go-live (#219/#226) |
-
-*Exit (reached):* the group's data runs in the cloud, gated, on TLS, on a real
-DB, with backups and monitoring. Public multi-tenant sign-up is still gated on
-the rest of §12 (Impressum #134, legal pack #140; quotas #139 shipped) and a
-deliberate decision to flip `ACCOUNTS_ENABLED` in production.
-
-### Phase 1.5 — Harden the spine: prefer battle-tested deps over hand-rolled
-Not go-live blockers (Phase 1 is already live) — closing the gap between
-"shipped" and "production-battle-tested" now that the priority has shifted
-(see the mindset note in [`CLAUDE.md`](../CLAUDE.md) and §7).
-
-| Item | Effort | Risk | Issue |
-|---|---|---|---|
-| **Postgres schema migrations** + adopt **Knex** — **shipped** (#211) | L | Med | #211 |
-| **Structured logging** — `pino`/`pino-http` — **shipped** (#212) | S–M | Low | #212 |
-| **Centralized request validation** — `zod` at the router boundary — **shipped** (#213) | M | Low | #213 |
-| **Identity/token issuance** — access-token JWTs via `jsonwebtoken` — **shipped** (#214) | M | Med | #214 |
-| **Rate-limit shared store** (`rate-limit-redis` or similar) | S | Low | #215 |
-
-See §7 for the reasoning behind each.
-
-### Phase 2 — Multi-tenant SaaS
-| Item | Effort | Risk | Blocker? |
-|---|---|---|---|
 | Account model (users, email verify, password reset) — built **token-first** so native apps share it (§2.4/§5) | **L** | **High** | Blocker for public sign-up (§5) — **shipped** (#135) |
 | **Tenant model + isolation** (`tenant_id` everywhere, central enforcement, RLS) | **L** | **Very High** | Blocker — cross-tenant leak is catastrophic (§6) — **shipped** (#136) |
 | Onboarding / first-run flow + empty states | M | Med | Blocker for usable sign-up (§11) — **shipped** (#138) |
 | Per-tenant quotas (rounds, games, tags) | S–M | Med | Cost/abuse control — **shipped** (#139) |
 | Terms of use (DSA content rules), DPAs (host, DB), transfer basis, retention | S (+external) | Med | Legal must for SaaS (§9) — **implemented** (#140; no AGB/Widerruf due per #173 — recorded in §9.4) |
-| Consent mechanism **iff** non-essential tracking is added | S | Low | Conditional (§9.3) |
-
-**Roles/permissions and invitations/tenant-sharing live in Phase 4, not here:**
-"member" is already decoupled from "user" (a name-only seat the tenant owner
-adds), so a single-owner tenant whose members are all name-only is a
-**complete, launchable product** with no cross-tenant sharing and no role
-model needed. Multi-user sharing of one tenant is real product value, but an
-enhancement layered on a working single-owner launch — see #207.
-
-### Phase 3 — Native apps, scale & polish (as needed)
-| Item | Effort | Risk |
-|---|---|---|
+| Provider cover-art rights decision | S (+decision) | Med | Had to be decided before public hosting — **shipped** (#172) |
 | Thin frontend build (content-hash cache-busting + minify) | S–M | Low | **shipped** (#141) |
 | **PWA** — manifest + service worker, installable + offline (§2.4) | M | Low | **shipped** (#142) |
-| **Capacitor wrapper** → App Store + Play Store apps; push + barcode scan (§2.4) | **L** | Med |
-| **App-store compliance & mobile release pipeline** — dev accounts, signing, privacy labels, in-app account deletion, mobile CI (§2.4/§9) | M | Med |
-| Horizontal scaling (multi-process behind LB — enabled by stateless tier) | M | Med |
-| Accessibility audit + mobile-web responsiveness pass | M | Low |
-| Localize server-side error messages if user-facing surfaces grow | S | Low |
+| Accessibility audit | M | Low | **shipped** (#145) |
+| Test coverage reporting | S | Low | **shipped** (#146) |
+| Brand name + domain registration | S | Low | **shipped** (#147) — see §10 |
 
-### Phase 4 — Post-launch collaboration features (not go-live blockers)
-A single-owner tenant with name-only members (today's model, unchanged) is a
-complete public product on its own — nothing below is required to open public
-sign-up. These are enhancements for groups that want more than one of their
-members to hold their own login.
+*Exit (reached):* the group's data runs in the cloud, gated, on TLS, on a real
+DB, with backups and monitoring. Public multi-tenant sign-up needed the
+remaining go-live blockers below plus a deliberate decision to flip
+`ACCOUNTS_ENABLED` in production.
 
-| Item | Effort | Risk |
+**Also shipped — battle-tested-dependency hardening batch** (recommended, was
+never a go-live blocker; see §7 for the reasoning behind each):
+
+| Item | Effort | Risk | Issue |
+|---|---|---|---|
+| **Postgres schema migrations** + adopt **Knex** | L | Med | #211 |
+| **Structured logging** — `pino`/`pino-http` | S–M | Low | #212 |
+| **Centralized request validation** — `zod` at the router boundary | M | Low | #213 |
+| **Identity/token issuance** — access-token JWTs via `jsonwebtoken` | M | Med | #214 |
+
+### Blocks go-live — #219 is blocked by these
+
+| Issue | What | Notes |
 |---|---|---|
-| **Invitations & tenant-sharing** — let a second account join an existing tenant as a co-member (#207) | M–L | Med |
-| **Roles & permissions** — owner/editor/viewer once a tenant has multiple accounts (#137) | M | Med |
-| **Per-device voting** — a registered co-member votes from their own phone/browser in a running session, instead of one shared device (#209) | M | Low |
+| **#226** | Set up Brevo (transactional e-mail) and configure it on the Live instance | Ops-only, waiting on the rented postal address; see the issue for current status |
+| **#266** | Allow accounts mode behind the shared-password gate (layered auth) + claim the `'default'` tenant | Itself blocked by #226; de-risks go-live by exercising the real account flows behind the existing shared-password gate before removing it |
+
+### Waits for go-live — blocked by #219
+
+| Issue | What | Notes |
+|---|---|---|
+| **#143** | Ship native iOS/Android apps via Capacitor (§2.4) | Also blocks #144 |
+| **#144** | App-store compliance & mobile release pipeline (§2.4/§9) | Also blocked by #143 |
+
+Shipping the native apps or doing store setup before the website's public
+launch would mean running two go-lives in parallel — the web launch comes
+first.
+
+### No relation to go-live either way — build anytime, purely on merit
+
+A single-owner tenant with name-only members (today's model, unchanged) is a
+complete public product on its own — none of the below is required to open
+public sign-up, but none of it is barred from happening before, during, or
+after that either. `pick-issue` ranks these on ordinary value-for-effort,
+same as anything else.
+
+| Issue | What | Notes |
+|---|---|---|
+| **#117** | Search BGG directly via an API token | Blocked externally on the maintainer registering a BGG application, unrelated to go-live |
+| **#137** | Roles & permissions | Only matters once #207 lets multiple accounts share a tenant |
+| **#173** | Voluntary donations support link | Legally invisible (unconditional, no AGB/Widerruf) — independent of launch |
+| **#207** | Invitations & tenant-sharing (multi-user rounds) | Real product value, layered on a working single-owner launch |
+| **#209** | Per-device voting | Depends on #207 landing first |
+| **#215** | Move `express-rate-limit` to a shared Redis store | Prerequisite for horizontal scaling, not for launch |
+| **#311** | Automate the 3-year moderation-log retention purge | Extremely low priority until ~2029 (year-end cutoff math) |
+| — | Horizontal scaling (multi-process behind LB — enabled by stateless tier) | Not yet filed as its own issue; depends on #215 |
+| — | Mobile-web responsiveness pass | Not yet filed as its own issue |
+| — | Localize server-side error messages if user-facing surfaces grow | Not yet filed as its own issue |
+| — | Attorney trademark clearance (DPMA + EUIPO) for the chosen brand | Advisable before heavy brand spend, not blocking anything shipped (§10) |
 
 **Hard blockers, consolidated — all shipped:** real database + stateless tier
 (§3/§2.3), authentication (§5), TLS + security headers + rate limiting (§4),
-production hosting + deploy (§8), tenant isolation (§6), accounts (§5).
-**What's left before public sign-up:** the legal pack (Impressum #134, blocked
-externally; ToS/DPAs #140) — per-tenant quotas (#139) shipped — plus the Phase 1.5
-hardening above is recommended, not blocking. Tenant *sharing*, roles, and
-per-device voting are **not** in this list — see Phase 4.
+production hosting + deploy (§8), tenant isolation (§6), accounts (§5), the
+legal pack (§9), per-tenant quotas (§6), the cover-art rights decision (§4).
+**What's left before public sign-up:** exactly the two issues in "Blocks
+go-live" above (#226, #266) — check `gh issue view 219` for the current,
+authoritative list of open blockers.
 
 ---
 
@@ -611,12 +633,12 @@ away — no rewrite happened or is planned (§1, §2). Going public was never an
 architecture problem; it was an **operations, security, and data-model**
 problem, concentrated in four hard blockers — a real database + stateless
 tier, authentication, transport/edge security, and production hosting — **all
-shipped**. What's left to open **public multi-tenant** sign-up is the legal
-pack and quotas (§9, §6, §12), plus the **Phase 1.5 hardening** pass (§7) —
-replacing what's currently hand-rolled-but-working (schema migrations,
-logging/error tracking, request validation, token issuance) with
-battle-tested dependencies now that production traffic makes that trade-off
-worth it. The product also targets **native iOS/Android apps**: the PWA step
+shipped**, along with the legal pack, quotas, and the battle-tested-dependency
+hardening batch (§7, §12). What's left to open **public multi-tenant**
+sign-up is exactly the two issues §12 lists as blocking go-live (#226, the
+Brevo mail setup; #266, layering accounts mode behind the shared-password
+gate) — check `gh issue view 219` for the current, authoritative list. The
+product also targets **native iOS/Android apps**: the PWA step
 shipped, and reaching the stores is Capacitor wrapping the existing web UI
 (§2.4), not a native rewrite. Legal work (Impressum under DDG, DSGVO privacy
 policy) is a real must once strangers' data is hosted (§9), but the app's

@@ -51,8 +51,9 @@ and the traps that cost effort:
 
 - **Registration mints a personal tenant** (`routes/account.js`): each new user
   gets a fresh `tenantId`. Sharing a tenant (invites/memberships) is #207;
-  roles within one are #137. Both were reclassified 2026-07-19 as **Phase 4,
-  post-launch** work (docs/production-readiness.md §12) — not go-live blockers —
+  roles within one are #137. Both were reclassified 2026-07-19 as **not
+  go-live blockers** (docs/production-readiness.md §12 — neither carries a
+  GitHub blocking relation to the go-live issue #219 in either direction) —
   because "member" is already decoupled from "user" (a name-only seat the
   owner adds), so a single-owner tenant is a complete product without either.
   There is intentionally **no tenants table** yet — the first issue that gives

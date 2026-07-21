@@ -19,7 +19,8 @@ the shared-password gate. Things that will bite if you forget them:
   (invites/#207) is **not** a prerequisite for opening registration — a
   single-owner tenant with name-only members (today's model) is a complete
   product on its own; see the 2026-07-19 note on #207 and
-  docs/production-readiness.md §12 Phase 4.
+  docs/production-readiness.md §12 (#207 carries no GitHub blocking relation
+  to the go-live issue #219 in either direction).
 
 - **Coexistence, not replacement (yet).** lib/auth.js (shared gate) still
   protects the instance's data; /api/account mounts *before* the gate (like
