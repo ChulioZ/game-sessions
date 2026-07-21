@@ -29,7 +29,8 @@ const frontendGlobals = {
   createSwrStore: 'readonly',
   // focus-trap.js
   trapFocus: 'readonly', focusables: 'readonly', FOCUSABLE: 'readonly',
-  applyStaticTexts: 'readonly', setupLangPicker: 'readonly', gamesSort: 'writable',
+  applyStaticTexts: 'readonly', setupLangPicker: 'readonly', initFooter: 'readonly',
+  gamesSort: 'writable',
   regalFilters: 'writable', regalFiltersRid: 'writable',
   TAG_STATES: 'readonly', cycleTagState: 'readonly',
   paintTagChip: 'readonly', matchesTagFilter: 'readonly',

@@ -13,7 +13,7 @@
  * What it does: mirror public/ into dist/, then replace each js/css file with a
  * minified, content-hashed copy (e.g. js/core.js -> js/core.<hash>.js) and
  * rewrite every reference to it in index.html, sw.js and the standalone pages
- * (login.html, admin.html — see REWRITE_FILES). The service
+ * (login.html, admin.html, kontakt.html — see REWRITE_FILES). The service
  * worker's CACHE name is re-derived from the hashed set so a new build
  * auto-invalidates the old shell cache. Everything else (fonts, icons, the
  * manifest, tabler-icons.css) is copied through unchanged — only js + styles.css
@@ -43,7 +43,7 @@ const DEFAULT_OUT = path.join(ROOT, 'dist');
 // standalone HTML entry point belongs here: its <script src> is content-hashed
 // like any other public/js file, so a page left out would 404 its own script in
 // a built production deploy (admin.html — issue #268 — is one of these).
-const REWRITE_FILES = ['index.html', 'sw.js', 'login.html', 'admin.html'];
+const REWRITE_FILES = ['index.html', 'sw.js', 'login.html', 'admin.html', 'kontakt.html'];
 
 function sha8(buf) {
   return crypto.createHash('sha256').update(buf).digest('hex').slice(0, 8);

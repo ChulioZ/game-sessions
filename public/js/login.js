@@ -12,6 +12,16 @@
   const errorEl = document.getElementById('error');
   const button = form.querySelector('button');
 
+  // Kontakt link (issue #224): shown only when the server reports the public
+  // footer surfaces as configured — same gate as the SPA footer (core.js
+  // initFooter). On any error it just stays hidden.
+  fetch('/api/config')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((cfg) => {
+      if (cfg && cfg.footer) document.getElementById('footKontakt').hidden = false;
+    })
+    .catch(() => {});
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorEl.hidden = true;

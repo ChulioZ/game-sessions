@@ -254,6 +254,9 @@ routes/
                                              e-mail, login, refresh, logout,
                                              forgot/reset password, me —
                                              404 unless ACCOUNTS_ENABLED)
+  contact.js         /api/contact           (public contact form → e-mails the
+                                             operator; no auth, own rate limit,
+                                             honeypot; fails loud in production)
   admin.js           /api/admin             (operator moderation: instance
                                              status, lookup by image/round/
                                              e-mail/tenant, per-tenant summary,
@@ -282,6 +285,7 @@ routes/
 public/
   index.html
   login.html         standalone login page (shown only when AUTH_PASSWORD is set)
+  kontakt.html       standalone public contact form (bilingual, no login needed)
   admin.html         standalone operator moderation page (needs ADMIN_PASSWORD)
   styles.css
   manifest.webmanifest  PWA manifest (installable app metadata + icons)
@@ -291,6 +295,8 @@ public/
   js/
     login.js         login.html's own script — an IIFE, not part of the
                      shared global scope below (only loaded by login.html)
+    kontakt.js       kontakt.html's own script — an IIFE (bilingual form),
+                     not part of the shared global scope (only loaded there)
     admin.js         admin.html's own script — likewise an IIFE outside the
                      shared scope, so no privileged code ships in the SPA
     i18n.js          translation engine (t(), locale detection)
@@ -372,7 +378,22 @@ or the AWS default provider chain. Unset, images stay under `DATA_DIR/uploads` a
 before. See the S3 block in `.env.example`.
 
 Behind a TLS-terminating proxy: `TRUST_PROXY=1 npm start` (so rate limiting sees
-the real client IP). Tune the limit with `RATE_LIMIT_MAX` (global, per 15 min).
+the real client IP). Tune the limits with `RATE_LIMIT_MAX` (global, per 15 min)
+and `CONTACT_RATE_LIMIT_MAX` (contact-form submissions, per 15 min, default 5).
+
+Contact form (issue #224): a public, login-free page at `/kontakt.html` with a
+bilingual form that POSTs to `/api/contact`, which e-mails the operator — the
+phone-free second communication channel a German Impressum (§ 5 DDG) relies on, and
+the DSA notice-and-action channel. Delivery goes to `CONTACT_TO` (falling back to
+`MAIL_FROM`) via the same Brevo setup as the account mails. It has its own low rate
+limit and a server-side honeypot for spam, and in `NODE_ENV=production` it **fails
+loud** (`502` with a fallback e-mail) rather than silently dropping a message when
+mail is unconfigured — so configure `BREVO_API_KEY` + `MAIL_FROM` + `CONTACT_TO`
+before relying on it in production. A shared site footer links to it — but the
+footer (and the form itself) only appears once the public `GET /api/config`
+reports the instance ready: mail configured **and** `IMPRESSUM_ADDRESS` set
+(all-or-nothing, so a half-configured deploy shows no public footer rather than
+a broken one; the same footer carries the legal pages from issue #134).
 
 Serving one deployment under several domains: `CANONICAL_HOST` + `REDIRECT_HOSTS`
 (issue #230) 301 the branded non-canonical domains onto a single canonical origin

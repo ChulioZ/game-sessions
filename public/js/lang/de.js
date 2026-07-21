@@ -2,6 +2,7 @@
 
 I18N.de = {
   'app.title': 'Spielwirbel',
+  'footer.contact': 'Kontakt',
   'nav.home': 'Start',
   'common.back': 'Zurück',
   'common.delete': 'Löschen',
