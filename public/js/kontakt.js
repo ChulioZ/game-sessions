@@ -170,6 +170,8 @@
       if (cfg && !cfg.footer) {
         available = false;
         document.getElementById('formFields').hidden = true;
+        // The legal routes 404 in this state (#134) — hide their links too.
+        document.getElementById('legalLinks').hidden = true;
         applyLang();
       }
     })

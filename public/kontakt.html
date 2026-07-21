@@ -122,7 +122,11 @@
     <p class="msg ok" id="ok" role="status" hidden></p>
     <p class="msg err" id="err" role="alert" hidden></p>
 
-    <p class="foot"><a href="/" id="t-back"></a></p>
+<!-- The legal links share the availability gate (kontakt.js hides them when
+         /api/config reports not-ready — the routes 404 in that state). -->
+    <p class="foot"><a href="/" id="t-back"></a><span id="legalLinks">
+      · <a href="/impressum">Impressum</a>
+      · <a href="/datenschutz">Datenschutz</a></span></p>
   </form>
   <script src="/js/kontakt.js"></script>
 </body>

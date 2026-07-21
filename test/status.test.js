@@ -28,7 +28,7 @@ const VARS = [
   'BREVO_API_KEY', 'MAIL_FROM', 'APP_BASE_URL', 'CANONICAL_HOST', 'REDIRECT_HOSTS',
   'MAX_ROUNDS_PER_TENANT', 'MAX_GAMES_PER_ROUND', 'MAX_TAGS_PER_ROUND',
   'RAILWAY_GIT_COMMIT_SHA', 'GIT_COMMIT_SHA', 'SOURCE_COMMIT', 'NODE_ENV',
-  'IMPRESSUM_ADDRESS',
+  'IMPRESSUM_ADDRESS', 'IMPRESSUM_EMAIL',
 ];
 
 async function withEnv(overrides, fn) {
@@ -171,11 +171,15 @@ test('uptime and version are present', async () => {
 // secret-bearing var and assert none of them reaches the response in any form.
 // A field added later that echoes (or truncates, or hashes-and-shows) a secret
 // fails here without anyone remembering to extend this file.
-test('the Impressum address is reported as presence only (#224/#134)', async () => {
-  const off = await withEnv({ IMPRESSUM_ADDRESS: undefined }, instanceStatus);
+test('the Impressum identity is reported as presence only (#224/#134)', async () => {
+  const off = await withEnv({ IMPRESSUM_ADDRESS: undefined, IMPRESSUM_EMAIL: undefined }, instanceStatus);
   assert.equal(off.legal.impressumAddressSet, false);
-  const on = await withEnv({ IMPRESSUM_ADDRESS: 'Musterweg 1, 12345 Musterstadt' }, instanceStatus);
+  assert.equal(off.legal.impressumEmailSet, false);
+  const on = await withEnv(
+    { IMPRESSUM_ADDRESS: 'Musterweg 1, 12345 Musterstadt', IMPRESSUM_EMAIL: 'kontakt@example.test' },
+    instanceStatus);
   assert.equal(on.legal.impressumAddressSet, true);
+  assert.equal(on.legal.impressumEmailSet, true);
 });
 
 test('no secret value ever appears in the response', async () => {
@@ -184,9 +188,10 @@ test('no secret value ever appears in the response', async () => {
     SESSION_SECRET: 'SECRETVALUE-session',
     ADMIN_PASSWORD: 'SECRETVALUE-admin',
     BREVO_API_KEY: 'SECRETVALUE-brevo',
-    // Not a secret forever (it ends up in the public Impressum), but before
-    // launch it must not leak early through a panel screenshot — presence only.
+    // Not secrets forever (they end up in the public Impressum), but before
+    // launch they must not leak early through a panel screenshot — presence only.
     IMPRESSUM_ADDRESS: 'SECRETVALUE-address',
+    IMPRESSUM_EMAIL: 'SECRETVALUE-imail',
   };
   const s = await withEnv(secrets, instanceStatus);
   const serialized = JSON.stringify(s);

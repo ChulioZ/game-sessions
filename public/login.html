@@ -83,10 +83,12 @@
            autofocus required />
     <button type="submit">Anmelden</button>
     <p class="error" id="error" role="alert" hidden>Falsches Passwort.</p>
-    <!-- Public contact channel (issue #224), reachable without login. Hidden
-         until GET /api/config confirms the footer surfaces are configured
-         (login.js) — same all-or-nothing gate as the SPA footer. -->
-    <p class="foot" id="footKontakt" hidden><a href="/kontakt.html">Kontakt</a></p>
+    <!-- Public contact + legal links (issues #224/#134), reachable without
+         login. Hidden until GET /api/config confirms the footer surfaces are
+         configured (login.js) — same all-or-nothing gate as the SPA footer. -->
+    <p class="foot" id="footKontakt" hidden><a href="/kontakt.html">Kontakt</a>
+      · <a href="/impressum">Impressum</a>
+      · <a href="/datenschutz">Datenschutz</a></p>
   </form>
   <script src="/js/login.js"></script>
 </body>

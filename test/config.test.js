@@ -6,8 +6,10 @@
  * Two properties matter:
  *
  *  1. `footer` is all-or-nothing — true only when mail can deliver
- *     (BREVO_API_KEY + MAIL_FROM) AND the Impressum address is set — so a
- *     half-configured instance shows no public footer rather than a broken one.
+ *     (BREVO_API_KEY + MAIL_FROM) AND the Impressum identity is set
+ *     (IMPRESSUM_ADDRESS + IMPRESSUM_EMAIL, the same condition that makes the
+ *     legal pages exist — lib/legal.js) — so a half-configured instance shows
+ *     no public footer rather than a broken one.
  *  2. The endpoint must stay reachable without ANY auth in both gate modes:
  *     the footer renders on the login page, before a session or token exists.
  *
@@ -25,7 +27,7 @@ const { createApp } = require('../lib/app');
 const MAIL_ENV = { BREVO_API_KEY: 'test-key', MAIL_FROM: 'no-reply@example.com' };
 
 test.afterEach(() => {
-  for (const k of ['BREVO_API_KEY', 'MAIL_FROM', 'IMPRESSUM_ADDRESS',
+  for (const k of ['BREVO_API_KEY', 'MAIL_FROM', 'IMPRESSUM_ADDRESS', 'IMPRESSUM_EMAIL',
     'AUTH_PASSWORD', 'ACCOUNTS_ENABLED', 'SESSION_SECRET']) {
     delete process.env[k];
   }
@@ -45,7 +47,15 @@ test('mail alone does not enable the footer', async () => {
   assert.deepEqual(res.body, { footer: false });
 });
 
-test('the Impressum address alone does not enable the footer', async () => {
+test('the Impressum identity alone does not enable the footer', async () => {
+  process.env.IMPRESSUM_ADDRESS = 'Musterweg 1, 12345 Musterstadt';
+  process.env.IMPRESSUM_EMAIL = 'kontakt@example.test';
+  const res = await request(app).get('/api/config');
+  assert.deepEqual(res.body, { footer: false });
+});
+
+test('mail + address without the e-mail stays off (the legal pages would 404)', async () => {
+  Object.assign(process.env, MAIL_ENV);
   process.env.IMPRESSUM_ADDRESS = 'Musterweg 1, 12345 Musterstadt';
   const res = await request(app).get('/api/config');
   assert.deepEqual(res.body, { footer: false });
@@ -54,13 +64,15 @@ test('the Impressum address alone does not enable the footer', async () => {
 test('a whitespace-only address does not count as set', async () => {
   Object.assign(process.env, MAIL_ENV);
   process.env.IMPRESSUM_ADDRESS = '   ';
+  process.env.IMPRESSUM_EMAIL = 'kontakt@example.test';
   const res = await request(app).get('/api/config');
   assert.deepEqual(res.body, { footer: false });
 });
 
-test('mail + address enable the footer; env is read per request', async () => {
+test('mail + full identity enable the footer; env is read per request', async () => {
   Object.assign(process.env, MAIL_ENV);
   process.env.IMPRESSUM_ADDRESS = 'Musterweg 1, 12345 Musterstadt';
+  process.env.IMPRESSUM_EMAIL = 'kontakt@example.test';
   const on = await request(app).get('/api/config');
   assert.deepEqual(on.body, { footer: true });
   // Same app instance, no rebuild: unsetting one input flips it back off.

@@ -147,11 +147,13 @@
       `${yesNo(s.mail.fromSet)} / ${yesNo(s.mail.baseUrlSet)}`]);
 
     // Second half of the footer gate (#224/#134): the public footer (Kontakt +
-    // Rechtliches) renders only when mail works AND this address is set.
-    rows.push(['Impressum-Adresse', s.legal.impressumAddressSet ? 'ok' : 'off',
-      s.legal.impressumAddressSet ? 'gesetzt' : 'nicht gesetzt',
-      s.legal.impressumAddressSet ? null
-        : 'Ohne IMPRESSUM_ADDRESS bleibt der öffentliche Footer (Kontakt + Rechtliches) auf allen Seiten verborgen.']);
+    // Rechtliches) renders — and /impressum + /datenschutz exist — only when
+    // mail works AND both identity vars are set.
+    const legalOk = s.legal.impressumAddressSet && s.legal.impressumEmailSet;
+    rows.push(['Impressum-Adresse / -E-Mail', legalOk ? 'ok' : 'off',
+      `${yesNo(s.legal.impressumAddressSet)} / ${yesNo(s.legal.impressumEmailSet)}`,
+      legalOk ? null
+        : 'Ohne IMPRESSUM_ADDRESS + IMPRESSUM_EMAIL bleiben Impressum/Datenschutz 404 und der öffentliche Footer (Kontakt + Rechtliches) verborgen.']);
 
     rows.push(['Bild-Speicher', s.storage.images === 's3' ? 'ok' : 'warn',
       s.storage.images === 's3' ? 'S3 / R2' : 'lokale Festplatte',

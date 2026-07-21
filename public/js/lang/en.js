@@ -3,6 +3,8 @@
 I18N.en = {
   'app.title': 'Spielwirbel',
   'footer.contact': 'Contact',
+  'footer.impressum': 'Legal notice',
+  'footer.privacy': 'Privacy',
   'nav.home': 'Home',
   'common.back': 'Back',
   'common.delete': 'Delete',

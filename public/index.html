@@ -35,16 +35,17 @@
     <!-- Content is rendered by the js/* files -->
   </main>
 
-<!-- Shared site footer (issue #224). Ships the public Kontakt link now; #134
-       adds the Impressum + Datenschutz links here once those pages exist — don't
-       add links to not-yet-built legal pages (they'd 404 on Live). Hidden until
-       GET /api/config says the public surfaces behind it are configured
+<!-- Shared site footer (issues #224/#134): Kontakt + the legal pages. Hidden
+       until GET /api/config says the public surfaces behind it are configured
        (initFooter() in core.js) — all-or-nothing, so a half-ready instance shows
-       no footer rather than a broken one. Root-absolute paths per
-       .claude/rules/spa-fallback-absolute-asset-paths.md; label set in
-       applyStaticTexts() so it re-localizes on language change. -->
+       no footer rather than a broken one (the legal routes 404 under the same
+       condition). Root-absolute paths per
+       .claude/rules/spa-fallback-absolute-asset-paths.md; labels set in
+       applyStaticTexts() so they re-localize on language change. -->
   <footer class="site-footer" role="contentinfo" hidden>
     <a href="/kontakt.html" id="footerKontakt"></a>
+    <a href="/impressum" id="footerImpressum"></a>
+    <a href="/datenschutz" id="footerPrivacy"></a>
   </footer>
 
   <!-- Small toast for feedback. A permanent aria-live region (#145): it stays in

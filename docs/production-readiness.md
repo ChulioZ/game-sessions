@@ -41,9 +41,11 @@
   for cover images — both shipped, both non-negotiable once there's more than
   one concurrent writer or process.
 - **Legal (DE/EU):** once hosting real users, an **Impressum (§ 5 DDG)** and a
-  **GDPR/DSGVO privacy policy** are legal musts (§9) — both still open. A
-  cookie-consent banner is **probably not required** (no non-essential
-  cookies, `localStorage`-only), pending a lawyer's confirmation.
+  **GDPR/DSGVO privacy policy** are legal musts (§9) — **implemented (#134)**:
+  `/impressum` + `/datenschutz` are server-rendered from the `IMPRESSUM_*` env
+  identity and stay 404 until it is configured at go-live (#219). A
+  cookie-consent banner is **not required today** (no non-essential cookies,
+  `localStorage`-only, § 25 Abs. 2 TDDDG); re-check if that ever changes.
 - **Brand:** "Spieleabend" is generic German for "game night" — descriptively
   weak and unregistrable as-is (§10). No rebrand has happened; still an open
   decision, not blocking anything already shipped.
@@ -349,30 +351,33 @@ buy-next feature there is no pay-per-use AI spend on top of it.
 
 ## 9. Legal & compliance (DE/EU)
 
-> **Research, not legal advice.** German/EU rules are fact-specific; a lawyer
-> must confirm before launch. The point here is to separate the clear
-> **musts** from the **nice-to-haves** and flag where professional review is
-> required.
+> **Research, not legal advice.** German/EU rules are fact-specific. The
+> decision recorded in #134 (revised 2026-07-21) is that the launch texts are
+> **self-reviewed against primary sources, not lawyer-reviewed** — a paid
+> review buys little for a free, donations-only, no-tracking service. The
+> "confirm with a lawyer" notes below are therefore **optional post-launch
+> hardening**, not pre-launch gates; a professional review becomes effectively
+> mandatory if a paid tier is ever introduced (#173).
 
 Assume German UI, German/EU users, and (for the SaaS end-state) that you host
 **strangers'** personal data — the line that turns most of this from optional
 to mandatory.
 
-### 9.1 Impressum — legal must (once non-private) — open, blocked externally (#134)
+### 9.1 Impressum — legal must (once non-private) — implemented (#134), activated at go-live
 
 - The Impressum obligation moved from **§ 5 TMG to § 5 DDG** (Digitale-Dienste-
-  Gesetz) effective **14 May 2025** — any Impressum/legal text must reference
-  **DDG**, not TMG.
+  Gesetz) effective **14 May 2024** (BGBl. 2024 I Nr. 149) — any Impressum/legal
+  text must reference **DDG**, not TMG.
 - A **purely private** site for friends/family generally needs no Impressum —
   today's shared-password-gated instance may fall under that exception. The
   moment the service is **public / offered to others** (multi-tenant
   sign-up), it is no longer "purely private" and an Impressum is **required**;
   omitting or mislabeling it is an *Ordnungswidrigkeit* with fines cited up to
   €50,000 in the worst case.
-- **Confirm with a lawyer:** whether the specific launch shape counts as
-  private, and exactly what the Impressum must contain (a *private individual*
-  publishing an Impressum exposes their **home address** — a real reason many
-  hobby projects incorporate or use a service address).
+- **Optional post-launch hardening (lawyer):** whether the specific launch
+  shape counts as private, and exactly what the Impressum must contain. The
+  home-address exposure is solved by the **rented service address** (#134
+  decision), consumed at runtime via `IMPRESSUM_ADDRESS`.
 
 ### 9.2 GDPR/DSGVO — legal must (once hosting real users' data) — open (#140)
 
@@ -387,9 +392,11 @@ to mandatory.
   feature, the app makes **no outbound AI call** and there is no US
   LLM-processor transfer left to cover — the remaining processors are the
   hosting stack itself.
-- **Confirm with a lawyer/DPO:** lawful basis per purpose, retention periods,
-  whether a DPIA is needed, and the international-transfer basis for whichever
-  hosting processors sit outside the EU.
+- **Optional post-launch hardening (lawyer/DPO):** lawful basis per purpose,
+  retention periods, whether a DPIA is needed, and the international-transfer
+  basis for the hosting processors — the launch texts (#134) record the
+  self-reviewed answers (Art. 6(1)(b)/(f) per purpose; no DPIA — low risk, no
+  special categories; SCC/DPF for Railway and Cloudflare).
 
 ### 9.3 Cookie / consent banner — probably not required today (verify)
 
@@ -401,8 +408,9 @@ to mandatory.
   under the necessity exception, so a consent banner is likely **not
   required**. Fonts are self-hosted, so no Google-Fonts consent issue either.
 - **This changes** the moment analytics, ads, or other non-essential tracking
-  is added. **Confirm with a lawyer** that the auth cookies qualify as
-  "strictly necessary."
+  is added. That the auth cookies qualify as "strictly necessary" is the
+  self-reviewed position published in the #134 policy; a lawyer's confirmation
+  is optional post-launch hardening.
 
 ### 9.4 Terms of Service — nice-to-have → must for SaaS — open (#140)
 
@@ -477,8 +485,9 @@ most hobby projects and a real launch asset.
 - **Mobile web — still open, verify.** The app is used on a couch; mobile is
   likely the primary device. Separate from the **native apps** covered in
   §2.4.
-- **Legal surfaces in-product — still open,** pending §9 (Impressum/privacy
-  footer links).
+- **Legal surfaces in-product — shipped (#134):** the gated site footer links
+  Kontakt, `/impressum` and `/datenschutz` on the SPA, the login page and the
+  contact page; everything appears together once the go-live env is set (#219).
 
 ---
 
@@ -506,7 +515,7 @@ Risk = chance of getting it subtly wrong / blast radius.
 | **Containerize + deploy pipeline + managed host** | M | Med | HARD BLOCKER (§8) — **shipped** (#131) |
 | Central error handler, `/healthz`, structured logging, error tracking | M | Low | **shipped** (#132); see §7 for the follow-up (real error tracking, not the webhook stand-in) |
 | Harden file uploads (content sniff/re-encode, safe extension) | S–M | Med | **shipped** (#133) |
-| Impressum + privacy policy (lawyer-reviewed) | S (+external) | Med | Required if not "purely private" (§9) — **open, blocked externally** (#134, waiting on an Impressum-service provider confirmation) |
+| Impressum + privacy policy | S (+external) | Med | Required if not "purely private" (§9) — **implemented** (#134, self-reviewed per its revised completion bar); pages activate when the rented address is configured at go-live (#219/#226) |
 
 *Exit (reached):* the group's data runs in the cloud, gated, on TLS, on a real
 DB, with backups and monitoring. Public multi-tenant sign-up is still gated on

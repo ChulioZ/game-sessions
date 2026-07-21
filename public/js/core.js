@@ -206,9 +206,11 @@ function applyStaticTexts() {
   document.getElementById('feedbackBtn').setAttribute('aria-label', t('feedback.button'));
   document.getElementById('accountBtn').setAttribute('aria-label', t('a11y.account'));
   crumbs.setAttribute('aria-label', t('a11y.breadcrumb'));
-  // Shared site footer (issue #224): the Kontakt link label. #134 adds the
-  // Impressum/Datenschutz labels here alongside their links.
+  // Shared site footer (issues #224/#134): link labels, re-localized on
+  // language change like the aria-labels above.
   document.getElementById('footerKontakt').textContent = t('footer.contact');
+  document.getElementById('footerImpressum').textContent = t('footer.impressum');
+  document.getElementById('footerPrivacy').textContent = t('footer.privacy');
 }
 
 // Shared site footer visibility (issues #224/#134). The footer starts hidden in

@@ -257,6 +257,9 @@ routes/
   contact.js         /api/contact           (public contact form → e-mails the
                                              operator; no auth, own rate limit,
                                              honeypot; fails loud in production)
+  legal.js           /impressum, /datenschutz  (server-rendered legal pages,
+                                             identity from IMPRESSUM_* env;
+                                             404 until configured)
   admin.js           /api/admin             (operator moderation: instance
                                              status, lookup by image/round/
                                              e-mail/tenant, per-tenant summary,
@@ -391,9 +394,16 @@ loud** (`502` with a fallback e-mail) rather than silently dropping a message wh
 mail is unconfigured — so configure `BREVO_API_KEY` + `MAIL_FROM` + `CONTACT_TO`
 before relying on it in production. A shared site footer links to it — but the
 footer (and the form itself) only appears once the public `GET /api/config`
-reports the instance ready: mail configured **and** `IMPRESSUM_ADDRESS` set
+reports the instance ready: mail configured **and** the Impressum identity set
 (all-or-nothing, so a half-configured deploy shows no public footer rather than
-a broken one; the same footer carries the legal pages from issue #134).
+a broken one).
+
+Legal pages (issue #134): `GET /impressum` and `GET /datenschutz` serve the
+server-rendered DDG Impressum and DSGVO privacy policy (German authoritative,
+English courtesy translation on the same page). The operator identity comes from
+env at request time — `IMPRESSUM_ADDRESS` (postal address, may be multi-line)
+and `IMPRESSUM_EMAIL` — so no address ever lives in the repo; while either is
+unset both routes answer 404 and the site footer stays hidden.
 
 Serving one deployment under several domains: `CANONICAL_HOST` + `REDIRECT_HOSTS`
 (issue #230) 301 the branded non-canonical domains onto a single canonical origin
