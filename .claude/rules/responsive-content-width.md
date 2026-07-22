@@ -1,101 +1,129 @@
-# Two content widths (#332): `:has()` decides, and it must fail NARROW
+# The content column has ONE width, because navigation lives inside it
 
-`.app` has two max-widths — `--w-content` (1000px, the reading measure) and
-`--w-wide` (1440px) — and which one a screen gets is decided in CSS by **what
-the screen renders**:
+`.app` is capped at `--w-content` (1000px) on every screen, and
+`test/content-width.test.js` fails if anything gives it or the `.site-footer`
+that mirrors it a second width — by `:has()`, by media query, or by a modifier
+class.
 
-```css
-.app:has(.cards, .pokale-cards, .lobby-list) { max-width: var(--w-wide); }
-.app:has(.cards, .pokale-cards, .lobby-list) + .site-footer { max-width: var(--w-wide); }
-```
+That is not conservatism. #332 shipped a second, wider width for grid screens
+and it had to be reverted within hours. The reasoning is worth keeping, because
+the mechanism looked (and was) correct, and the defect it caused is invisible
+from any single screenshot.
 
-Before #332 it was a flat 1000px at every viewport: a 1920 screen spent **48% of
-itself on empty gutter** while the Regal stayed at four columns, and the same
-220px grid floor gave **every phone a single column** (a 22-game shelf measured
-6332px of scroll as filed — 6235px reproduced here — about eight screenfuls).
+## What went wrong
 
-## 1. Why it is CSS and not a per-view flag
+The rule was `.app:has(.cards, .pokale-cards, .lobby-list) { max-width: 1440px }`
+— content-conditioned, so no view could forget it, failing to the narrow width.
+All true, and all irrelevant, because of one thing it didn't account for:
 
-The obvious implementation is a width mode each view sets (`app.dataset.width =
-'wide'`). Don't. **There is no "begin view" hook in this frontend** — every
-`show*` function clears `#app` itself, there is no shared entry point — so the
-flag would have to be set in ~20 places and *cleared* in the rest. The first
-view that forgets it renders at the **previous screen's** width, which is a bug
-that only appears depending on where you navigated from. `:has()` reads the
-rendered content, so it cannot be forgotten.
+**`.app` is centred (`margin: 0 auto`), so changing its width moves BOTH edges
+— and the hub tab strip lives inside `.app`.** Measured at 1920:
 
-This is the same technique — and the same reasoning — as the dock clearance in
-`.claude/rules/responsive-hub-tabs.md` §3.
+| Tab | `.app` | strip left edge |
+|---|---|---|
+| Start | 1000 | 480 |
+| Regal | 1440 | **260** |
+| Chronik | 1000 | 480 |
+| Pokale | 1440 | **260** |
 
-## 2. The direction of the failure is the whole point
+The widths alternate along the tab row, so the navigation control slid 220px
+back and forth as the user moved across it — it shifted out from under the
+cursor that was clicking it. And it was not confined to tabs: 8 of the 12 SPA
+screens changed width relative to their neighbours.
 
-The rule adds the WIDE width to recognised screens; it never subtracts. So a
-screen nobody thought about keeps `--w-content`, i.e. exactly its pre-#332
-behaviour. The inverse shape — widen `.app` globally and cap the text views
-back down — reads as the same change and fails in the opposite, much worse
-direction: a text view someone forgets stretches prose to 1440px, and a Chronik
-row already carries only ~350px of content in a 1000px row.
+## The constraint (this is the part to remember)
 
-`test/wide-layout.test.js` pins this as *"nothing widens the page
-unconditionally"*, because "just bump `.app`" is a genuinely tempting
-simplification that no other test would notice.
+Two requirements, each individually obvious:
 
-## 3. `.theme-cards` is absent on purpose
+1. **Within** a screen, the tab strip and the content need a shared edge — a
+   strip floating 220px away from the heading it labels reads as unattached.
+2. **Across** screens, the strip must not move.
 
-The design studio renders a grid, so it looks like it belongs in the list. It
-is deliberately excluded: nine theme swatches read better as 6 columns × 2 rows
-than as one 9-wide strip, and it keeps the settings sub-screens (tags,
-providers, design) consistent at the reading measure. Adding a class to the
-`:has()` list is a product decision, not a tidy-up.
+Together they force **every screen that shares the strip to share one column
+width**. So "wider grids" and "stable navigation" are mutually exclusive for as
+long as navigation sits inside the content column. No `:has()` list reconciles
+them, and neither does any of the alternatives that look promising:
 
-**Whatever you add, add it to BOTH rules.** The footer's condition and the
-page's must stay identical or the footer keeps the narrow measure under a wide
-column and visibly stops lining up — on exactly the screens someone just
-extended. The test asserts the two `:has()` payloads are character-identical.
+- **A per-view width flag** — worse, not better. There is no "begin view" hook
+  in this frontend (every `show*` clears `#app` itself), so a flag has to be set
+  in ~20 places and cleared in the rest, and the first view that forgets it
+  renders at the *previous* screen's width.
+- **Stable container, content capped and left-aligned inside it** — removes the
+  jump (measured 0px), but text screens then hug the left of a centred column
+  with ~660px dead to the right, and the footer, which centres itself, no longer
+  lines up with the content it follows.
+- **Stable container, content capped and centred inside it** — text screens keep
+  today's look, but on grid screens the strip floats mid-page while the heading
+  and grid start at the left. Prototyped both; neither is shippable as-is.
 
-## 4. Verifying it — an empty screen tells you nothing
+## When this rule can be lifted
 
-The trap that cost a probe cycle: the Pokale tab measured **1000px** and looked
-like the rule was broken. It wasn't — the round had no finished sessions, so
-Pokale rendered its empty state, which contains no `.pokale-cards` grid, so
-`:has()` correctly declined to widen. **Seed content for every screen you
-intend to measure**, or you are measuring the empty state.
+When navigation moves **out** of the content column — the desktop rail
+(≥1280px; below that the strip and dock are unchanged). Once the rail owns
+navigation, the content pane's width depends on the **viewport only**, never on
+which screen is showing, so nothing that stays on screen can move and the pane
+is free to be as wide as the shell allows.
 
-Everything else follows the pane rules that already exist: probe with
-`getComputedStyle(el).gridTemplateColumns`, element rects and
-`document.scrollHeight` rather than pixels
-(`.claude/rules/preview-pane-paint-artifacts.md`), take screenshots only right
-after a fresh `navigate`, and clear the service worker before believing any
-`styles.css` edit (`.claude/rules/pwa-service-worker.md`). Drive it against a
-generated dataset in a temp `DATA_DIR` — the committed `.claude/launch.json`
-points at the production folder, so add a throwaway config and revert it
-(`.claude/rules/no-reading-production-data.md`).
+The rail is why the one-width test says to *replace* its assertion with the
+rail's own left-edge-stability probe rather than delete it. The invariant that
+matters is "persistent chrome does not move", and the width cap is only today's
+way of guaranteeing it.
 
-To compare before/after honestly on one dataset, re-apply the old floor from
-the console rather than trusting a number measured on different data:
+A rail is not free horizontally: 260px + a 32px gap costs 292px, so **below
+1280px a rail yields fewer Regal columns than today** — which is where that
+breakpoint comes from, rather than from taste.
 
-```js
-const g = document.querySelector('.cards');
-const after = document.documentElement.scrollHeight;
-g.style.gridTemplateColumns = 'repeat(auto-fill, minmax(220px, 1fr))';
-g.style.gap = '16px';
-const before = document.documentElement.scrollHeight;   // 6235 vs 3463 at 390px
-```
+## What survived from #332, and why
 
-## 5. The cover budget did not need re-tuning — and here is why
+- **The phone Regal is two columns.** A 220px floor needs 456px for two, so
+  every phone got one, and a 22-game shelf measured ~6300px of scroll. The floor
+  drops to 150px below 520px; at 390px that is two 175px columns and the scroll
+  roughly halves (6235 → 3463 measured on one dataset). Unrelated to the width
+  question and uncontroversial.
+- **The home lobby is a grid** from 860px up. Still tiles 2-up inside a 1000px
+  column, so it kept its value after the revert.
 
-More columns mean more covers decoded at once, so `COVER_CARD` (330px) looked
-due for a re-check (`.claude/rules/provider-cover-sizing.md`). It holds:
-`.cards` uses **`auto-fill` with a `1fr` max**, so extra room becomes extra
-*columns*, not wider cards — measured 220px per card at 1920 and 235px at 1280,
-i.e. still at the floor. On a phone the card is 175px while we still request
-330px, which is 1.9× — inside the DPR headroom that constant is built from.
-`content-visibility: auto` still skips the off-screen ones.
+Both are pinned as **arithmetic over the declared numbers** — how many columns
+the grid actually gets at a given viewport — not as "a rule mentioning grid
+exists". A floor nudged 150px → 180px passes every naive assertion while
+silently restoring one column; only the column count notices.
 
-Note this reasoning depends on `auto-fill`; a switch to `auto-fit` would
-collapse empty tracks and let cards balloon on a sparse shelf, which *would*
-put the decoded-pixel budget back in play.
+## Verifying layout work here
 
-**Related:** `.claude/rules/responsive-hub-tabs.md` (the breakpoints and the
-`:has()` precedent this builds on), `.claude/rules/css-text-assertions-strip-comments.md`
-(how `test/support/css.js` parses the sheet for both tests).
+- **An empty screen tells you nothing.** The Pokale tab measured 1000px and
+  looked like the rule was broken; the round simply had no finished sessions, so
+  it rendered its empty state and contained no grid at all. Seed content for
+  every screen you intend to measure.
+- **Measure the transition, not the screen.** Every individual screen in #332
+  measured correctly. The defect only exists *between* screens — so walk the
+  whole set at a fixed viewport and diff the position of anything persistent:
+  ```js
+  Math.max(...lefts) - Math.min(...lefts)   // must be 0 across all 12 screens
+  ```
+  That one probe would have caught this before it shipped, and it is the
+  standing check for any future shell change.
+- Probe with `getComputedStyle(el).gridTemplateColumns`, element rects and
+  `document.scrollHeight` rather than pixels
+  (`.claude/rules/preview-pane-paint-artifacts.md`); screenshot only right after
+  a fresh `navigate`; clear the service worker before believing any
+  `styles.css` edit (`.claude/rules/pwa-service-worker.md`); and drive it
+  against a generated dataset in a temp `DATA_DIR` — the committed
+  `.claude/launch.json` points at the production folder
+  (`.claude/rules/no-reading-production-data.md`).
+
+## The cover budget, for when width does change
+
+More columns mean more covers decoded at once, so `COVER_CARD` (330px) looks due
+for a re-check (`.claude/rules/provider-cover-sizing.md`). It holds: `.cards`
+uses **`auto-fill` with a `1fr` max**, so extra room becomes extra *columns*,
+not wider cards — measured 220px per card at 1920 and 235px at 1280, i.e. still
+at the floor. On a phone the card is 175px while we still request 330px, which
+is 1.9×, inside the DPR headroom the constant is built from.
+
+That reasoning depends on `auto-fill`; switching to `auto-fit` would collapse
+empty tracks and let cards balloon on a sparse shelf, which *would* put the
+budget back in play.
+
+**Related:** `.claude/rules/responsive-hub-tabs.md` (the strip/dock breakpoints
+this sits on top of), `.claude/rules/css-text-assertions-strip-comments.md`
+(how `test/support/css.js` parses the sheet).

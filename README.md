@@ -133,12 +133,9 @@ code and documentation are in English.
   screen (home, a round tab, a game, a member, a session result, …), so a
   reload keeps you where you were and any stable view can be bookmarked or
   linked to. Browser Back/Forward move between visited views.
-- **Layout that follows the screen** – the content column has two widths: a
-  reading measure for text-type screens (game detail, Chronik, settings) and a
-  wider one for the card grids, so a large display shows six shelf columns
-  instead of four rather than half a screen of gutter. At the other end, a
-  phone gets two shelf columns instead of one, roughly halving the scroll of a
-  full shelf.
+- **Denser lists on small screens** – a phone shows two shelf columns instead of
+  one, roughly halving the scroll of a full shelf, and the home lobby tiles its
+  round cards once there is room for a second one.
 - **Installable app (PWA)** – a web app manifest and a service worker make the
   app installable to a phone or desktop home screen and let the app shell load
   **offline** (the shell and static assets are cached; live round data still

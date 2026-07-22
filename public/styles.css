@@ -70,12 +70,10 @@
      phone-width hub tab. Above the strip breakpoint the tabs are in flow at the
      top of the column and nothing overlays the page bottom at all. */
   --dock-clearance: 120px;
-  /* Two content widths (#332). Everything used to be --w-content at every
-     viewport, so a 1920 screen spent 48% of itself on empty gutter and the
-     Regal stayed at four columns. Which one a screen gets is decided in the
-     Layout section — by what it renders, not by JS. */
+  /* The one content width every screen shares. #332 briefly gave grid screens
+     a second, wider one — see the Layout section for why that was reverted and
+     what has to change before width can vary again. */
   --w-content: 1000px;
-  --w-wide: 1440px;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
   --font: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display: "Baloo 2", "Nunito", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -182,30 +180,26 @@ h1, h2, h3 { font-family: var(--font-display); }
   font-size: 14px;
 }
 
-/* A screen gets the wide column when it actually renders a card GRID — the
-   Regal (.cards), the Pokale/member stat cards (.pokale-cards) and the home
-   lobby (.lobby-list). Everything else keeps the reading measure (#332).
+/* EVERY screen shares one width, and that is currently load-bearing.
+   #332 gave grid screens a wider column, selected by `.app:has(.cards, …)`.
+   The selector worked exactly as intended and the change still had to be
+   reverted, for a reason worth keeping written down:
 
-   Three things about this shape are deliberate:
+   `.app` is CENTRED, so changing its width moves BOTH of its edges — and the
+   hub tab strip lives inside `.app`. Switching Start → Regal therefore sailed
+   the strip 220px sideways at 1920, and since the widths alternate along the
+   tab row, it slid back and forth as you moved across it.
 
-   1. **It is CSS, not JS.** There is no "begin view" hook in the frontend —
-      every show* function clears `#app` itself — so a width mode set per view
-      would silently inherit the PREVIOUS screen's width the first time someone
-      adds a view and forgets the call. `:has()` reads the rendered content, so
-      it cannot be forgotten. It is the same technique the dock clearance below
-      already uses, for the same reason.
-   2. **It fails to the NARROW width.** An unrecognised screen keeps the
-      pre-#332 measure, i.e. today's behaviour — a missed grid is "no wider
-      than before", never prose stretched to 1440px.
-   3. **`.theme-cards` is deliberately absent.** The design studio is a settings
-      picker, not content: its nine swatches read better as 6 columns × 2 rows
-      than as one 9-wide strip, and it stays consistent with the sibling
-      sub-screens (tags, providers) that keep the reading measure.
+   The constraint that makes this unfixable from here: within a screen the strip
+   and the content need a shared edge, while across screens the strip must not
+   move. Together those force every screen that shares the strip to share one
+   width. So "wider grids" and "stable navigation" are mutually exclusive for as
+   long as navigation lives inside the content column — no `:has()` list, and no
+   per-view width flag, can reconcile them.
 
-   The footer mirrors the container it follows, so the two stay aligned at every
-   width — the acceptance criterion #324's clearance rule depends on. */
-.app:has(.cards, .pokale-cards, .lobby-list) { max-width: var(--w-wide); }
-.app:has(.cards, .pokale-cards, .lobby-list) + .site-footer { max-width: var(--w-wide); }
+   Width may vary again once navigation moves OUT of this column (the desktop
+   rail). Until then, one width. See
+   .claude/rules/responsive-content-width.md. */
 
 /* The dock is `position: fixed` (below the strip breakpoint), and .app's own
    padding does NOT cover the footer, because the footer is .app's SIBLING
