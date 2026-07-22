@@ -21,7 +21,8 @@ const frontendGlobals = {
   // core.js
   app: 'readonly', crumbs: 'readonly', toastEl: 'readonly',
   currentView: 'writable', h: 'readonly', esc: 'readonly', toastTimer: 'writable',
-  toast: 'readonly', api: 'readonly', setCrumbs: 'readonly', joinNames: 'readonly',
+  toast: 'readonly', api: 'readonly', setCrumbs: 'readonly', backRow: 'readonly',
+  joinNames: 'readonly',
   fetchRound: 'readonly', invalidateRoundCache: 'readonly',
   fetchActivities: 'readonly', fetchRoundList: 'readonly', fetchRoundFresh: 'readonly',
   swrStore: 'readonly', swrRenderToken: 'writable', uiBusy: 'readonly',

@@ -735,9 +735,7 @@ async function showArchive(rid, kind) {
     app.appendChild(list);
   }
 
-  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
-  back.querySelector('button').addEventListener('click', () => navBack(() => showRound(rid, 'regal')));
-  app.appendChild(back);
+  app.appendChild(backRow(() => showRound(rid, 'regal')));
 }
 
 // =================== Design ===================

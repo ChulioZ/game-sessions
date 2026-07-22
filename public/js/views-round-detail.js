@@ -77,9 +77,7 @@ async function showBackground(rid) {
   sec.appendChild(swatches);
   app.appendChild(sec);
 
-  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
-  back.querySelector('button').addEventListener('click', () => navBack(() => showRound(rid)));
-  app.appendChild(back);
+  app.appendChild(backRow(() => showRound(rid)));
 }
 
 // =================== Tags (custom round tags, #238) ===================
@@ -193,9 +191,7 @@ async function showTags(rid) {
   }
   app.appendChild(sec);
 
-  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
-  back.querySelector('button').addEventListener('click', () => navBack(() => showRound(rid)));
-  app.appendChild(back);
+  app.appendChild(backRow(() => showRound(rid)));
 }
 
 // =================== Lookup providers (#294) ===================
@@ -268,9 +264,7 @@ async function showProviders(rid) {
   sec.appendChild(hint);
   app.appendChild(sec);
 
-  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
-  back.querySelector('button').addEventListener('click', () => navBack(() => showRound(rid)));
-  app.appendChild(back);
+  app.appendChild(backRow(() => showRound(rid)));
 }
 
 // =================== Game detail ===================
@@ -732,9 +726,7 @@ async function showGameDetail(rid, gameId) {
   }
   if (!sparse) app.appendChild(sec);
 
-  const back = h(`<div class="section center"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
-  back.querySelector('button').addEventListener('click', () => navBack(() => showRound(rid, 'regal')));
-  app.appendChild(back);
+  app.appendChild(backRow(() => showRound(rid, 'regal')));
 }
 
 // =================== Add game (bottom sheet) ===================

@@ -193,6 +193,23 @@ function setCrumbs(parts) {
   });
 }
 
+/* The centred "back" block that seven round sub-screens end with — game detail,
+   member, tags, providers, design, both archives and the session results. It
+   was seven byte-identical copies; `fallback` is the only thing that ever
+   differed (which tab to land on when there is no in-app history to go back
+   through, see navBack in router.js).
+
+   The `back-row` class is not decoration: from the rail breakpoint up this
+   control is redundant — the rail carries every section and the breadcrumb sits
+   at the top — so CSS hides it there, and it must be distinguishable from the
+   OTHER `.section.center` blocks (the results screen's "delete session" sits in
+   an identical wrapper and must keep rendering). */
+function backRow(fallback) {
+  const row = h(`<div class="section center back-row"><button class="btn btn--lg">${esc(t('common.back'))}</button></div>`);
+  row.querySelector('button').addEventListener('click', () => navBack(fallback));
+  return row;
+}
+
 // Join names for the active language: "A", "A and B", "A, B and C".
 function joinNames(names) {
   if (names.length <= 1) return names[0] || '';

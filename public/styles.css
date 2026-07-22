@@ -289,6 +289,17 @@ h1, h2, h3 { font-family: var(--font-display); }
      lines later, so it needs either the specificity or the source position to
      win, and specificity is the one that cannot be broken by moving code. */
   .app .rail-owned { display: none; }
+
+  /* The seven sub-screens' centred bottom "Zurück" is redundant once the rail
+     is there: every section is one click away in it and the breadcrumb sits at
+     the top, while this control requires scrolling to the END of the content to
+     reach the way out. It stays below the breakpoint, where the rail does not
+     exist. Scoped to `.back-row`, NOT `.section.center` — the results screen's
+     "delete session" sits in an identical wrapper and must keep rendering.
+
+     This is only the desktop half of the back-affordance problem; consolidating
+     the three competing affordances, and putting sheets into history, is #333. */
+  .app .back-row { display: none; }
 }
 
 .rail { display: none; }

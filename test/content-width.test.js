@@ -173,6 +173,32 @@ test('a 390 viewport gets two Regal columns, not one', () => {
     `a 390px phone gets ${columns} Regal column(s); the 22-game shelf needs two to halve its scroll`);
 });
 
+test('the desktop back-button hide is scoped to .back-row, never .section.center', () => {
+  /* Seven sub-screens end with a centred "Zurück" that the rail makes
+     redundant, so it is hidden from the rail breakpoint up.
+
+     The scoping is the whole risk. The session results screen ends with a
+     "Session löschen" block in a BYTE-IDENTICAL `.section.center` wrapper, so a
+     hide written against that wrapper would take the delete action with it —
+     silently, on one screen, with no error and nothing in the DOM to suggest a
+     control is missing. Hence the dedicated `.back-row` class. */
+  const hides = RULES.filter(([, body]) => /display:\s*none/.test(body));
+
+  const backHide = hides.filter(([sel]) => whole('.back-row').test(sel));
+  assert.ok(backHide.length, 'nothing hides the redundant back row');
+  backHide.forEach(([sel]) => {
+    const classes = (sel.match(/\.[\w-]+/g) || []).length;
+    assert.ok(classes >= 2, `"${sel}" is one class and can lose to a later component rule`);
+  });
+
+  const tooBroad = hides
+    .map(([sel]) => sel)
+    .filter((sel) => /\.section(?![\w-])/.test(sel) && /\.center(?![\w-])/.test(sel)
+      && !whole('.back-row').test(sel));
+  assert.deepEqual(tooBroad, [],
+    'these rules hide every .section.center, which takes "Session löschen" with it');
+});
+
 test('short-entry lists tile, and their rows may wrap inside a tile', () => {
   /* The tags and provider screens moved from full-width rows to tiles: as rows
      each carried ~200px of ink across a 900px line, putting a tag's count and
