@@ -69,6 +69,8 @@ test('configured: the privacy policy covers the real processors and no ODR link'
   for (const marker of [
     'Railway', 'Cloudflare', 'Brevo',            // the three platform processors
     'Heinlein',                                  // operator-mailbox host (#307)
+    'ZERODOX',                                   // address-service recipient — separate controller, no AVV (#226)
+    'eigenständiger Verantwortlicher',           // …and the classification itself is pinned in the DE text
     'Wikidata',                                  // BGG search recipient (adversarial pass)
     'geekdo-images.com', 'steamstatic.com',      // hotlinked cover hosts disclosed (#172)
     'Nutzungsereignisse',                        // product-event logging (#261) disclosed
