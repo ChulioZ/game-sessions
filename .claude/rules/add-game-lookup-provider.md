@@ -10,6 +10,41 @@ has enabled** in parallel (absent config = all five, #294 — see
 interleave) into one dropdown; one provider failing (502) must not blank the
 others' results (`Promise.allSettled`).
 
+## The cross-provider merge ranking must FOLD before it tokenizes (#317)
+
+`scoreHit` (`public/js/lookup-score.js`) tiers each hit by how well its title
+answers the query; `groupLookupHits` then breaks **ties** by `LOOKUP_PROVIDERS`
+position. So provider priority is only ever meant to order *equally relevant*
+hits — which makes any bug that collapses distinct relevance to a shared `0`
+present itself as **"the wrong provider wins"**, and hides the real cause.
+
+That is exactly what happened: the word-boundary and loose tiers split on
+whitespace, so a query carrying punctuation the title spells differently
+("… Quedlinburg **-** Megabox" vs "… Quedlinburg**:** Die Megabox") produced a
+dead `"-"` token that can prefix no real word. The loose tier's `every()` then
+failed and the correct game scored `0` — identical to an unrelated title — so
+six PS Store results outranked the one BGG hit the user was searching for.
+
+**Rule:** normalize both strings *once*, before any tier check, and never
+tokenize raw input. `foldTitle()` does it (ß→ss, diacritics stripped,
+non-alphanumeric runs collapsed to a space), mirroring `norm()` in
+`lib/providers/bgg.js` — BGG had folded punctuation for its **in-provider**
+ranking since #117, and the cross-provider merge ranking simply never got the
+same treatment. Two things worth keeping:
+
+- **A query that folds to `''` must score 0.** The loose tier is an `every()`
+  over the query's tokens, and `[].every(...)` is `true` — so an all-punctuation
+  query would otherwise match *everything* at tier 1. The `!query` guard is what
+  prevents that; `test/lookup-score.test.js` pins it.
+- **`groupLookupHits`' key is deliberately NOT folded.** It uses plain
+  trim+lowercase, because it answers a different question ("are these two
+  providers offering the same game?") — folding punctuation there would merge
+  rows that differ only by it. Don't "unify" the two normalizations.
+- The helper lives in its own file for the coverage reason in
+  `.claude/rules/frontend-helper-modules-and-coverage.md` — exporting it from
+  the ~730-line view file would drag that file into the coverage report and red
+  the gate with every test still passing.
+
 ## BGG (`lib/providers/bgg.js`) — the XML API2, under a token (#117)
 
 Both hops run on BGG's official **XML API2** with a registered application
