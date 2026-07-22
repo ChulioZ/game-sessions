@@ -12,9 +12,12 @@
  *
  * Anti-enumeration: register and forgot-password answer identically whether or
  * not the e-mail has an account; login burns the same Argon2 work for unknown
- * e-mails and answers a generic 401. E-mails are bilingual (DE first — the UI
- * language — then EN) since the server has no locale context; the in-app pages
- * that consume these links arrive with #138.
+ * e-mails and answers a generic 401. The username (#320) is the deliberate
+ * exception — a public handle, so `username_taken` is answered openly; the repo
+ * checks it ahead of the e-mail so that openness can't leak the hidden one.
+ * E-mails are bilingual (DE first — the UI language — then EN) since the server
+ * has no locale context; the in-app pages that consume these links arrive
+ * with #138.
  */
 
 const crypto = require('crypto');
@@ -43,6 +46,11 @@ const PASSWORD_MAX = 200;
 // `.max(254)` keeps the length guard.
 const emailSchema = z.string().max(254).regex(EMAIL_RE);
 const passwordSchema = z.string().min(PASSWORD_MIN).max(PASSWORD_MAX);
+// The app-wide public handle (#320). Deliberately narrow — ASCII letters,
+// digits, '_' and '-' only, no dots, spaces or unicode — because this is the
+// string a stranger types into an abuse report and that invitations (#207)
+// resolve: it has to be unambiguous to transcribe and not homoglyph-spoofable.
+const usernameSchema = z.string().regex(/^[a-zA-Z0-9_-]{3,30}$/);
 
 const iso = (ms) => new Date(ms).toISOString();
 const baseUrl = () =>
@@ -51,6 +59,7 @@ const baseUrl = () =>
 const normalizeEmail = (raw) => String(raw || '').trim().toLowerCase();
 const validEmail = (email) => emailSchema.safeParse(email).success;
 const validPassword = (pw) => passwordSchema.safeParse(pw).success;
+const validUsername = (name) => usernameSchema.safeParse(name).success;
 
 // Mail failures must never fail the account flow (registration/reset still
 // succeed); they are logged for the operator instead.
@@ -69,14 +78,20 @@ router.use((req, res, next) => {
 /* -------------------------------- register --------------------------------- */
 
 router.post('/register', async (req, res) => {
-  const { email: rawEmail, password } = req.body || {};
+  const { email: rawEmail, password, username: rawUsername } = req.body || {};
   const email = normalizeEmail(rawEmail);
+  const username = String(rawUsername || '').trim();
   if (!validEmail(email)) return res.status(400).json({ error: 'invalid_email' });
+  if (!validUsername(username)) return res.status(400).json({ error: 'invalid_username' });
   if (!validPassword(password)) return res.status(400).json({ error: 'invalid_password' });
 
   const verifyRaw = accounts.newRawToken();
   const user = await repo.createUser({
     email,
+    // The public handle (#320), stored as typed and matched case-insensitively.
+    // Required from here on, so no account can exist without one — which is why
+    // this ships BEFORE registration opens (#219): there is nothing to backfill.
+    username,
     createdAt: iso(Date.now()),
     // Each new account starts as its own tenant (#136) — the id every round it
     // creates is scoped to. Sharing a tenant (invites) is #138's onboarding.
@@ -94,6 +109,13 @@ router.post('/register', async (req, res) => {
     disabledAt: null,
     disabledReason: null,
   });
+
+  // Answered OPENLY, unlike email_taken: a username is a public identifier by
+  // design, so "that one is taken" reveals nothing a lookup wouldn't — and the
+  // form is unusable if it can't say so. The repo checks the username BEFORE the
+  // e-mail precisely so this error can't double as an e-mail probe: a signup
+  // colliding on both answers username_taken either way.
+  if (user === 'username_taken') return res.status(409).json({ error: 'username_taken' });
 
   if (user === 'email_taken') {
     // Same response as success so the endpoint can't be used to probe for
@@ -182,7 +204,7 @@ router.post('/login', async (req, res) => {
   // Mirror the access token into a cookie so browser-native /uploads GETs (cover
   // images) authenticate; fetch/XHR still use the Bearer token (see lib/app.js).
   accounts.setAccessCookie(res, req, tokens.accessToken);
-  res.json({ ok: true, ...tokens, user: { id: user.id, email: user.email } });
+  res.json({ ok: true, ...tokens, user: { id: user.id, email: user.email, username: user.username || null } });
 });
 
 /* ------------------------------ refresh / logout ---------------------------- */
@@ -261,7 +283,13 @@ router.post('/reset-password', async (req, res) => {
 router.get('/me', accounts.requireUser, async (req, res) => {
   const user = await repo.getUserById(req.userId);
   if (!user) return res.status(401).json({ error: 'invalid_token' }); // account deleted
-  res.json({ id: user.id, email: user.email, emailVerified: user.emailVerified, createdAt: user.createdAt });
+  res.json({
+    id: user.id,
+    email: user.email,
+    username: user.username || null,
+    emailVerified: user.emailVerified,
+    createdAt: user.createdAt,
+  });
 });
 
 module.exports = router;

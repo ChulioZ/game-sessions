@@ -235,6 +235,17 @@ function showRegister() {
         <input id="regEmail" class="input" type="email" autocomplete="username" inputmode="email" />
       </div>
       <div class="field">
+        <label for="regUser">${esc(t('auth.username'))}</label>
+        <!-- 'nickname', NOT 'username': login authenticates by E-MAIL, and the
+             login form's address field owns autocomplete="username". Claiming
+             that token here would make a password manager store the handle as
+             the credential's username and then autofill it into the login
+             e-mail box on the next visit. -->
+        <input id="regUser" class="input" type="text" autocomplete="nickname"
+               maxlength="30" spellcheck="false" autocapitalize="none" />
+        <div class="field__hint muted">${esc(t('auth.register.userHint'))}</div>
+      </div>
+      <div class="field">
         <label for="regPw">${esc(t('auth.password'))}</label>
         <input id="regPw" class="input" type="password" autocomplete="new-password" />
         <div class="field__hint muted">${esc(t('auth.register.pwHint'))}</div>
@@ -251,21 +262,32 @@ function showRegister() {
     </form>`, (card) => {
     const form = card.closest('.auth').querySelector('form');
     const email = card.querySelector('#regEmail');
+    const user = card.querySelector('#regUser');
     const pw = card.querySelector('#regPw');
     const submit = card.querySelector('button[type=submit]');
     card.querySelector('#toLogin').addEventListener('click', showLogin);
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       authError(card).hidden = true;
-      if (!email.value.trim()) return setError(card, t('auth.error.missing'));
+      const username = user.value.trim();
+      if (!email.value.trim() || !username) return setError(card, t('auth.error.missing'));
+      // Mirrors usernameSchema in routes/account.js — the server is still the
+      // authority; this only saves a round trip on an obviously bad handle.
+      if (!/^[a-zA-Z0-9_-]{3,30}$/.test(username)) return setError(card, t('auth.error.invalidUsername'));
       if (pw.value.length < 8) return setError(card, t('auth.error.shortPassword'));
       submit.disabled = true;
       try {
-        const { ok, data } = await authFetch('/register', { email: email.value.trim(), password: pw.value });
+        const { ok, data } = await authFetch('/register', { email: email.value.trim(), username, password: pw.value });
         // Register answers ok even for an existing e-mail (anti-enumeration) — a
-        // 400 only comes back for a malformed e-mail/password.
+        // 400/409 only comes back for a malformed field or a taken username,
+        // which IS reported openly (a public handle; see routes/account.js).
         if (ok) return showAuthDone('auth.register.doneTitle', 'auth.register.doneSub');
-        setError(card, data.error === 'invalid_email' ? t('auth.error.invalidEmail') : t('auth.error.shortPassword'));
+        const messages = {
+          invalid_email: 'auth.error.invalidEmail',
+          invalid_username: 'auth.error.invalidUsername',
+          username_taken: 'auth.error.usernameTaken',
+        };
+        setError(card, t(messages[data.error] || 'auth.error.shortPassword'));
       } catch { setError(card, t('auth.error.network')); }
       submit.disabled = false;
     });
@@ -391,7 +413,10 @@ function setupAccountUi() {
   btn.hidden = !loggedIn;
   if (!loggedIn) return;
   btn.onclick = () => openPopover(btn, (el, close) => {
-    el.appendChild(h(`<div class="popover__head">${esc((accountUser && accountUser.email) || '')}</div>`));
+    const username = (accountUser && accountUser.username) || '';
+    el.appendChild(h(`<div class="popover__head">${
+      username ? `<strong>${esc(username)}</strong>` : ''
+    }${esc((accountUser && accountUser.email) || '')}</div>`));
     const out = h(`<button class="popover__opt"><i class="ti ti-logout" aria-hidden="true"></i> ${esc(t('auth.logout'))}</button>`);
     out.addEventListener('click', () => { close(); logout(); });
     el.appendChild(out);

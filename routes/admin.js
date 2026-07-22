@@ -135,7 +135,7 @@ async function tenantPayload(tenantId) {
   const summary = await repo.tenantSummary(tenantId);
   const users = (await repo.listUsers())
     .filter((u) => (u.tenantId || null) === tenantId)
-    .map((u) => ({ id: u.id, email: u.email, disabled: !!u.disabled }));
+    .map((u) => ({ id: u.id, email: u.email, username: u.username || null, disabled: !!u.disabled }));
   return {
     tenantId,
     summary: summary ? { rounds: summary.rounds, totals: summary.totals } : null,
@@ -152,16 +152,18 @@ async function tenantPayload(tenantId) {
 
 // Resolve a notice to a tenant — by cover path (#268), or, since #275, by the
 // round link / e-mail address / tenant id a notice or support mail actually
-// tends to name. Read-only: it answers "whose is this, and what do they hold?"
-// without changing anything, so an operator can assess before acting.
+// tends to name. Since #320 also by username: that is the ONLY identifier an
+// outside reporter can legitimately know, since the e-mail address must never
+// be revealed to them. Read-only: it answers "whose is this, and what do they
+// hold?" without changing anything, so an operator can assess before acting.
 //
 // Exactly one selector, deliberately: accepting several and picking a winner
 // would make a typo'd second parameter silently change which tenant the
 // operator then acts on.
 router.get('/lookup', async (req, res) => {
-  const given = ['image', 'round', 'tenant', 'email'].filter((k) => req.query[k]);
+  const given = ['image', 'round', 'tenant', 'email', 'username'].filter((k) => req.query[k]);
   if (given.length !== 1) {
-    return res.status(400).json({ error: 'Provide exactly one of image, round, tenant, email' });
+    return res.status(400).json({ error: 'Provide exactly one of image, round, tenant, email, username' });
   }
   const by = given[0];
 
@@ -188,6 +190,12 @@ router.get('/lookup', async (req, res) => {
     tenantId = round.tenantId;
   } else if (by === 'email') {
     const user = await repo.getUserByEmail(String(req.query.email || '').trim().toLowerCase());
+    if (!user) return res.status(404).json({ error: 'not_found' });
+    tenantId = user.tenantId || null;
+  } else if (by === 'username') {
+    // Matched case-insensitively by the repo — a reporter transcribing a handle
+    // off a screen has no way to know which casing the owner registered.
+    const user = await repo.getUserByUsername(String(req.query.username || '').trim());
     if (!user) return res.status(404).json({ error: 'not_found' });
     tenantId = user.tenantId || null;
   } else {
@@ -323,6 +331,7 @@ router.post('/takedown', async (req, res) => {
 const safeUser = (u) => ({
   id: u.id,
   email: u.email,
+  username: u.username || null,
   tenantId: u.tenantId,
   createdAt: u.createdAt,
   emailVerified: !!u.emailVerified,
@@ -367,6 +376,52 @@ router.post('/users/:uid/disabled', async (req, res) => {
 
   logger.info({ event: body.disabled ? 'admin_user_disabled' : 'admin_user_restored', tenantId: user.tenantId || null });
   res.json({ ok: true, entry });
+});
+
+// The neutral handle a forced rename installs (#320). Derived from the account
+// id, so it is unique BY CONSTRUCTION — redaction's fixed '[entfernt]' marker
+// cannot be reused here, because a unique index refuses a second one. Sliced so
+// the result stays inside the 30-char registration policy whatever an id looks
+// like; today's 16-hex ids are used whole.
+const neutralUsername = (uid) => `user-${String(uid).slice(0, 24)}`;
+
+// Force a new username on an account whose chosen handle is itself the abuse
+// (a slur, an impersonation, doxxing in a name). The replacement is NOT
+// operator-supplied — same reasoning as the fixed redaction marker (#275):
+// writing chosen text into someone's account is a larger power than removing
+// what they chose, and the log's `previous` preserves what was actually there.
+//
+// Suspension stays the answer to an abusive ACCOUNT; this is the answer to an
+// abusive NAME on an account that may otherwise be fine.
+router.post('/users/:uid/username', async (req, res) => {
+  const body = validateBody(z.object({ reason: reasonSchema }), req, res);
+  if (!body) return;
+
+  const user = await repo.getUserById(req.params.uid);
+  if (!user) return res.status(404).json({ error: 'not_found' });
+
+  const previous = user.username || null;
+  const username = neutralUsername(user.id);
+  // Already neutral — refuse rather than write a no-op and log it as a measure
+  // an Art. 17 statement could then be generated from.
+  if (previous === username) return res.status(409).json({ error: 'already_neutral' });
+
+  await repo.updateUser(user.id, { username });
+
+  // `previous` is the record's substance, exactly as for a redaction: once the
+  // handle is replaced this entry is the only evidence of what was removed.
+  const entry = await repo.logModeration({
+    action: 'user_renamed',
+    target: user.id,
+    reason: body.reason,
+    at: new Date().toISOString(),
+    tenantId: user.tenantId || null,
+    email: user.email,
+    previous,
+  });
+
+  logger.info({ event: 'admin_user_renamed', tenantId: user.tenantId || null });
+  res.json({ ok: true, username, entry });
 });
 
 /* --------------------------- export & erasure (#273) ------------------------ */
@@ -641,6 +696,7 @@ const NOTICE_COLUMNS = [
   ['Zeitpunkt', (n) => n.createdAt],
   ['Kategorie', (n) => n.category],
   ['URL', (n) => n.url],
+  ['Gemeldeter Nutzername', (n) => n.reportedUsername],
   ['Betreff', (n) => n.subject],
   ['Nachricht', (n) => n.message],
   ['Name', (n) => n.name],
@@ -743,6 +799,9 @@ function statementMeasure(entry) {
   }
   if (entry.action === 'user_disabled') return 'dein Konto gesperrt';
   if (entry.action === 'user_restored') return 'die Sperrung deines Kontos aufgehoben';
+  if (entry.action === 'user_renamed') {
+    return `deinen Nutzernamen${entry.previous ? ` „${entry.previous}“` : ''} durch einen neutralen Namen ersetzt`;
+  }
   return `die Maßnahme „${entry.action}“ durchgeführt`;
 }
 

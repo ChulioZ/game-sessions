@@ -26,10 +26,15 @@ const repo = require('../lib/repo');
 const { outbox } = require('../lib/mail');
 
 const PASSWORD = 'correct horse battery';
+
+// Registration requires a unique app-wide handle (#320). Derived from the address
+// so every helper call stays a one-liner and two accounts can never collide.
+const handle = (email) => email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '-');
+
 const ADMIN_PW = 'operator-secret-pw';
 
 async function makeAccount(email) {
-  await request(app).post('/api/account/register').send({ email, password: PASSWORD });
+  await request(app).post('/api/account/register').send({ email, username: handle(email), password: PASSWORD });
   const m = outbox[outbox.length - 1].text.match(/uid=([0-9a-f]+)&token=([A-Za-z0-9_-]+)/);
   await request(app).post('/api/account/verify-email').send({ uid: m[1], token: m[2] });
   const login = await request(app).post('/api/account/login').send({ email, password: PASSWORD });
@@ -987,6 +992,94 @@ test('the moderation log filters by tenant, action and date (#275)', async (t) =
     assert.equal(res.status, 200);
     assert.ok(res.body.actions.includes('redact_game'));
     assert.deepEqual(res.body.actions, [...new Set(res.body.actions)].sort());
+  });
+});
+
+/*
+ * #320: a username is the only identifier an outside reporter can legitimately
+ * hold, so the panel has to be able to start from one — and to act on it when
+ * the name itself is the abuse.
+ */
+test('the operator can resolve and neutralise a username (#320)', async (t) => {
+  const cookie = await adminCookie();
+  const victim = await makeAccount('handle-me@example.com'); // username 'handle-me'
+
+  await t.test('the user list carries the username, still without secrets', async () => {
+    const res = await request(app).get('/api/admin/users').set('Cookie', cookie);
+    const row = res.body.users.find((u) => u.email === 'handle-me@example.com');
+    assert.equal(row.username, 'handle-me');
+    for (const key of ['identities', 'refreshTokens', 'verification', 'reset']) {
+      assert.equal(key in row, false, `${key} must be stripped`);
+    }
+  });
+
+  await t.test('lookup by username finds the tenant, in any casing', async () => {
+    for (const spelling of ['handle-me', 'HANDLE-ME', 'Handle-Me']) {
+      const res = await request(app)
+        .get(`/api/admin/lookup?username=${encodeURIComponent(spelling)}`).set('Cookie', cookie);
+      assert.equal(res.status, 200, spelling);
+      assert.equal(res.body.by, 'username');
+      assert.equal(res.body.tenantId, victim.user.tenantId);
+      assert.equal(res.body.users[0].username, 'handle-me');
+    }
+
+    const miss = await request(app).get('/api/admin/lookup?username=nobody').set('Cookie', cookie);
+    assert.equal(miss.status, 404);
+    // Still exactly one selector — adding a fifth must not loosen that.
+    const two = await request(app).get('/api/admin/lookup?username=a&email=b').set('Cookie', cookie);
+    assert.equal(two.status, 400);
+  });
+
+  await t.test('a rename needs a reason and installs a neutral, unique handle', async () => {
+    const noReason = await request(app)
+      .post(`/api/admin/users/${victim.user.id}/username`).set('Cookie', cookie).send({});
+    assert.equal(noReason.status, 400);
+
+    const res = await request(app)
+      .post(`/api/admin/users/${victim.user.id}/username`).set('Cookie', cookie)
+      .send({ reason: 'NB §5: Identitätsanmaßung' });
+    assert.equal(res.status, 200);
+    // Derived from the account id, so it cannot collide with another account's
+    // — a fixed marker like redaction's '[entfernt]' is impossible under a
+    // unique index.
+    assert.equal(res.body.username, `user-${victim.user.id}`);
+    assert.match(res.body.username, /^[a-zA-Z0-9_-]{3,30}$/); // still a legal handle
+
+    const stored = await repo.getUserById(victim.user.id);
+    assert.equal(stored.username, `user-${victim.user.id}`);
+    // The old handle is genuinely gone, not merely hidden.
+    assert.equal(await repo.getUserByUsername('handle-me'), null);
+  });
+
+  await t.test('the log keeps the previous name — the only remaining evidence', async () => {
+    const res = await request(app).get('/api/admin/log?action=user_renamed').set('Cookie', cookie);
+    const entry = res.body.entries.find((e) => e.target === victim.user.id);
+    assert.ok(entry, 'the rename is logged');
+    assert.equal(entry.previous, 'handle-me');
+    assert.equal(entry.reason, 'NB §5: Identitätsanmaßung');
+
+    // ...and an Art. 17 statement can be generated from it, quoting that name.
+    const st = await request(app)
+      .get(`/api/admin/statement?entry=${entry.id}`).set('Cookie', cookie);
+    assert.equal(st.status, 200);
+    assert.match(st.body.text, /Nutzernamen „handle-me“/);
+  });
+
+  await t.test('renaming an already-neutral account is refused, not logged again', async () => {
+    const before = await request(app).get('/api/admin/log?action=user_renamed').set('Cookie', cookie);
+    const res = await request(app)
+      .post(`/api/admin/users/${victim.user.id}/username`).set('Cookie', cookie)
+      .send({ reason: 'again' });
+    assert.equal(res.status, 409);
+    assert.equal(res.body.error, 'already_neutral');
+    const after = await request(app).get('/api/admin/log?action=user_renamed').set('Cookie', cookie);
+    assert.equal(after.body.total, before.body.total);
+  });
+
+  await t.test('an unknown account 404s', async () => {
+    const res = await request(app)
+      .post('/api/admin/users/nope/username').set('Cookie', cookie).send({ reason: 'x' });
+    assert.equal(res.status, 404);
   });
 });
 

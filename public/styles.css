@@ -1164,7 +1164,9 @@ body.auth-screen .crumbs { display: none; }
 }
 .topbar__acct:hover { color: var(--brand); border-color: var(--brand-edge); }
 
-/* Account menu header (e-mail) above the logout item in the shared popover. */
+/* Account menu header (username + e-mail) above the logout item in the shared
+   popover. The username (#320) leads: it is the account's public identity, the
+   one a report or an invitation names, so it must be readable off this menu. */
 .popover__head {
   font-size: 13px;
   color: var(--ink-soft);
@@ -1173,6 +1175,7 @@ body.auth-screen .crumbs { display: none; }
   border-bottom: 1px solid var(--line);
   word-break: break-all;
 }
+.popover__head strong { display: block; color: var(--ink); font-weight: 600; }
 
 
 /* ---- Session game (voting) ---- */

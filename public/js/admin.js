@@ -59,6 +59,7 @@
     no_notifier_email: 'Die Meldung enthält keine E-Mail-Adresse — es gibt niemanden zu benachrichtigen.',
     mail_failed: 'E-Mail-Versand fehlgeschlagen. Nichts wurde gespeichert — bitte erneut versuchen.',
     invalid_email: 'Keine gültige E-Mail-Adresse.',
+    already_neutral: 'Der Nutzername ist bereits neutralisiert.',
   };
   const message = (err) => MESSAGES[err.message] || err.message;
 
@@ -251,10 +252,12 @@
   // ---- lookup --------------------------------------------------------------
 
   // [label, placeholder] per selector. A notice names an e-mail address or a
-  // round link far more often than a cover path (#275).
+  // round link far more often than a cover path (#275) — and since #320 a
+  // username, the only identifier an outside reporter can legitimately hold.
   const LOOKUP_FIELDS = {
     image: ['Bildpfad', '/uploads/abc123.jpg'],
     round: ['Runden-ID', 'z. B. 8f3a1c2b4d5e6f70'],
+    username: ['Nutzername', 'z. B. anna_91'],
     email: ['E-Mail-Adresse', 'name@example.com'],
     tenant: ['Tenant-ID', 'z. B. 4d9e7a10bc2f3e58'],
   };
@@ -334,7 +337,7 @@
     if (out.round) pairs.push(['Runde', out.round.roundName]);
     pairs.push(['Tenant', out.tenantId || '—']);
     pairs.push(['Konten', out.users.length
-      ? out.users.map((u) => u.email + (u.disabled ? ' (gesperrt)' : '')).join(', ')
+      ? out.users.map((u) => `${u.username ? `${u.username} · ` : ''}${u.email}${u.disabled ? ' (gesperrt)' : ''}`).join(', ')
       : 'keine (Alt-Tenant)']);
     // "≥" when only a sample was measured: past SIZE_SAMPLE_MAX covers the
     // server stops sizing objects, so the figure is a lower bound, not a total.
@@ -565,18 +568,21 @@
     }
 
     const head = document.createElement('tr');
-    ['E-Mail', 'Tenant', 'Status', ''].forEach((h) => cell(head, h, { head: true }));
+    ['Nutzername', 'E-Mail', 'Tenant', 'Status', ''].forEach((h) => cell(head, h, { head: true }));
     body.appendChild(head);
 
     if (!users.length) {
       const row = document.createElement('tr');
-      cell(row, 'Keine Konten (Accounts sind auf dieser Instanz nicht aktiv).', { colSpan: 4 });
+      cell(row, 'Keine Konten (Accounts sind auf dieser Instanz nicht aktiv).', { colSpan: 5 });
       body.appendChild(row);
       return;
     }
 
     for (const u of users) {
       const row = document.createElement('tr');
+      // Attacker-chosen free text — cell() uses textContent, so a handle full of
+      // markup renders as the characters it is.
+      cell(row, u.username || '—');
       cell(row, u.email);
       cell(row, u.tenantId || '—');
 
@@ -598,6 +604,7 @@
       actions.className = 'row';
       for (const [label, cls, run] of [
         [u.disabled ? 'Entsperren' : 'Sperren', u.disabled ? 'small ghost' : 'small danger', () => toggleUser(u)],
+        ['Name neutralisieren', 'small ghost', () => renameUser(u)],
         ['Exportieren', 'small ghost', () => exportUser(u)],
         ['Löschen', 'small danger', () => eraseUser(u)],
       ]) {
@@ -629,6 +636,26 @@
       });
       loadUsers();
       refreshLog();
+    } catch (err) {
+      show($('usersError'), message(err), 'err');
+    }
+  }
+
+  // Force a neutral handle when the username itself is the abuse (#320). The
+  // replacement is the server's, not ours — the panel only supplies the
+  // mandatory reason, exactly like a redaction.
+  async function renameUser(user) {
+    const reason = askReason('Nutzernamen neutralisieren');
+    if (!reason) return;
+
+    try {
+      const out = await api(`/users/${encodeURIComponent(user.id)}/username`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+      loadUsers();
+      refreshLog();
+      show($('usersError'), `Nutzername ersetzt durch „${out.username}“.`, 'ok');
     } catch (err) {
       show($('usersError'), message(err), 'err');
     }
@@ -920,6 +947,18 @@
     $('lookupForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  // The username half of the same hand-off (#320): drive the existing lookup
+  // with the reported handle instead of making the operator retype it. No
+  // takedown reason is prefilled — a reported *account* has no single target to
+  // act on yet; the lookup card is where the operator decides what to do.
+  function lookupUsername(username) {
+    $('lookupBy').value = 'username';
+    $('lookupBy').dispatchEvent(new Event('change')); // updates label, clears the value
+    $('lookupValue').value = username;
+    $('lookupForm').requestSubmit();
+    $('lookupForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   // Decide a notice: status + optional note, and — when the notice carries an
   // address — the Art. 16(5) decision mail. The prompt's cancel aborts; an
   // empty note is fine (the mail then states only the outcome).
@@ -958,18 +997,20 @@
       cell(row, fmt(n.createdAt));
       cell(row, n.category ? (CATEGORY_LABELS[n.category] || n.category) : 'Allgemein');
 
-      // Subject + message + reported URL, all attacker-controlled free text —
-      // cell() uses textContent, so nothing renders as markup or a live link.
+      // Subject + message + reported URL/username, all attacker-controlled free
+      // text — cell() uses textContent, so nothing renders as markup or a live
+      // link.
       const msg = cell(row, '');
       msg.style.whiteSpace = 'pre-wrap';
       msg.style.wordBreak = 'break-word';
       msg.textContent = n.subject ? `${n.subject} — ${n.message}` : n.message;
-      if (n.url) {
-        const url = document.createElement('div');
-        url.style.color = '#8b93a6';
-        url.style.fontSize = '0.8rem';
-        url.textContent = n.url;
-        msg.appendChild(url);
+      for (const line of [n.url, n.reportedUsername ? `@${n.reportedUsername}` : null]) {
+        if (!line) continue;
+        const sub = document.createElement('div');
+        sub.style.color = '#8b93a6';
+        sub.style.fontSize = '0.8rem';
+        sub.textContent = line;
+        msg.appendChild(sub);
       }
 
       // Anonymous is a legitimate state (CSAM reports, Art. 16(3)), not missing
@@ -996,6 +1037,7 @@
       const path = uploadsPath(n.url);
       const buttons = [];
       if (path) buttons.push(['Bild zuordnen', 'small ghost', () => assignNotice(n, path)]);
+      if (n.reportedUsername) buttons.push(['Konto suchen', 'small ghost', () => lookupUsername(n.reportedUsername)]);
       if (n.status === 'open') {
         buttons.push(['Erledigt', 'small', () => decideNotice(n, 'actioned')]);
         buttons.push(['Abgelehnt', 'small ghost', () => decideNotice(n, 'rejected')]);

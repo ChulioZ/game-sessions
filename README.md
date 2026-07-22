@@ -466,9 +466,13 @@ limit with `AUTH_RATE_LIMIT_MAX` (attempts per 15 min, default 20). The session 
 a signed, httpOnly cookie (marked `Secure` automatically behind a TLS proxy).
 
 User accounts (issue #135): the token-first account model — register with
-e-mail + password (Argon2id-hashed), e-mail verification, login issuing short-lived
-access tokens + rotating refresh tokens, and password reset — lives under
-`/api/account`. It is **off by default**: set `ACCOUNTS_ENABLED=true` *and* a
+e-mail + username + password (Argon2id-hashed), e-mail verification, login issuing
+short-lived access tokens + rotating refresh tokens, and password reset — lives under
+`/api/account`. The **username** (issue #320) is an app-wide unique public handle
+(3–30 characters of `a–z A–Z 0–9 _ -`, matched case-insensitively but stored as
+typed) chosen at registration and not self-renamable: it is how an account is
+named in an abuse report and how invitations (#207) will find it, so no account
+can exist without one. It is **off by default**: set `ACCOUNTS_ENABLED=true` *and* a
 strong `SESSION_SECRET` to expose it. Verification/reset mails go out via Brevo
 (`BREVO_API_KEY`, `MAIL_FROM`, links built from `APP_BASE_URL`); without a key
 they are logged instead of sent.
@@ -490,8 +494,8 @@ submissions as a **Meldungen inbox** (a reported `/uploads/…` path hands off t
 the image lookup with the takedown reason prefilled; deciding a notice records
 the outcome and can notify the notifier with redress information, Art. 16(5));
 it can resolve a notice by reported
-cover path, round link, e-mail address or tenant id (with a per-tenant summary
-shown against the quota ceilings); take a cover image down (deletes the object
+cover path, round link, username, e-mail address or tenant id (with a per-tenant
+summary shown against the quota ceilings); take a cover image down (deletes the object
 *and* clears every reference) — after which the panel generates the DSA
 **Art. 17 statement of reasons** from the log entry, copyable or sent by mail
 with the delivery recorded on the entry; **redact** any user-authored text — round name,
@@ -499,7 +503,9 @@ game title, member name, tag name, feedback message — by overwriting the field
 with `[entfernt]` while preserving the original wording on the log entry a DSA
 Art. 17 statement of reasons has to quote (redaction never deletes a row);
 suspend or restore an account without deleting anything, effective immediately
-(existing access tokens stop working); **export** everything held for one
+(existing access tokens stop working); replace an unlawful **username** with a
+neutral handle derived from the account id, keeping the previous one on the log
+entry (#320); **export** everything held for one
 account as JSON (GDPR Art. 15/20); and perform an Art. 17 **erasure** — the
 account, its tenant's rounds and the stored cover objects — which demands a
 reason plus the account's own e-mail typed as confirmation and refuses if a

@@ -410,6 +410,7 @@ I18N.en = {
   'home.onboard.sub': 'Create your first round below and get everyone to the table.',
 
   'auth.email': 'E-mail',
+  'auth.username': 'Username',
   'auth.password': 'Password',
   'auth.logout': 'Log out',
   'auth.backToLogin': 'Back to login',
@@ -420,6 +421,7 @@ I18N.en = {
   'auth.login.toRegister': 'Create an account',
   'auth.register.title': 'Create your account',
   'auth.register.sub': 'Start your own Spielwirbel.',
+  'auth.register.userHint': '3–30 characters: letters, digits, _ and -. Publicly visible and cannot be changed later.',
   'auth.register.pwHint': 'At least 8 characters.',
   'auth.register.submit': 'Sign up',
   'auth.register.toLogin': 'Already have an account? Log in',
@@ -451,6 +453,8 @@ I18N.en = {
   'auth.error.network': 'Something went wrong. Please try again.',
   'auth.error.invalidEmail': 'Please enter a valid e-mail address.',
   'auth.error.shortPassword': 'Password must be at least 8 characters.',
+  'auth.error.invalidUsername': 'The username needs 3–30 characters and may only contain letters, digits, _ and -.',
+  'auth.error.usernameTaken': 'That username is already taken. Please pick another one.',
 
   // Accessible names for the icon-only top bar and the two landmark navs (#145).
   'a11y.home': 'Go to home screen',

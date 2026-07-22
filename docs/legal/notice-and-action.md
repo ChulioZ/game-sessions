@@ -50,6 +50,9 @@ die Begründung (unten) zeigt auf die konkrete Ziffer.
    Nutzungsbedingungen — bei Einführung dort UND hier ändern). Grundlage:
    die gemeldete URL im Betreiber-Panel (`/admin.html`, #268) zuordnen
    (`Bild zuordnen` für `/uploads/…`-Pfade, sonst Konto-/Runden-Lookup #275).
+   Nennt die Meldung einen **Nutzernamen** (#320), führt `Konto suchen` auf
+   der Meldungs-Karte direkt zum Lookup — für eine meldende Person von außen
+   ist das oft der einzige Bezeichner, den sie kennen kann.
    **Art. 18 DSA — Sonderweg bei Gefahr für Leben oder Sicherheit:** ergibt
    die Prüfung den Verdacht einer Straftat, die eine Gefahr für das Leben
    oder die Sicherheit einer Person bedeutet (begangen, im Gange oder
@@ -60,7 +63,10 @@ die Begründung (unten) zeigt auf die konkrete Ziffer.
    Vorgang dokumentieren. Diese Pflicht gilt ohne
    Kleinstunternehmen-Ausnahme.
 3. **Entscheiden & handeln** — Entfernen/Redigieren/Sperren über das Panel
-   (`takedownImage`, `redactText`, Konto-Sperre); jede Maßnahme schreibt einen
+   (`takedownImage`, `redactText`, Konto-Sperre; ist der **Nutzername selbst**
+   der Verstoß, `Name neutralisieren` — ersetzt ihn durch eine aus der Konto-Id
+   abgeleitete neutrale Bezeichnung und hält den vorherigen Namen als Nachweis
+   auf dem Log-Eintrag fest, #320); jede Maßnahme schreibt einen
    Moderations-Log-Eintrag (`logModeration`) mit Zeitpunkt, Maßnahme, Grund.
    Im Grund-Feld die verletzte Ziffer der Nutzungsbedingungen (z. B. „NB §5:
    fremdes Cover ohne Rechte") und ggf. das Meldungs-Datum referenzieren.

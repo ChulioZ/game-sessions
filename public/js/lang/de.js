@@ -410,6 +410,7 @@ I18N.de = {
   'home.onboard.sub': 'Erstelle unten deine erste Runde und hol alle an den Tisch.',
 
   'auth.email': 'E-Mail',
+  'auth.username': 'Nutzername',
   'auth.password': 'Passwort',
   'auth.logout': 'Abmelden',
   'auth.backToLogin': 'Zurück zur Anmeldung',
@@ -420,6 +421,7 @@ I18N.de = {
   'auth.login.toRegister': 'Konto erstellen',
   'auth.register.title': 'Konto erstellen',
   'auth.register.sub': 'Starte deinen eigenen Spielwirbel.',
+  'auth.register.userHint': '3–30 Zeichen: Buchstaben, Ziffern, _ und -. Öffentlich sichtbar und später nicht änderbar.',
   'auth.register.pwHint': 'Mindestens 8 Zeichen.',
   'auth.register.submit': 'Registrieren',
   'auth.register.toLogin': 'Schon ein Konto? Anmelden',
@@ -451,6 +453,8 @@ I18N.de = {
   'auth.error.network': 'Etwas ist schiefgelaufen. Bitte versuche es erneut.',
   'auth.error.invalidEmail': 'Bitte gib eine gültige E-Mail-Adresse ein.',
   'auth.error.shortPassword': 'Das Passwort muss mindestens 8 Zeichen haben.',
+  'auth.error.invalidUsername': 'Der Nutzername braucht 3–30 Zeichen und darf nur Buchstaben, Ziffern, _ und - enthalten.',
+  'auth.error.usernameTaken': 'Dieser Nutzername ist schon vergeben. Bitte wähle einen anderen.',
 
   // Accessible names for the icon-only top bar and the two landmark navs (#145).
   'a11y.home': 'Zur Startseite',

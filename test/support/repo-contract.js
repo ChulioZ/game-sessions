@@ -19,6 +19,15 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+
+// A fresh identifier per call, so a suite run against a PERSISTENT database
+// can't collide with an earlier run's rows. Uses crypto rather than
+// Math.random(): these feed account fields (e-mail, username), and CodeQL
+// rightly flags `js/insecure-randomness` when a weak source reaches one — the
+// randomness is not load-bearing here, but a scanner cannot know that, and a
+// secure source costs nothing.
+const uniq = () => `u${crypto.randomBytes(6).toString('hex')}`;
 
 const T = 'tenant-a';
 const OTHER = 'tenant-b';
@@ -818,7 +827,9 @@ module.exports = function repoContract(repo) {
   // tenantId rides along since #136 (minted at registration).
   function userFields(over = {}) {
     return {
-      email: `u${Math.random().toString(16).slice(2)}@example.com`,
+      email: `${uniq()}@example.com`,
+      username: uniq(), // the app-wide public handle (#320), unique per call
+
       createdAt: '2026-07-18T00:00:00.000Z',
       tenantId: 'tenant-of-user',
       emailVerified: false,
@@ -840,6 +851,53 @@ module.exports = function repoContract(repo) {
     assert.equal(await repo.createUser(userFields({ email: fields.email })), 'email_taken');
     assert.equal(await repo.getUserById('nope'), null);
     assert.equal(await repo.getUserByEmail('nope@example.com'), null);
+  });
+
+  test('the username is app-wide unique case-insensitively and resolves either casing', async () => {
+    const fields = userFields({ username: 'Anna_91' });
+    const user = await repo.createUser(fields);
+    assert.equal(user.username, 'Anna_91'); // stored exactly as typed
+
+    // Matched case-insensitively in BOTH directions: the stored casing does not
+    // decide what a lookup must spell.
+    assert.deepEqual(await repo.getUserByUsername('Anna_91'), user);
+    assert.deepEqual(await repo.getUserByUsername('anna_91'), user);
+    assert.deepEqual(await repo.getUserByUsername('ANNA_91'), user);
+    assert.equal(await repo.getUserByUsername('anna_9'), null);
+    assert.equal(await repo.getUserByUsername(''), null);
+
+    // A different casing is the SAME handle, so it is refused.
+    assert.equal(await repo.createUser(userFields({ username: 'anna_91' })), 'username_taken');
+    assert.equal(await repo.createUser(userFields({ username: 'ANNA_91' })), 'username_taken');
+  });
+
+  test('a taken username outranks a taken e-mail, so the open error cannot probe the hidden one', async () => {
+    // routes/account.js answers username_taken openly (a public handle) but hides
+    // email_taken behind { ok: true }. If a row colliding on BOTH reported the
+    // e-mail, an attacker holding one taken username could ask "does this address
+    // exist?" and read the answer off which error came back. The repo therefore
+    // checks the username first — in both backends, whatever order the database's
+    // own unique indexes would happen to fire in.
+    const first = await repo.createUser(userFields());
+    assert.equal(
+      await repo.createUser(userFields({ email: first.email, username: first.username })),
+      'username_taken',
+    );
+    // ...and a fresh username with that same e-mail still reports the e-mail.
+    assert.equal(await repo.createUser(userFields({ email: first.email })), 'email_taken');
+  });
+
+  test('a forced rename (#320) replaces the username and frees the old one', async () => {
+    const user = await repo.createUser(userFields({ username: 'Slur42' }));
+    const neutral = `user-${user.id}`;
+    await repo.updateUser(user.id, { username: neutral });
+
+    assert.equal(await repo.getUserByUsername('slur42'), null); // released
+    assert.equal((await repo.getUserByUsername(neutral)).id, user.id);
+    // Releasing it must actually free it for someone else — a unique index that
+    // kept the old value would make the rename a one-way loss of a handle.
+    const other = await repo.createUser(userFields({ username: 'Slur42' }));
+    assert.equal(other.username, 'Slur42');
   });
 
   test('updateUser replaces whole top-level keys; deleteUser reports found/again', async () => {

@@ -28,6 +28,7 @@
       catOther: 'Meldung: sonstiger rechtswidriger Inhalt',
       reportHint: 'Bitte gib möglichst die genaue Adresse (URL) des Inhalts an — oder beschreibe ihn eindeutig in der Nachricht (Konto, Runde, Spieltitel) — und begründe, warum er rechtswidrig sein soll. Den Eingang bestätigen wir per E-Mail.',
       url: 'Adresse (URL) des gemeldeten Inhalts (falls vorhanden)',
+      reportedUsername: 'Nutzername des gemeldeten Kontos (falls bekannt)',
       goodFaith: 'Ich versichere in gutem Glauben, dass die Angaben in dieser Meldung nach bestem Wissen richtig und vollständig sind.',
       subject: 'Betreff (optional)',
       message: 'Nachricht',
@@ -62,6 +63,7 @@
       catOther: 'Report: other illegal content',
       reportHint: 'Please give the exact address (URL) of the content if possible — or describe it unambiguously in the message (account, round, game title) — and explain why you consider it illegal. We confirm receipt by e-mail.',
       url: 'Address (URL) of the reported content (if any)',
+      reportedUsername: 'Username of the reported account (if known)',
       goodFaith: 'I declare in good faith that the information in this report is accurate and complete to the best of my knowledge.',
       subject: 'Subject (optional)',
       message: 'Message',
@@ -101,6 +103,7 @@
     email: document.getElementById('email'),
     category: document.getElementById('category'),
     url: document.getElementById('url'),
+    reportedUsername: document.getElementById('reportedUsername'),
     goodFaith: document.getElementById('goodFaith'),
     subject: document.getElementById('subject'),
     message: document.getElementById('message'),
@@ -149,6 +152,7 @@
     document.getElementById('t-category-label').textContent = s.category;
     document.getElementById('t-report-hint').textContent = s.reportHint;
     document.getElementById('t-url-label').textContent = s.url;
+    document.getElementById('t-reported-username-label').textContent = s.reportedUsername;
     document.getElementById('t-goodfaith-label').textContent = s.goodFaith;
     document.getElementById('t-subject-label').textContent = s.subject;
     document.getElementById('t-message-label').textContent = s.message;
@@ -220,6 +224,7 @@
           ...(category ? {
             category,
             url: fields.url.value.trim(),
+            reportedUsername: fields.reportedUsername.value.trim(),
             goodFaith: fields.goodFaith.checked,
           } : {}),
           website: fields.website.value, // honeypot (empty for real users)

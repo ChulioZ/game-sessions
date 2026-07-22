@@ -97,6 +97,45 @@ test('a report stores the Art. 16(2) fields and acknowledges receipt (Art. 16(4)
   assert.equal(ack.replyTo, 'ops@example.com');
 });
 
+test('a report can name the reported account by username (#320)', async () => {
+  process.env.CONTACT_TO = 'ops@example.com';
+  const res = await request(app).post('/api/contact').send({
+    ...valid,
+    category: 'defamation',
+    reportedUsername: 'Anna_91',
+    goodFaith: true,
+  });
+  assert.equal(res.status, 200);
+
+  // Stored as given: it is what the reporter saw, and the panel's lookup folds
+  // case itself — normalising here would lose evidence of what was reported.
+  const notice = await lastNotice();
+  assert.equal(notice.reportedUsername, 'Anna_91');
+  assert.match(outbox[outbox.length - 2].text, /Gemeldeter Nutzername: Anna_91/);
+});
+
+test('the reported username is optional, capped, and absent rather than empty', async () => {
+  // Every key present (null when unset) — the absent-key parity the other
+  // notice fields keep, so both backends round-trip a plain message identically.
+  await request(app).post('/api/contact').send(valid);
+  assert.equal((await lastNotice()).reportedUsername, null);
+
+  // '' folds to absent exactly like `url`, rather than storing a blank string.
+  await request(app).post('/api/contact').send({ ...valid, reportedUsername: '   ' });
+  assert.equal((await lastNotice()).reportedUsername, null);
+
+  const long = await request(app).post('/api/contact')
+    .send({ ...valid, reportedUsername: 'x'.repeat(61) });
+  assert.equal(long.status, 400);
+
+  // Deliberately NOT held to the registration policy: a reporter transcribing a
+  // handle may miss it slightly, and refusing the notice would lose a report the
+  // operator can still act on.
+  const loose = await request(app).post('/api/contact')
+    .send({ ...valid, reportedUsername: 'anna 91 (maybe?)' });
+  assert.equal(loose.status, 200);
+});
+
 test('a report without the good-faith statement is rejected (Art. 16(2)(d))', async () => {
   const res = await request(app).post('/api/contact').send({ ...valid, category: 'copyright' });
   assert.equal(res.status, 400);

@@ -23,7 +23,13 @@ const accounts = require('../lib/accounts');
 const { outbox } = require('../lib/mail');
 
 const EMAIL = 'user@example.com';
+const USERNAME = 'user_one';
 const PASSWORD = 'correct horse battery';
+
+// A fresh handle per call — registration requires a unique one (#320), so tests
+// that are not ABOUT collisions must never reuse one by accident.
+let handleSeq = 0;
+const handle = () => `probe${(handleSeq += 1)}`;
 
 // Pull the uid/token pair out of the latest captured mail.
 function lastMailTokens() {
@@ -62,14 +68,58 @@ test('enabling accounts without a SESSION_SECRET keeps them off (forgeable token
 
 /* ------------------------------- validation --------------------------------- */
 
-test('register validates email shape and password length', async () => {
-  const bad = await request(app).post('/api/account/register').send({ email: 'not-an-email', password: PASSWORD });
+test('register validates email shape, username policy and password length', async () => {
+  const post = (body) => request(app).post('/api/account/register').send(body);
+
+  const bad = await post({ email: 'not-an-email', username: handle(), password: PASSWORD });
   assert.equal(bad.status, 400);
   assert.equal(bad.body.error, 'invalid_email');
 
-  const short = await request(app).post('/api/account/register').send({ email: EMAIL, password: 'short' });
+  const short = await post({ email: EMAIL, username: handle(), password: 'short' });
   assert.equal(short.status, 400);
   assert.equal(short.body.error, 'invalid_password');
+
+  // No account may exist without a handle (#320) — that is what makes a backfill
+  // unnecessary and what an abuse report needs to be able to name.
+  for (const username of [
+    undefined, '', '  ', 'ab', // absent / blank / under 3
+    'a'.repeat(31), // over 30
+    'has space', 'has.dot', 'exclaim!', 'ümläut', // outside the charset
+  ]) {
+    const res = await post({ email: EMAIL, username, password: PASSWORD });
+    assert.equal(res.status, 400, `username ${JSON.stringify(username)} must be refused`);
+    assert.equal(res.body.error, 'invalid_username');
+  }
+
+  // The full allowed charset, at both length bounds, is accepted.
+  for (const username of ['a-B_9', 'abc', 'z'.repeat(30)]) {
+    const res = await post({ email: `${username}@example.com`, username, password: PASSWORD });
+    assert.equal(res.status, 200, `username ${username} must be accepted`);
+  }
+});
+
+test('a taken username is refused openly — and cannot be used to probe for e-mails', async () => {
+  const post = (body) => request(app).post('/api/account/register').send(body);
+  await post({ email: 'taken-owner@example.com', username: 'TakenName', password: PASSWORD });
+
+  // Openly refused, unlike a taken e-mail: a username is a public identifier, so
+  // saying so reveals nothing — and the form is unusable if it cannot.
+  const clash = await post({ email: 'someone-else@example.com', username: 'TakenName', password: PASSWORD });
+  assert.equal(clash.status, 409);
+  assert.equal(clash.body.error, 'username_taken');
+
+  // Case-insensitive: `takenname` is the same handle.
+  const cased = await post({ email: 'third@example.com', username: 'takenname', password: PASSWORD });
+  assert.equal(cased.status, 409);
+  assert.equal(cased.body.error, 'username_taken');
+
+  // The invariant that keeps the OPEN error from leaking the HIDDEN one: a
+  // signup colliding on the username answers username_taken whether or not the
+  // e-mail also exists. Were it the other way round, `{ ok: true }` here versus
+  // 409 above would answer "does this address have an account?".
+  const both = await post({ email: 'taken-owner@example.com', username: 'takenname', password: PASSWORD });
+  assert.equal(both.status, 409);
+  assert.equal(both.body.error, 'username_taken');
 });
 
 /* ------------------------- register -> verify -> login ---------------------- */
@@ -78,13 +128,15 @@ test('full account lifecycle', async (t) => {
   let verifyUid, verifyToken, tokens;
 
   await t.test('register creates the user and mails a verification link', async () => {
-    const res = await request(app).post('/api/account/register').send({ email: EMAIL.toUpperCase(), password: PASSWORD });
+    const res = await request(app).post('/api/account/register')
+      .send({ email: EMAIL.toUpperCase(), username: USERNAME, password: PASSWORD });
     assert.equal(res.status, 200);
     assert.deepEqual(res.body, { ok: true });
 
     ({ uid: verifyUid, token: verifyToken } = lastMailTokens());
     const user = await repo.getUserByEmail(EMAIL); // stored lowercased
     assert.equal(user.id, verifyUid);
+    assert.equal(user.username, USERNAME); // stored as typed, unlike the e-mail
     assert.equal(user.emailVerified, false);
     // Only hashes at rest — never the raw password or token.
     assert.ok(!JSON.stringify(user).includes(PASSWORD));
@@ -93,7 +145,11 @@ test('full account lifecycle', async (t) => {
 
   await t.test('re-registering the same email answers identically and sends nothing', async () => {
     const before = outbox.length;
-    const res = await request(app).post('/api/account/register').send({ email: EMAIL, password: 'other password 1' });
+    // A FREE username, deliberately: that is the only way to reach the e-mail
+    // check at all (a taken handle short-circuits first, by design), so this is
+    // the request that actually tests the anti-enumeration answer.
+    const res = await request(app).post('/api/account/register')
+      .send({ email: EMAIL, username: handle(), password: 'other password 1' });
     assert.equal(res.status, 200);
     assert.deepEqual(res.body, { ok: true }); // indistinguishable from a fresh signup
     assert.equal(outbox.length, before);
@@ -128,6 +184,7 @@ test('full account lifecycle', async (t) => {
     assert.equal(res.status, 200);
     assert.ok(res.body.accessToken && res.body.refreshToken);
     assert.equal(res.body.user.email, EMAIL);
+    assert.equal(res.body.user.username, USERNAME); // the SPA shows it in the account menu
     tokens = res.body;
   });
 
@@ -135,6 +192,7 @@ test('full account lifecycle', async (t) => {
     const res = await request(app).get('/api/account/me').set('Authorization', `Bearer ${tokens.accessToken}`);
     assert.equal(res.status, 200);
     assert.equal(res.body.email, EMAIL);
+    assert.equal(res.body.username, USERNAME);
     assert.equal(res.body.emailVerified, true);
 
     assert.equal((await request(app).get('/api/account/me')).status, 401);
@@ -204,7 +262,8 @@ test('full account lifecycle', async (t) => {
   });
 
   await t.test('an expired verification token is refused', async () => {
-    await request(app).post('/api/account/register').send({ email: 'late@example.com', password: PASSWORD });
+    await request(app).post('/api/account/register')
+      .send({ email: 'late@example.com', username: handle(), password: PASSWORD });
     const { uid, token } = lastMailTokens();
     const user = await repo.getUserById(uid);
     await repo.updateUser(uid, {
@@ -221,7 +280,7 @@ test('a member can be linked to a user and unlinked again', async () => {
   // Accounts are on in this file (#138 gate), so the round is created and edited
   // with an account's Bearer token, and the member is linked to that account.
   const email = 'linkme@example.com';
-  await request(app).post('/api/account/register').send({ email, password: PASSWORD });
+  await request(app).post('/api/account/register').send({ email, username: 'linkme', password: PASSWORD });
   const { uid, token: vtok } = lastMailTokens();
   await request(app).post('/api/account/verify-email').send({ uid, token: vtok });
   const login = await request(app).post('/api/account/login').send({ email, password: PASSWORD });

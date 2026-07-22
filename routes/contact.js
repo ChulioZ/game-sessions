@@ -68,6 +68,16 @@ const contactSchema = z.object({
     (v) => (String(v || '').trim() ? String(v).trim() : undefined),
     z.string().max(500, 'url_too_long').optional(),
   ),
+  // The reported account's public handle (#320) — usually the only thing a
+  // reporter can name, since an outsider must never learn the e-mail address.
+  // Capped and '' folded to absent like `url`, but deliberately NOT validated
+  // against the registration username policy: a reporter may mistype or paste a
+  // near-miss, and refusing the whole notice over its shape would lose a report
+  // the operator can still act on. The panel resolves it; a miss just 404s.
+  reportedUsername: z.preprocess(
+    (v) => (String(v || '').trim() ? String(v).trim() : undefined),
+    z.string().max(60, 'reported_username_too_long').optional(),
+  ),
   goodFaith: z.boolean().optional(),
 });
 
@@ -137,6 +147,7 @@ router.post('/', async (req, res) => {
     message: body.message,
     category: body.category || null,
     url: body.url || null,
+    reportedUsername: body.reportedUsername || null,
     goodFaith: isReport ? body.goodFaith === true : null,
     status: 'open',
     decidedAt: null,
@@ -153,6 +164,7 @@ router.post('/', async (req, res) => {
     subject ? `Betreff: ${subject}` : null,
     isReport ? `Meldung: ${CATEGORY_LABELS[body.category]}` : null,
     body.url ? `Gemeldete URL: ${body.url}` : null,
+    body.reportedUsername ? `Gemeldeter Nutzername: ${body.reportedUsername}` : null,
     isReport ? 'Richtigkeitserklärung (Art. 16 Abs. 2 DSA): abgegeben' : null,
     `Panel: /admin.html (Meldung ${notice.id})`,
     '',

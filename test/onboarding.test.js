@@ -27,10 +27,14 @@ const { outbox } = require('../lib/mail');
 
 const PASSWORD = 'correct horse battery';
 
+// Registration requires a unique app-wide handle (#320). Derived from the address
+// so every helper call stays a one-liner and two accounts can never collide.
+const handle = (email) => email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '-');
+
 // Register -> verify -> login one account; returns the access token and the raw
 // Set-Cookie header from login.
 async function makeAccount(email) {
-  const reg = await request(app).post('/api/account/register').send({ email, password: PASSWORD });
+  const reg = await request(app).post('/api/account/register').send({ email, username: handle(email), password: PASSWORD });
   assert.equal(reg.status, 200);
   const mail = outbox[outbox.length - 1].text;
   const m = mail.match(/\/verify-email\?uid=([0-9a-f]+)&token=([A-Za-z0-9_-]+)/);
@@ -42,7 +46,7 @@ async function makeAccount(email) {
 }
 
 test('the verify-email mail links to the in-app landing, not the JSON endpoint', async () => {
-  await request(app).post('/api/account/register').send({ email: 'link@example.com', password: PASSWORD });
+  await request(app).post('/api/account/register').send({ email: 'link@example.com', username: 'link', password: PASSWORD });
   const mail = outbox[outbox.length - 1].text;
   assert.match(mail, /\/verify-email\?uid=/);
   assert.doesNotMatch(mail, /\/api\/account\/verify-email\?/);

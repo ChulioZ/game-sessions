@@ -121,6 +121,11 @@
         <p class="hint" id="t-report-hint"></p>
         <label for="url" id="t-url-label"></label>
         <input id="url" name="url" type="text" maxlength="500" />
+        <!-- The reported account's public handle (#320) — the only identifier an
+             outside reporter can know, since e-mail addresses are never shown. -->
+        <label for="reportedUsername" id="t-reported-username-label"></label>
+        <input id="reportedUsername" name="reportedUsername" type="text" maxlength="60"
+               spellcheck="false" autocapitalize="none" />
         <div class="check">
           <input id="goodFaith" name="goodFaith" type="checkbox" />
           <label for="goodFaith" id="t-goodfaith-label"></label>
