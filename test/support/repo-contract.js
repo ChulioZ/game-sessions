@@ -19,6 +19,15 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+
+// A fresh identifier per call, so a suite run against a PERSISTENT database
+// can't collide with an earlier run's rows. Uses crypto rather than
+// Math.random(): these feed account fields (e-mail, username), and CodeQL
+// rightly flags `js/insecure-randomness` when a weak source reaches one — the
+// randomness is not load-bearing here, but a scanner cannot know that, and a
+// secure source costs nothing.
+const uniq = () => `u${crypto.randomBytes(6).toString('hex')}`;
 
 const T = 'tenant-a';
 const OTHER = 'tenant-b';
@@ -818,10 +827,9 @@ module.exports = function repoContract(repo) {
   // tenantId rides along since #136 (minted at registration).
   function userFields(over = {}) {
     return {
-      email: `u${Math.random().toString(16).slice(2)}@example.com`,
-      // The app-wide public handle (#320). Random like the e-mail so a suite run
-      // against a persistent database doesn't collide with an earlier run's rows.
-      username: `u${Math.random().toString(16).slice(2)}`,
+      email: `${uniq()}@example.com`,
+      username: uniq(), // the app-wide public handle (#320), unique per call
+
       createdAt: '2026-07-18T00:00:00.000Z',
       tenantId: 'tenant-of-user',
       emailVerified: false,
