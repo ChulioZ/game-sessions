@@ -53,7 +53,7 @@ async function showHome() {
       lastLine = `<span class="round-card__last"><i class="ti ti-trophy" aria-hidden="true"></i>${esc(text)}</span>`;
     }
 
-    const card = h(`<button class="round-card">
+    const card = h(`<a class="round-card">
          <span class="round-card__emblem" style="background:${themeAccent(r.background)}"><i class="ti ti-tornado" aria-hidden="true"></i></span>
          <span class="round-card__body">
            <span class="round-card__name">${esc(r.name)}</span>
@@ -65,15 +65,15 @@ async function showHome() {
            ${lastLine}
          </span>
          <i class="ti ti-chevron-right round-card__chev" aria-hidden="true"></i>
-       </button>`);
-    card.addEventListener('click', () => showRound(r.id));
+       </a>`);
+    navLink(card, roundPath(r.id), () => showRound(r.id));
     list.appendChild(card);
   });
 
   const newCard = h(
-    `<button class="round-card round-card--new"><i class="ti ti-plus" aria-hidden="true"></i>${esc(t('home.newRound'))}</button>`
+    `<a class="round-card round-card--new"><i class="ti ti-plus" aria-hidden="true"></i>${esc(t('home.newRound'))}</a>`
   );
-  newCard.addEventListener('click', showNewRound);
+  navLink(newCard, '/round/new', () => showNewRound());
   list.appendChild(newCard);
   app.appendChild(list);
 }
@@ -83,7 +83,10 @@ async function showHome() {
 async function showNewRound() {
   currentView = () => showNewRound();
   syncUrl('/round/new');
-  setCrumbs([{ label: t('nav.home'), onClick: showHome }, { label: t('newRound.crumb') }]);
+  setCrumbs([
+    { label: t('nav.home'), path: '/', onClick: showHome },
+    { label: t('newRound.crumb') },
+  ]);
   applyBackground(null);
   app.innerHTML = '<p class="muted">…</p>';
 

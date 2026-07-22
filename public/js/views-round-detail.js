@@ -24,15 +24,15 @@ const THEMES = [
 
 async function showBackground(rid) {
   currentView = () => showBackground(rid);
-  syncUrl(`/round/${rid}/design`);
+  syncUrl(roundPath(rid, 'design'));
   app.innerHTML = '<p class="muted">…</p>';
   let round;
   try { round = await fetchRound(rid); }
   catch { return showHome(); }
   applyBackground(round.background);
   setCrumbs([
-    { label: t('nav.home'), onClick: showHome },
-    { label: round.name, onClick: () => showRound(rid) },
+    { label: t('nav.home'), path: '/', onClick: showHome },
+    { label: round.name, path: roundPath(rid), onClick: () => showRound(rid) },
     { label: t('design.crumb') },
   ]);
 
@@ -88,15 +88,15 @@ async function showBackground(rid) {
 // the add-game sheet and the game detail's tag popover, not here.
 async function showTags(rid) {
   currentView = () => showTags(rid);
-  syncUrl(`/round/${rid}/tags`);
+  syncUrl(roundPath(rid, 'tags'));
   app.innerHTML = '<p class="muted">…</p>';
   let round;
   try { round = await fetchRound(rid); }
   catch { return showHome(); }
   applyBackground(round.background);
   setCrumbs([
-    { label: t('nav.home'), onClick: showHome },
-    { label: round.name, onClick: () => showRound(rid) },
+    { label: t('nav.home'), path: '/', onClick: showHome },
+    { label: round.name, path: roundPath(rid), onClick: () => showRound(rid) },
     { label: t('tags.crumb') },
   ]);
 
@@ -202,15 +202,15 @@ async function showTags(rid) {
 // query. Sibling of showTags: both are per-round global configuration.
 async function showProviders(rid) {
   currentView = () => showProviders(rid);
-  syncUrl(`/round/${rid}/providers`);
+  syncUrl(roundPath(rid, 'providers'));
   app.innerHTML = '<p class="muted">…</p>';
   let round;
   try { round = await fetchRound(rid); }
   catch { return showHome(); }
   applyBackground(round.background);
   setCrumbs([
-    { label: t('nav.home'), onClick: showHome },
-    { label: round.name, onClick: () => showRound(rid) },
+    { label: t('nav.home'), path: '/', onClick: showHome },
+    { label: round.name, path: roundPath(rid), onClick: () => showRound(rid) },
     { label: t('providers.crumb') },
   ]);
 
@@ -274,7 +274,7 @@ async function showProviders(rid) {
 
 async function showGameDetail(rid, gameId) {
   currentView = () => showGameDetail(rid, gameId);
-  syncUrl(`/round/${rid}/game/${gameId}`);
+  syncUrl(gamePath(rid, gameId));
   app.innerHTML = '<p class="muted">…</p>';
   let round;
   try { round = await fetchRound(rid); }
@@ -283,8 +283,8 @@ async function showGameDetail(rid, gameId) {
   const game = round.games.find((g) => g.id === gameId);
   if (!game) return showRound(rid);
   setCrumbs([
-    { label: t('nav.home'), onClick: showHome },
-    { label: round.name, onClick: () => showRound(rid) },
+    { label: t('nav.home'), path: '/', onClick: showHome },
+    { label: round.name, path: roundPath(rid), onClick: () => showRound(rid) },
     { label: game.title },
   ]);
 
@@ -714,14 +714,14 @@ async function showGameDetail(rid, gameId) {
       const sortCell = sst.sortCount
         ? `<span class="sort-flag"><i class="ti ti-trash" aria-hidden="true"></i> ${sst.sortCount}×</span>`
         : '';
-      const row = h(`<div class="ds-row${picked ? ' ds-row--picked' : ''}">
+      const row = h(`<a class="ds-row${picked ? ' ds-row--picked' : ''}">
            <div class="ds-row__main">
              <div class="ds-row__date">${when}</div>
              <div class="ds-row__status">${status}</div>
            </div>
            <div class="ds-row__meta">${sortCell}${scoreCell}</div>
-         </div>`);
-      row.addEventListener('click', () => showResults(round, s));
+         </a>`);
+      navLink(row, resultsPath(round.id, s.id), () => showResults(round, s));
       list.appendChild(row);
     });
     sec.appendChild(list);

@@ -32,7 +32,7 @@ async function showRound(rid, tab) {
     ]);
   } catch { return showHome(); }
   applyBackground(round.background);
-  setCrumbs([{ label: t('nav.home'), onClick: showHome }, { label: round.name }]);
+  setCrumbs([{ label: t('nav.home'), path: '/', onClick: showHome }, { label: round.name }]);
 
   app.innerHTML = '';
   const activeGames = round.games.filter((g) => !g.retired && !g.completed);
@@ -54,13 +54,18 @@ function renderHubDock(rid, activeTab) {
   const dock = h(`<nav class="dock" aria-label="${esc(t('a11y.hubTabs'))}"></nav>`);
   tabs.forEach(({ id: tabId, icon, label }) => {
     // aria-current marks the tab you are on (#145). It was signalled by the
-    // is-active class alone, i.e. by color — and since the active tab also has
-    // no click handler, a screen-reader user met a dead button with no clue why.
+    // is-active class alone, i.e. by color — and since the active tab also does
+    // nothing when clicked, a screen-reader user met a dead control with no
+    // clue why.
     const active = tabId === activeTab;
-    const item = h(`<button class="dock__item${active ? ' is-active' : ''}"${active ? ' aria-current="page"' : ''}>
+    const item = h(`<a class="dock__item${active ? ' is-active' : ''}"${active ? ' aria-current="page"' : ''}>
          <i class="ti ${icon}" aria-hidden="true"></i>${esc(label)}
-       </button>`);
-    if (!active) item.addEventListener('click', () => showRound(rid, tabId));
+       </a>`);
+    // Every tab carries its href, so any of them can be copied or opened in a
+    // new tab — but the active one stays click-inert (no onNav), because it
+    // points at the screen you are already on and a real navigation there would
+    // be a full page reload.
+    navLink(item, roundPath(rid, tabId), active ? null : () => showRound(rid, tabId));
     dock.appendChild(item);
   });
   app.appendChild(dock);
@@ -78,7 +83,7 @@ function renderStartTab(round, activeGames) {
   const hero = h(`<div class="hero">
        <h1>${esc(round.name)}</h1>
        <div class="hero__members">${round.members
-         .map((m) => `<span class="avatar" style="background:${memberColor(round, m.id)}" title="${esc(m.name)}">${esc(initials(m.name))}</span>`)
+         .map((m) => `<a class="avatar" style="background:${memberColor(round, m.id)}" title="${esc(m.name)}">${esc(initials(m.name))}</a>`)
          .join('')}</div>
        <div class="hero__chips">
          <span class="stat-chip"><i class="ti ti-cards" aria-hidden="true"></i>${esc(tn(activeGames.length, 'home.chip.gamesOne', 'home.chip.games'))}</span>
@@ -176,7 +181,7 @@ function renderStartTab(round, activeGames) {
         if (sst.avg !== null) pill = `<span class="score-pill" style="background:${avgColor(sst.avg)}">Ø ${sst.avg.toFixed(1)}</span>`;
       }
       const title = game ? esc(game.title) : esc(t('round.inProgressDeciding'));
-      const ticket = h(`<button class="ticket ticket--live">
+      const ticket = h(`<a class="ticket ticket--live">
            <span class="ticket__main">
              <span class="ticket__img"${imgStyle}>${fallback}</span>
              <span class="ticket__info">
@@ -189,8 +194,8 @@ function renderStartTab(round, activeGames) {
              <i class="ti ti-player-play" aria-hidden="true"></i>
              <span class="ticket__names">${esc(t('round.resume'))}</span>
            </span>
-         </button>`);
-      ticket.addEventListener('click', () => showResults(round, session));
+         </a>`);
+      navLink(ticket, resultsPath(round.id, session.id), () => showResults(round, session));
       app.appendChild(ticket);
     });
 
@@ -214,7 +219,7 @@ function renderStartTab(round, activeGames) {
       sst.avg !== null
         ? `<span class="score-pill" style="background:${avgColor(sst.avg)}">Ø ${sst.avg.toFixed(1)}</span>`
         : '';
-    const ticket = h(`<button class="ticket">
+    const ticket = h(`<a class="ticket">
          <span class="ticket__main">
            <span class="ticket__img"${imgStyle}>${fallback}</span>
            <span class="ticket__info">
@@ -227,8 +232,8 @@ function renderStartTab(round, activeGames) {
            <i class="ti ti-trophy" aria-hidden="true"></i>
            <span class="ticket__names">${winnerNames.length ? esc(joinNames(winnerNames)) : esc(t('sessions.played'))}</span>
          </span>
-       </button>`);
-    ticket.addEventListener('click', () => showResults(round, lastPlayed));
+       </a>`);
+    navLink(ticket, resultsPath(round.id, lastPlayed.id), () => showResults(round, lastPlayed));
     app.appendChild(ticket);
   }
 
@@ -275,12 +280,14 @@ function renderStartTab(round, activeGames) {
     recs.slice(0, 5).forEach(({ game, reasons }) => {
       const item = h(`<div class="recommend-item">
            <div class="recommend-item__info">
-             <span class="recommend-item__title">${esc(game.title)}</span>
+             <a class="recommend-item__title">${esc(game.title)}</a>
              <span class="recommend-item__reason">${reasons.map(esc).join(' · ')}</span>
            </div>
            <button class="btn recommend-item__btn">${esc(t('rec.retire'))}</button>
          </div>`);
-      item.querySelector('.recommend-item__title').addEventListener('click', () => showGameDetail(round.id, game.id));
+      navLink(item.querySelector('.recommend-item__title'), gamePath(round.id, game.id), () =>
+        showGameDetail(round.id, game.id)
+      );
       item.querySelector('.recommend-item__btn').addEventListener('click', async () => {
         if (!confirm(t('detail.retireConfirm', { title: game.title }))) return;
         try {
@@ -303,18 +310,20 @@ function renderStartTab(round, activeGames) {
     `<button class="btn"><i class="ti ti-plus" aria-hidden="true"></i> ${esc(t('round.addGame'))}</button>`
   );
   addGameBtn.addEventListener('click', () => showAddGame(round));
+  // Tags / Provider / Design are routed screens, so they are links (#330);
+  // "Spiel hinzufügen" opens a sheet and stays a button.
   const tagsBtn = h(
-    `<button class="btn"><i class="ti ti-tags" aria-hidden="true"></i> ${esc(t('round.tags'))}</button>`
+    `<a class="btn"><i class="ti ti-tags" aria-hidden="true"></i> ${esc(t('round.tags'))}</a>`
   );
-  tagsBtn.addEventListener('click', () => showTags(rid));
+  navLink(tagsBtn, roundPath(rid, 'tags'), () => showTags(rid));
   const providersBtn = h(
-    `<button class="btn"><i class="ti ti-world-search" aria-hidden="true"></i> ${esc(t('round.providers'))}</button>`
+    `<a class="btn"><i class="ti ti-world-search" aria-hidden="true"></i> ${esc(t('round.providers'))}</a>`
   );
-  providersBtn.addEventListener('click', () => showProviders(rid));
+  navLink(providersBtn, roundPath(rid, 'providers'), () => showProviders(rid));
   const bgBtn = h(
-    `<button class="btn"><i class="ti ti-palette" aria-hidden="true"></i> ${esc(t('round.design'))}</button>`
+    `<a class="btn"><i class="ti ti-palette" aria-hidden="true"></i> ${esc(t('round.design'))}</a>`
   );
-  bgBtn.addEventListener('click', () => showBackground(rid));
+  navLink(bgBtn, roundPath(rid, 'design'), () => showBackground(rid));
   actions.appendChild(addGameBtn);
   actions.appendChild(tagsBtn);
   actions.appendChild(providersBtn);

@@ -11,8 +11,8 @@ function showStartSession(round) {
   endFlow();
   syncUrl(sessionSetupPath(round.id));
   setCrumbs([
-    { label: t('nav.home'), onClick: showHome },
-    { label: round.name, onClick: () => showRound(round.id) },
+    { label: t('nav.home'), path: '/', onClick: showHome },
+    { label: round.name, path: roundPath(round.id), onClick: () => showRound(round.id) },
     { label: t('startSession.crumb') },
   ]);
   app.innerHTML = '';
@@ -199,8 +199,8 @@ function startVoting(round, session, games, members) {
   const setVotingCrumbs = () => setCrumbs([
     // The breadcrumbs leave the wizard just as much as Back does, so they ask
     // the same question rather than discarding the votes silently.
-    { label: t('nav.home'), onClick: () => { if (confirmLeave()) showHome(); } },
-    { label: round.name, onClick: () => { if (confirmLeave()) showRound(round.id); } },
+    { label: t('nav.home'), path: '/', onClick: () => { if (confirmLeave()) showHome(); } },
+    { label: round.name, path: roundPath(round.id), onClick: () => { if (confirmLeave()) showRound(round.id); } },
     { label: t('vote.crumb') },
   ]);
   setVotingCrumbs();
@@ -396,8 +396,8 @@ function showFinale(round, session, games) {
   // wizard's flow (still registered) lets this one go without asking.
   syncUrl(sessionFinalePath(round.id, session.id));
   setCrumbs([
-    { label: t('nav.home'), onClick: showHome },
-    { label: round.name, onClick: () => showRound(round.id) },
+    { label: t('nav.home'), path: '/', onClick: showHome },
+    { label: round.name, path: roundPath(round.id), onClick: () => showRound(round.id) },
     { label: t('finale.crumb') },
   ]);
 
@@ -442,10 +442,10 @@ function showFinale(round, session, games) {
 
 async function showResults(round, session, gamesHint, reveal) {
   currentView = () => showResults(round, session, gamesHint);
-  syncUrl(`/round/${round.id}/session/${session.id}`);
+  syncUrl(resultsPath(round.id, session.id));
   setCrumbs([
-    { label: t('nav.home'), onClick: showHome },
-    { label: round.name, onClick: () => showRound(round.id) },
+    { label: t('nav.home'), path: '/', onClick: showHome },
+    { label: round.name, path: roundPath(round.id), onClick: () => showRound(round.id) },
     { label: t('result.crumb') },
   ]);
 
@@ -496,10 +496,10 @@ async function showResults(round, session, gamesHint, reveal) {
          <span class="result-people__label">${esc(t('result.participants'))}</span>
          <span class="result-people__list">${members
            .map(
-             (m) => `<span class="result-people__person" data-mid="${esc(m.id)}">
+             (m) => `<a class="result-people__person" data-mid="${esc(m.id)}">
                 <span class="avatar" style="background:${memberColor(round, m.id)}">${esc(initials(m.name))}</span>
                 <span class="result-people__name">${esc(m.name)}</span>
-              </span>`
+              </a>`
            )
            .join('')}</span>
        </div>`);
@@ -525,13 +525,13 @@ async function showResults(round, session, gamesHint, reveal) {
       const g = r.game;
       const imgStyle = g.image ? ` style="background-image:url('${coverUrl(g.image, COVER_THUMB)}')"` : '';
       const fb = coverPlaceholder(g);
-      const col = h(`<div class="result-podium__col result-podium__col--${place}">
+      const col = h(`<a class="result-podium__col result-podium__col--${place}">
              ${place === 1 ? '<i class="ti ti-crown result-podium__crown" aria-hidden="true"></i>' : ''}
              <span class="result-podium__img"${imgStyle}>${fb}</span>
              <span class="result-podium__title">${esc(g.title)}</span>
              <span class="score-pill result-podium__pill" style="background:${avgColor(r.avg)}">Ø ${r.avg.toFixed(1)}</span>
              <span class="result-podium__base">${place}</span>
-           </div>`);
+           </a>`);
       makeGameLink(col, round.id, g.id);
       podium.appendChild(col);
     });
@@ -609,9 +609,9 @@ async function showResults(round, session, gamesHint, reveal) {
       : '';
     const medal = r.place && r.place <= 3 ? `<span class="rank-medal rank-medal--${medalRanks[r.place - 1]}"><i class="ti ti-medal" aria-hidden="true"></i></span>` : '';
     const row = h(`<div class="result-row">
-         <div class="result-row__img" ${imgStyle}>${fallback}</div>
+         <a class="result-row__img" ${imgStyle}>${fallback}</a>
          <div>
-           <div class="result-row__title">${medal}${esc(g.title)}${retiredBadge}</div>
+           <a class="result-row__title">${medal}${esc(g.title)}${retiredBadge}</a>
            <div class="result-row__bars">${bars}</div>
            ${sortFlag}
            <button class="link-btn result-row__remove">${iconText('ti-trash', t('result.removeGame'))}</button>

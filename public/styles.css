@@ -95,6 +95,20 @@ body {
 /* Headings speak in the display face. */
 h1, h2, h3 { font-family: var(--font-display); }
 
+/* In-app navigation renders as real <a href> links (#330) so Cmd/middle-click
+   opens a new tab and "Copy link address" works. Every one of them is styled as
+   a card/tab/chip that used to be a <button>, and an anchor arrives with a UA
+   underline and link colour that none of those components ever wanted.
+   navLink() (js/nav-link.js) adds this class to each one.
+
+   Placed HERE, before the component rules, on purpose: same specificity as a
+   plain class selector, so a component that names its own `color` later in the
+   file — .link-btn's accent, .ticket's --ink, .dock__item's --ink-soft — still
+   wins, while an element with no colour of its own inherits instead of turning
+   browser-blue. `text-decoration` has no such competition except the hover
+   rules, which are more specific and therefore keep underlining. */
+.nav-link { color: inherit; text-decoration: none; }
+
 /* ---- Topbar ---- */
 .topbar {
   position: sticky;
@@ -542,9 +556,10 @@ h1, h2, h3 { font-family: var(--font-display); }
 .btn--sm { font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 10px; border-bottom-width: 3px; }
 .btn--sm:active { margin-bottom: 1.5px; }
 .btn--block { width: 100%; }
-/* .btn on an <a> (the support sheet's outbound CTA, #173): a button element is
-   inline-block by default, an anchor is inline — without this the padding
-   overflows the sheet and the label renders underlined. */
+/* .btn on an <a> (the support sheet's outbound CTA #173, and since #330 the
+   Start tab's Tags/Provider/Design links): a button element is inline-block by
+   default, an anchor is inline — without this the padding overflows the sheet
+   and the label renders underlined. */
 a.btn { display: inline-block; text-decoration: none; text-align: center; box-sizing: border-box; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -1282,7 +1297,9 @@ body.auth-screen .crumbs { display: none; }
   background: var(--sunken) center/cover no-repeat;
   display: flex; align-items: center; justify-content: center; font-size: 28px;
 }
-.result-row__title { font-weight: 700; font-size: 19px; }
+/* `display: block` because this is an <a> since #330 — an inline box would let
+   the medal/badge line wrap differently from the block <div> it replaced. */
+.result-row__title { display: block; font-weight: 700; font-size: 19px; }
 .result-row__bars { margin-top: 6px; display: flex; gap: 4px; align-items: flex-end; height: 28px; }
 .result-row__bars .bar {
   width: 22px; background: var(--brand-edge); border-radius: 4px 4px 0 0;

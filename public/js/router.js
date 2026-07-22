@@ -60,10 +60,21 @@ function confirmLeave() {
   return true;
 }
 
-// Canonical path for the round hub: the Start tab has the bare round URL.
-function roundPath(rid, tab) {
-  return tab && tab !== 'start' ? `/round/${rid}/${tab}` : `/round/${rid}`;
+// Canonical paths for the routable views. A view syncs its URL through these,
+// and since #330 the navigation elements pointing at that view carry the same
+// path as a real href — so "where does this control go?" is answered in one
+// place instead of being spelled out at each call site.
+// (The *transient* session-flow paths live in session-path.js: they are
+// deliberately not resolvable, so they are not link targets either.)
+
+// A round, or one of its sub-screens — the four hub tabs plus retired /
+// completed / design / tags / providers. The Start tab has the bare round URL.
+function roundPath(rid, sub) {
+  return sub && sub !== 'start' ? `/round/${rid}/${sub}` : `/round/${rid}`;
 }
+const gamePath = (rid, gid) => `/round/${rid}/game/${gid}`;
+const memberPath = (rid, mid) => `/round/${rid}/member/${mid}`;
+const resultsPath = (rid, sid) => `/round/${rid}/session/${sid}`;
 
 // Reflect the current view in the URL. Called synchronously at the start of
 // each routable show*(). While the router is driving (routing === true) or the

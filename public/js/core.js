@@ -8,11 +8,14 @@ const app = document.getElementById('app');
 const crumbs = document.getElementById('crumbs');
 const toastEl = document.getElementById('toast');
 
-// Arrow so showHome/confirmLeave (defined in later scripts) are only resolved
-// on click – they do not exist yet while core.js is loading.
-// confirmLeave (router.js) gives a flow holding unsaved state — the vote wizard
-// — the chance to ask before this button discards it (#329).
-document.getElementById('homeBtn').addEventListener('click', () => {
+// The brand mark is a real link to '/' (#330), so it can be opened in a new tab
+// and its address copied like any other. The callback is an arrow so
+// showHome/confirmLeave (defined in later scripts) are only resolved on click –
+// they do not exist yet while core.js is loading. confirmLeave (router.js) gives
+// a flow holding unsaved state — the vote wizard — the chance to ask before this
+// discards it (#329); a modified click never reaches it, but it opens a *new*
+// tab and leaves this one's votes untouched.
+navLink(document.getElementById('homeBtn'), '/', () => {
   if (confirmLeave()) showHome();
 });
 
@@ -174,14 +177,16 @@ async function fetchRoundFresh(rid) {
   return round;
 }
 
+// Breadcrumbs. A part with a `path` is a real link (#330); the trailing part —
+// the screen you are on — is plain text, as it always was. `onClick` carries the
+// in-app navigation, because a crumb's plain click may have to do more than
+// route (the session flow's crumbs ask before discarding votes, #329).
 function setCrumbs(parts) {
   crumbs.innerHTML = '';
   parts.forEach((p, i) => {
     if (i > 0) crumbs.appendChild(h('<span class="sep">›</span>'));
     if (p.onClick) {
-      const b = h(`<button class="link-btn">${esc(p.label)}</button>`);
-      b.addEventListener('click', p.onClick);
-      crumbs.appendChild(b);
+      crumbs.appendChild(navLink(h(`<a class="link-btn">${esc(p.label)}</a>`), p.path, p.onClick));
     } else {
       crumbs.appendChild(h(`<span>${esc(p.label)}</span>`));
     }
@@ -692,51 +697,38 @@ function createCoverLoader() {
   };
 }
 
-// Turn an element into a link to a game's detail page: click or keyboard
-// (Enter/Space) opens `showGameDetail(rid, gid)`, with a focusable button
-// affordance (the `.game-link` class carries cursor/hover/focus styling).
-// Used from the session results and Pokale screens; `showGameDetail` is
-// resolved at call time (it lives in a later-loaded script).
+// Turn an <a> into a link to a game's detail page (the `.game-link` class
+// carries cursor/hover/focus styling). Used from the session results, Pokale
+// and member screens; `showGameDetail` is resolved at call time (it lives in a
+// later-loaded script).
+//
+// Since #330 the element must be an anchor, and navLink gives it the real href
+// — so the role="button"/tabindex/Enter-Space scaffolding this used to hand-roll
+// is gone: an <a href> is focusable and Enter-activated natively. Space
+// deliberately no longer activates it; that is button semantics, and on a link
+// the key scrolls, which is what a screen-reader user now correctly expects.
 //
 // `opts.redundant` marks a link that only repeats an adjacent one pointing at
 // the same game — a cover thumbnail next to its own title (#145). It stays
 // clickable with the mouse but leaves the tab order and the accessibility tree,
-// because the alternative is a second, *nameless* "button" on every result row:
-// an image element has no text, so it announced as an unlabelled control.
+// because the alternative is a second, *nameless* control on every result row:
+// an image element has no text, so it announced as unlabelled.
 function makeGameLink(el, rid, gid, opts) {
   el.classList.add('game-link');
   if (opts && opts.redundant) {
     el.setAttribute('aria-hidden', 'true');
     el.setAttribute('tabindex', '-1');
-  } else {
-    el.setAttribute('role', 'button');
-    el.setAttribute('tabindex', '0');
   }
-  el.addEventListener('click', () => showGameDetail(rid, gid));
-  el.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      showGameDetail(rid, gid);
-    }
-  });
+  navLink(el, gamePath(rid, gid), () => showGameDetail(rid, gid));
 }
 
-// Turn an element into a link to a member's detail page: click or keyboard
-// (Enter/Space) opens `showMember(rid, mid)`, with a focusable button
-// affordance (the `.member-link` class carries cursor/hover/focus styling).
-// Used from the Start hero row, the Pokale podium and the session results;
-// `showMember` is resolved at call time (it lives in a later-loaded script).
+// Turn an <a> into a link to a member's detail page (the `.member-link` class
+// carries cursor/hover/focus styling). Used from the Start hero row, the Pokale
+// podium and the session results; `showMember` is resolved at call time (it
+// lives in a later-loaded script). Same anchor contract as makeGameLink above.
 function makeMemberLink(el, rid, mid) {
   el.classList.add('member-link');
-  el.setAttribute('role', 'button');
-  el.setAttribute('tabindex', '0');
-  el.addEventListener('click', () => showMember(rid, mid));
-  el.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      showMember(rid, mid);
-    }
-  });
+  navLink(el, memberPath(rid, mid), () => showMember(rid, mid));
 }
 
 // GAME_ICON / gameHue / coverPlaceholder live in js/cover.js (loaded earlier),

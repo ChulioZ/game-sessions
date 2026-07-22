@@ -51,7 +51,7 @@ function memberStats(round, mid) {
 
 async function showMember(rid, mid) {
   currentView = () => showMember(rid, mid);
-  syncUrl(`/round/${rid}/member/${mid}`);
+  syncUrl(memberPath(rid, mid));
   app.innerHTML = '<p class="muted">…</p>';
   let round;
   try { round = await fetchRound(rid); }
@@ -60,8 +60,8 @@ async function showMember(rid, mid) {
   const member = round.members.find((m) => m.id === mid);
   if (!member) return showRound(rid);
   setCrumbs([
-    { label: t('nav.home'), onClick: showHome },
-    { label: round.name, onClick: () => showRound(rid) },
+    { label: t('nav.home'), path: '/', onClick: showHome },
+    { label: round.name, path: roundPath(rid), onClick: () => showRound(rid) },
     { label: member.name },
   ]);
 
@@ -184,7 +184,7 @@ async function showMember(rid, mid) {
   const favList = favCard.querySelector('.pokale-card__games');
   if (st.favorite.length) {
     st.favorite.forEach((g) => {
-      const row = h(`<span class="pokale-game"><span class="pokale-game__title">${esc(g.title)}</span></span>`);
+      const row = h(`<span class="pokale-game"><a class="pokale-game__title">${esc(g.title)}</a></span>`);
       makeGameLink(row.querySelector('.pokale-game__title'), rid, g.id);
       favList.appendChild(row);
     });

@@ -32,6 +32,8 @@ const frontendGlobals = {
   // session-path.js
   sessionSetupPath: 'readonly', sessionStepPath: 'readonly',
   sessionFinalePath: 'readonly', parseSessionPath: 'readonly',
+  // nav-link.js (issue #330)
+  isPlainClick: 'readonly', navLink: 'readonly',
   applyStaticTexts: 'readonly', setupLangPicker: 'readonly', initFooter: 'readonly',
   gamesSort: 'writable',
   regalFilters: 'writable', regalFiltersRid: 'writable',
@@ -104,6 +106,7 @@ const frontendGlobals = {
   showFinale: 'readonly',
   // router.js
   routing: 'writable', navIndex: 'writable', roundPath: 'readonly',
+  gamePath: 'readonly', memberPath: 'readonly', resultsPath: 'readonly',
   syncUrl: 'readonly', navBack: 'readonly', resolveRoute: 'readonly',
   routeTo: 'readonly', showResultsById: 'readonly',
   activeFlow: 'writable', activeGuard: 'writable',

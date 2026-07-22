@@ -338,6 +338,9 @@ public/
     focus-trap.js    keeps Tab inside an open sheet + restores focus on close
     session-path.js  URLs for the transient session-flow screens, so browser/OS
                      Back steps through the vote wizard (issue #329)
+    nav-link.js      turns a nav element into a real <a href> that still routes
+                     in-app on a plain click, so Cmd/middle-click opens a new
+                     tab and "Copy link address" works (issue #330)
     feedback.js      top-bar feedback button + submission sheet (issue #260)
     views-home.js    lobby + new round
     views-round.js        round hub (Start/Regal/Chronik/Pokale dock) + Start tab

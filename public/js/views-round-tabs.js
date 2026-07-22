@@ -95,16 +95,16 @@ function renderRegalTab(round, activeGames) {
         avg !== null
           ? `<span class="score-pill" style="background:${avgColor(avg)}">Ø ${avg.toFixed(1)}</span>`
           : `<span class="score-pill score-pill--none">${esc(t('games.scoreNew'))}</span>`;
-      const gc = h(`<div class="game-card game-card--clickable">
+      const gc = h(`<a class="game-card game-card--clickable">
            <div class="game-card__img">${fallback}
              <div class="game-card__badges">${scorePill}</div>
            </div>
            <div class="game-card__body">
              <div class="game-card__title">${esc(g.title)}</div>
            </div>
-         </div>`);
+         </a>`);
       if (g.image) loadCover(gc, coverUrl(g.image, COVER_CARD), gc.querySelector('.game-card__img'));
-      gc.addEventListener('click', () => showGameDetail(rid, g.id));
+      navLink(gc, gamePath(rid, g.id), () => showGameDetail(rid, g.id));
       cardById[g.id] = gc;
     });
     gamesSec.appendChild(grid);
@@ -160,11 +160,11 @@ function renderRegalTab(round, activeGames) {
   const retiredGames = round.games.filter((g) => g.retired);
   const completedGames = round.games.filter((g) => g.completed);
   const foot = h('<div class="round-footer"></div>');
-  const retiredBtn = h(`<button class="link-btn"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('retired.link', { n: retiredGames.length }))}</button>`);
-  retiredBtn.addEventListener('click', () => showRetired(round.id));
+  const retiredBtn = h(`<a class="link-btn"><i class="ti ti-trash" aria-hidden="true"></i> ${esc(t('retired.link', { n: retiredGames.length }))}</a>`);
+  navLink(retiredBtn, roundPath(round.id, 'retired'), () => showRetired(round.id));
   foot.appendChild(retiredBtn);
-  const completedBtn = h(`<button class="link-btn"><i class="ti ti-circle-check" aria-hidden="true"></i> ${esc(t('completed.link', { n: completedGames.length }))}</button>`);
-  completedBtn.addEventListener('click', () => showCompleted(round.id));
+  const completedBtn = h(`<a class="link-btn"><i class="ti ti-circle-check" aria-hidden="true"></i> ${esc(t('completed.link', { n: completedGames.length }))}</a>`);
+  navLink(completedBtn, roundPath(round.id, 'completed'), () => showCompleted(round.id));
   foot.appendChild(completedBtn);
 
   // Consolidate two rounds (#253). Gated on the WHOLE shelf, not activeGames:
@@ -328,39 +328,48 @@ function renderChronikTab(round, activities) {
     else if (s.cancelled) parts.push(`<span style="color:var(--danger)">${iconText('ti-x', t('sessions.cancelled'))}</span>`);
     parts.push(esc(t('sessions.rated', { n: s.gameIds.length })));
 
-    const card = h(`<button class="session-card">
+    const card = h(`<a class="session-card">
          <div class="session-card__img">${thumbIcon}</div>
          <div class="session-card__body">
            <div class="session-card__title">${title}${pill}</div>
            <div class="session-card__meta">${parts.join(' · ')}</div>
          </div>
-       </button>`);
+       </a>`);
     if (chosen && chosen.image) loadCover(card.querySelector('.session-card__img'), coverUrl(chosen.image, COVER_THUMB));
-    card.addEventListener('click', () => showResults(round, s));
+    navLink(card, resultsPath(round.id, s.id), () => showResults(round, s));
     return card;
   }
 
   function buildActivityRow(e) {
     // Navigate to the game (if it still exists) or to the archive.
     const gameExists = e.gameId && round.games.some((g) => g.id === e.gameId);
-    const nav =
+    const target =
       e.type === 'game_retired'
-        ? () => showRetired(rid)
+        ? { path: roundPath(rid, 'retired'), nav: () => showRetired(rid) }
         : e.type === 'game_completed'
-          ? () => showCompleted(rid)
+          ? { path: roundPath(rid, 'completed'), nav: () => showCompleted(rid) }
           : gameExists
-            ? () => showGameDetail(rid, e.gameId)
+            ? { path: gamePath(rid, e.gameId), nav: () => showGameDetail(rid, e.gameId) }
             : null;
-    const row = h(`<div class="tl-act${nav ? ' tl-act--link' : ''}">
+    // Only the TEXT becomes an <a> (#330): the row also holds the delete button,
+    // and a <button> inside an <a> is invalid markup. So the text carries the
+    // href — new tab, copy address, link semantics — while the row keeps the
+    // generous click target it always had around it.
+    const row = h(`<div class="tl-act${target ? ' tl-act--link' : ''}">
          <span class="tl-act__icon"><i class="ti ${e.icon}" aria-hidden="true"></i></span>
-         <span class="tl-act__text">${esc(e.text)}</span>
+         ${target ? `<a class="tl-act__text">${esc(e.text)}</a>` : `<span class="tl-act__text">${esc(e.text)}</span>`}
          <span class="tl-act__time">${fmtDateTime(e.at)}</span>
          <button class="tl-act__del" title="${esc(t('activity.delete'))}" aria-label="${esc(t('activity.delete'))}"><i class="ti ti-x" aria-hidden="true"></i></button>
        </div>`);
-    if (nav) {
+    if (target) {
+      navLink(row.querySelector('.tl-act__text'), target.path, target.nav);
       row.addEventListener('click', (ev) => {
         if (ev.target.closest('.tl-act__del')) return; // delete is not "open"
-        nav();
+        // The anchor owns its own clicks — including a Cmd/middle-click, which
+        // it lets through to the browser. Navigating here too would open the
+        // new tab AND move this one.
+        if (ev.target.closest('.tl-act__text')) return;
+        target.nav();
       });
     }
     row.querySelector('.tl-act__del').addEventListener('click', async () => {
@@ -451,7 +460,7 @@ function renderPokaleTab(round) {
     const avatars = members
       .map(
         (m) =>
-          `<span class="avatar podium__avatar" data-mid="${esc(m.id)}" style="background:${memberColor(round, m.id)}">${esc(initials(m.name))}</span>`
+          `<a class="avatar podium__avatar" data-mid="${esc(m.id)}" style="background:${memberColor(round, m.id)}">${esc(initials(m.name))}</a>`
       )
       .join('');
     const names = members.map((m) => esc(m.name)).join(', ');
@@ -477,7 +486,7 @@ function renderPokaleTab(round) {
     const line = rest
       .map(
         (m) =>
-          `<span class="podium__rest-name" data-mid="${esc(m.id)}">${esc(m.name)}</span> · ${esc(tn(wins[m.id], 'pokale.winsOne', 'pokale.wins'))}`
+          `<a class="podium__rest-name" data-mid="${esc(m.id)}">${esc(m.name)}</a> · ${esc(tn(wins[m.id], 'pokale.winsOne', 'pokale.wins'))}`
       )
       .join('&ensp;—&ensp;');
     const restEl = h(`<div class="muted podium__rest">${line}</div>`);
@@ -487,13 +496,21 @@ function renderPokaleTab(round) {
     sec.appendChild(restEl);
   }
 
-  const statCard = (icon, label, value, sub) =>
-    h(`<div class="pokale-card">
+  // `linkMid` turns the value into a link to that member's page (the streak
+  // card, the one stat here that names a person). Without it the value stays a
+  // plain <span> on purpose: an <a> carrying no href is neither focusable nor
+  // styled, so emitting one unconditionally would leave dead markup behind for
+  // every future stat that isn't a link.
+  const statCard = (icon, label, value, sub, linkMid) => {
+    const card = h(`<div class="pokale-card">
          <span class="pokale-card__icon"><i class="ti ${icon}" aria-hidden="true"></i></span>
          <span class="pokale-card__label">${esc(label)}</span>
-         <span class="pokale-card__value">${esc(value)}</span>
+         ${linkMid ? `<a class="pokale-card__value">${esc(value)}</a>` : `<span class="pokale-card__value">${esc(value)}</span>`}
          <span class="pokale-card__sub">${esc(sub)}</span>
        </div>`);
+    if (linkMid) makeMemberLink(card.querySelector('.pokale-card__value'), round.id, linkMid);
+    return card;
+  };
   // Like statCard but the value is one or more games, each listed on its own row
   // with a "Jetzt spielen" launcher (icon-only; omitted for an archived game —
   // retired or completed, neither is in the active collection any more).
@@ -507,7 +524,7 @@ function renderPokaleTab(round) {
     const list = card.querySelector('.pokale-card__games');
     games.forEach((g) => {
       const row = h(`<span class="pokale-game">
-           <span class="pokale-game__title">${esc(g.title)}</span>
+           <a class="pokale-game__title">${esc(g.title)}</a>
          </span>`);
       // The game name opens its detail page (archived games too — the detail
       // view supports them; only the "Jetzt spielen" launcher is omitted).
@@ -577,10 +594,10 @@ function renderPokaleTab(round) {
   }
   const streakM = streakMember && round.members.find((m) => m.id === streakMember);
   if (streakM && streak >= 2) {
-    const streakCard = statCard('ti-bolt', t('pokale.streak'), streakM.name, t('pokale.streakN', { n: streak }));
-    // Link the member name to their detail page, like the podium members above.
-    makeMemberLink(streakCard.querySelector('.pokale-card__value'), round.id, streakMember);
-    cards.appendChild(streakCard);
+    // The member name links to their detail page, like the podium above.
+    cards.appendChild(
+      statCard('ti-bolt', t('pokale.streak'), streakM.name, t('pokale.streakN', { n: streak }), streakMember)
+    );
   }
 
   // Gathering dust: the active game whose last night is longest ago (or never).
@@ -652,15 +669,15 @@ const showCompleted = (rid) => showArchive(rid, 'completed');
 async function showArchive(rid, kind) {
   const a = ARCHIVES[kind];
   currentView = () => showArchive(rid, kind);
-  syncUrl(`/round/${rid}/${kind}`);
+  syncUrl(roundPath(rid, kind));
   app.innerHTML = '<p class="muted">…</p>';
   let round;
   try { round = await fetchRound(rid); }
   catch { return showHome(); }
   applyBackground(round.background);
   setCrumbs([
-    { label: t('nav.home'), onClick: showHome },
-    { label: round.name, onClick: () => showRound(rid) },
+    { label: t('nav.home'), path: '/', onClick: showHome },
+    { label: round.name, path: roundPath(rid), onClick: () => showRound(rid) },
     { label: t(`${kind}.crumb`) },
   ]);
 
