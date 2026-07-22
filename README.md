@@ -684,10 +684,17 @@ trigger. Each is self-contained and enforces this repo's constraints.
 | **`review-pr`** | Reviews a pull request (human or bot) against this repo's constraints and returns a `SAFE TO MERGE` / `NOT SAFE` verdict with concrete blockers. |
 | **`dependabot`** | Triages open Dependabot PRs, merging what passes review and commenting on what doesn't. |
 | **`test-data`** | Creates isolated, throwaway data in a temp `DATA_DIR` for tests or manual runs — the safe alternative to ever touching the real `data/`. |
+| **`audit`** | Runs the full audit sweep — accessibility, legal, and Claude-file — in one pass, merges the results into one ranked report, and files issues only with your approval. |
+| **`accessibility-audit`** | Audits the running UI against a maintained WCAG-based criteria list (drives the app in a browser over generated data), and periodically refreshes the criteria from current standards. |
+| **`legal-audit`** | Checks the privacy policy, Impressum, Nutzungsbedingungen and `docs/legal/` records against what the code actually does, and surfaces recent legal developments as a sourced reading list (never adopting a legal duty on its own). |
+| **`claude-file-audit`** | Audits `CLAUDE.md`, `README.md` and everything under `.claude/` for staleness, dangling references and contradictions, and refreshes its criteria from current harness capabilities. |
 
 A typical flow: **`create-issue`** to capture the work → **`pick-issue`** to
 choose what's next → **`implement`** to ship it (it calls `review-pr` before
-merging). For dependency bumps, **`dependabot`** handles the batch.
+merging). For dependency bumps, **`dependabot`** handles the batch. The three
+**`*-audit`** skills (and the **`audit`** umbrella) run a research → self-critique
+→ audit loop over accessibility, legal and the repo's own Claude files; each keeps
+its criteria in a versioned `criteria.md` that changes only via a reviewable PR.
 
 ### Doing it by hand
 
