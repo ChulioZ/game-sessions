@@ -66,7 +66,9 @@
   /* Room the floating hub dock needs at the page bottom. It is used by BOTH
      things that end up under it — .app's own padding and the site footer that
      follows .app (#324) — so the two can't drift apart if the dock is ever
-     resized. */
+     resized. Since #331 it is applied only where a dock actually floats: on a
+     phone-width hub tab. Above the strip breakpoint the tabs are in flow at the
+     top of the column and nothing overlays the page bottom at all. */
   --dock-clearance: 120px;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
   --font: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -157,8 +159,9 @@ h1, h2, h3 { font-family: var(--font-display); }
 .app {
   max-width: 1000px;
   margin: 0 auto;
-  /* Generous bottom padding so the floating dock never covers content. */
-  padding: 24px 20px var(--dock-clearance);
+  /* Ordinary bottom padding. Room for the floating dock is added separately,
+     conditioned on one actually being rendered — see the hub-tabs section. */
+  padding: 24px 20px 40px;
 }
 /* Shared site footer (issue #224). Muted, theme-derived link colour (no
    hardcoded tones — .claude/rules/theme-derived-colors.md). */
@@ -172,16 +175,13 @@ h1, h2, h3 { font-family: var(--font-display); }
   gap: 18px;
   font-size: 14px;
 }
-/* The dock is `position: fixed`, and .app's clearance above does NOT cover the
-   footer, because the footer is .app's SIBLING rather than a child of it. So at
-   the bottom of a hub tab the dock sat on top of the legal links and the BGG
-   attribution — the Impressum has to be "ständig verfügbar" (§ 5 DDG) and the
-   BGG logo is a licence condition, so neither may be obscured (#324). Give the
-   footer the same clearance, but only where a dock is actually rendered
-   (renderHubDock appends .dock into .app), so every other screen keeps its
-   spacing instead of growing dead space. Raising the footer above the dock
-   instead would only swap which of the two is covered. */
-.app:has(.dock) + .site-footer { padding-bottom: var(--dock-clearance); }
+/* The dock is `position: fixed` (below the strip breakpoint), and .app's own
+   padding does NOT cover the footer, because the footer is .app's SIBLING
+   rather than a child of it. So at the bottom of a hub tab the dock sat on top
+   of the legal links and the BGG attribution — the Impressum has to be
+   "ständig verfügbar" (§ 5 DDG) and the BGG logo is a licence condition, so
+   neither may be obscured (#324). Both reserves live together in the hub-tabs
+   section below, conditioned on a floating dock actually being present. */
 .site-footer__links {
   display: flex;
   gap: 20px;
@@ -354,7 +354,12 @@ h1, h2, h3 { font-family: var(--font-display); }
    next ticket — centred between two of them it reads as a separator instead. */
 .ticket__discard { margin: 6px 0 18px; }
 
-/* Floating dock: the hub's tab bar, pinned above the page bottom. */
+/* ---- Hub tabs (Start / Regal / Chronik / Pokale): one element, presented per
+   device (#331). The default below is the phone form — a floating dock pinned
+   above the page bottom, where a thumb reaches it. The desktop form is the
+   min-width block further down. The switch is viewport width ALONE; the
+   reasoning (and why not pointer/display-mode) is in
+   .claude/rules/responsive-hub-tabs.md. ---- */
 .dock {
   position: fixed;
   left: 50%;
@@ -387,6 +392,48 @@ h1, h2, h3 { font-family: var(--font-display); }
 .dock__item .ti { font-size: 19px; }
 .dock__item.is-active { background: var(--brand); color: #fff; }
 .dock__item:not(.is-active):hover { background: var(--brand-tint-soft); }
+
+/* Phone form. Two things are conditioned on a dock ACTUALLY FLOATING here:
+
+   1. The clearance. `.app` used to reserve 120px unconditionally, so the eight
+      round sub-screens — which render no dock at all — each paid for one. Now
+      only a screen with a floating dock does, and the footer's copy (#324)
+      rides the same condition so the two can never disagree.
+   2. `.dock--sub` (the sub-screen strip) is hidden outright. It is a
+      desktop-only affordance: the dock has never floated over the game detail
+      or tags screens, and starting now would put a fixed element over eight
+      more screens and charge each the clearance above — the opposite of the
+      cleanup this issue is. */
+@media (max-width: 859px) {
+  .dock--sub { display: none; }
+  .app:has(.dock:not(.dock--sub)) { padding-bottom: var(--dock-clearance); }
+  .app:has(.dock:not(.dock--sub)) + .site-footer { padding-bottom: var(--dock-clearance); }
+}
+
+/* Desktop form: an in-flow strip at the top of the content column. Four sibling
+   sections of one entity switched in place is a standard desktop pattern
+   (GitHub's Code/Issues/Pull requests, Linear, Stripe) and belongs where the
+   eye starts, not at `top: 993px` — and being in flow, it stops overlaying the
+   third row of the Regal grid for the whole scroll. `transform` must be reset
+   explicitly: it still applies to a statically positioned element, unlike the
+   inert `left`/`bottom`/`z-index`. */
+@media (min-width: 860px) {
+  .dock {
+    position: static;
+    transform: none;
+    width: fit-content;
+    margin: 0 0 22px;
+    border-radius: 14px;
+    box-shadow: none;
+  }
+  .dock__item {
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+  .dock__item .ti { font-size: 17px; }
+}
 
 /* ---- Narrow screens: keep the top bar and last-played ticket from
    overflowing. The three top-bar items (brand, breadcrumb, language picker)
@@ -1797,7 +1844,10 @@ kbd {
 
 @media (max-width: 520px) {
   body { font-size: 17px; }
-  .app { padding: 16px 14px var(--dock-clearance); }
+  /* Bottom padding stays the ordinary one — the dock's clearance is added by
+     the `:has(.dock…)` rule in the hub-tabs section, which is more specific
+     than this shorthand and so still wins on a hub tab. */
+  .app { padding: 16px 14px 40px; }
   .mood { width: 56px; height: 60px; }
 }
 
