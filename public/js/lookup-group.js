@@ -5,9 +5,14 @@
 
 'use strict';
 
-// Group merged provider hits by normalized title (trim + lowercase — the same
-// normalization scoreHit applies, so no fuzzy/edit-distance matching) into one
-// row per game. Each hit carries { provider, title, thumbnail, score, prio,
+// Group merged provider hits by normalized title (trim + lowercase, no
+// fuzzy/edit-distance matching) into one row per game. Note this is
+// deliberately *weaker* than scoreHit's fold (lookup-score.js), which also
+// strips punctuation and diacritics: that fold decides how well a title
+// answers the query, whereas this key decides whether two providers are
+// offering the *same game*. Folding punctuation away here would merge titles
+// that differ only by it into one row, which is a separate call from #317.
+// Each hit carries { provider, title, thumbnail, score, prio,
 // order } (prio = LOOKUP_PROVIDERS priority, order = the provider's own order).
 //
 // Returns an array of groups, each:

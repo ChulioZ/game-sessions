@@ -65,8 +65,10 @@ const frontendGlobals = {
   FEEDBACK_MESSAGE_MAX: 'readonly', showFeedback: 'readonly',
   setupFeedbackUi: 'readonly',
   // ranking.js + lookup-group.js + lookup-cover.js + lookup-title.js +
-  // cover.js + tag-icons.js (also CommonJS modules for tests — hence `module`)
+  // lookup-score.js + cover.js + tag-icons.js (also CommonJS modules for
+  // tests — hence `module`)
   computePlaces: 'readonly', groupLookupHits: 'readonly', module: 'readonly',
+  scoreHit: 'readonly', foldTitle: 'readonly',
   gameHue: 'readonly', coverPlaceholder: 'readonly',
   coverUrl: 'readonly', COVER_THUMB: 'readonly', COVER_CARD: 'readonly',
   COVER_HERO: 'readonly', COVER_RESIZERS: 'readonly',
@@ -87,7 +89,7 @@ const frontendGlobals = {
   startDirectSession: 'readonly',
   showLinkProvider: 'readonly', attachLookup: 'readonly', searchProvider: 'readonly',
   enabledProviders: 'readonly', lookupDetail: 'readonly',
-  scoreHit: 'readonly', providerLabel: 'readonly',
+  providerLabel: 'readonly',
   providerLogo: 'readonly', PROVIDER_LOGOS: 'readonly',
   PROVIDER_LABELS: 'readonly', LOOKUP_PROVIDERS: 'readonly', MAX_SUGGESTIONS: 'readonly',
   // views-member.js

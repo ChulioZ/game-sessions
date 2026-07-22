@@ -64,23 +64,6 @@ function lookupDetail(rid, r) {
   return api('GET', `/api/rounds/${rid}/lookup/game?provider=${encodeURIComponent(r.provider)}&id=${encodeURIComponent(r.providerId)}`);
 }
 
-// Query-match relevance tier (higher = better), case-insensitive on trimmed
-// strings. Exact-string tiers only — no fuzzy/edit-distance matching.
-function scoreHit(title, q) {
-  const s = (title || '').trim().toLowerCase();
-  const query = (q || '').trim().toLowerCase();
-  if (!s || !query) return 0;
-  if (s === query) return 5; // exact title
-  if (s.startsWith(query)) return 4; // title starts with the query
-  const words = s.split(/\s+/);
-  if (words.some((w) => w.startsWith(query))) return 3; // query at a word boundary
-  if (s.includes(query)) return 2; // query anywhere as a substring
-  const qTokens = query.split(/\s+/).filter(Boolean);
-  if (qTokens.length && qTokens.every((qt) => words.some((w) => w.startsWith(qt))))
-    return 1; // loose: every query token is a word-prefix in the title
-  return 0; // no match
-}
-
 // Wire search-as-you-type merged provider suggestions onto an input + menu.
 // onPick(result) fires when a suggestion is chosen; onInput() (optional) fires
 // on every manual edit. Returns { closeMenu, search }: closeMenu dismisses the

@@ -325,6 +325,8 @@ public/
                      the last known data while a background fetch refreshes
     lookup-group.js  collapses same-title provider hits into one multi-badge row
     lookup-cover.js  which cover image a picked provider match yields
+    lookup-score.js  how well a hit's title answers the query (drives the
+                     cross-provider ranking; folds punctuation + diacritics)
     lookup-title.js  which title a picked provider match fills in (BGG keeps the
                      matched name, so a German search stays German)
     focus-trap.js    keeps Tab inside an open sheet + restores focus on close
