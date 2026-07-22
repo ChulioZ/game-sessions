@@ -66,6 +66,7 @@ async function showMember(rid, mid) {
   ]);
 
   app.innerHTML = '';
+  renderSubScreenTabs(rid, 'member');
 
   // Persist a partial update, then re-render the page from fresh data so the
   // new name/color is reflected here and everywhere it is derived from.

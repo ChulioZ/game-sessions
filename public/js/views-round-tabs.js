@@ -687,6 +687,7 @@ async function showArchive(rid, kind) {
     .sort((x, y) => String(a.at(y) || '').localeCompare(String(a.at(x) || '')));
 
   app.innerHTML = '';
+  renderSubScreenTabs(rid, kind);
   app.appendChild(
     h(`<div class="page-head"><div>
          <h1>${esc(t(`${kind}.title`))}</h1>

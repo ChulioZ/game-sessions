@@ -7,9 +7,22 @@
 
 // =================== Round: hub (Start / Regal / Chronik) ===================
 
-// The round screen is a hub with tabs, switched by the floating dock at the
-// bottom.
+// The round screen is a hub with tabs, presented per device (#331): a floating
+// dock at the bottom on phones, an in-flow strip at the top of the content
+// column on desktop.
 const HUB_TABS = ['start', 'regal', 'chronik', 'pokale'];
+
+// Which hub tab owns each round SUB-screen, so those screens can show the
+// section they belong to instead of being orphans of it. Keyed the way the
+// router names them (resolveRoute in router.js), so a new sub-screen that
+// forgets its entry here simply renders no strip rather than a wrong one.
+const HUB_TAB_OF = {
+  regal: ['game', 'retired', 'completed'],
+  chronik: ['session'],
+  start: ['member', 'design', 'tags', 'providers'],
+};
+const hubTabOwning = (sub) =>
+  HUB_TABS.find((tab) => (HUB_TAB_OF[tab] || []).includes(sub)) || 'start';
 
 async function showRound(rid, tab) {
   const activeTab = HUB_TABS.includes(tab) ? tab : 'start';
@@ -40,35 +53,61 @@ async function showRound(rid, tab) {
   else if (activeTab === 'chronik') renderChronikTab(round, activities);
   else if (activeTab === 'pokale') renderPokaleTab(round);
   else renderStartTab(round, activeGames);
-  renderHubDock(rid, activeTab);
+  renderHubTabs(rid, activeTab);
 }
 
-// Floating dock: the hub's tab bar.
-function renderHubDock(rid, activeTab) {
+// The hub's tab bar. ONE element with two presentations, branched in CSS by
+// viewport width alone (#331): below the strip breakpoint it is the floating
+// bottom dock it has always been; above it, an in-flow strip at the top of the
+// content column, where sibling sections of one entity belong.
+//
+// It is PREPENDED for that reason. On a phone the element is `position: fixed`,
+// so its position in the DOM is inert there and the dock looks exactly as
+// before — but on desktop it has to precede the tab content, and putting the
+// navigation before the content is the better reading/tab order either way.
+//
+// `sub` marks a round sub-screen (game detail, tags, design, …). Those get the
+// desktop strip, so they stop being orphans with no section context — but never
+// the phone dock: it has never floated there, and starting now would put a
+// fixed element and 120px of clearance onto eight more screens, which is the
+// opposite of what this issue cleans up. `.dock--sub` is what CSS keys that on.
+function renderHubTabs(rid, activeTab, sub) {
   const tabs = [
     { id: 'start', icon: 'ti-home', label: t('hub.tab.start') },
     { id: 'regal', icon: 'ti-cards', label: t('hub.tab.regal') },
     { id: 'chronik', icon: 'ti-history', label: t('hub.tab.chronik') },
     { id: 'pokale', icon: 'ti-trophy', label: t('hub.tab.pokale') },
   ];
-  const dock = h(`<nav class="dock" aria-label="${esc(t('a11y.hubTabs'))}"></nav>`);
+  const dock = h(`<nav class="dock${sub ? ' dock--sub' : ''}" aria-label="${esc(t('a11y.hubTabs'))}"></nav>`);
   tabs.forEach(({ id: tabId, icon, label }) => {
     // aria-current marks the tab you are on (#145). It was signalled by the
     // is-active class alone, i.e. by color — and since the active tab also does
     // nothing when clicked, a screen-reader user met a dead control with no
     // clue why.
+    //
+    // On a sub-screen it is "true", not "page": that tab is the section you are
+    // inside, but it is emphatically not the page you are on, and saying "page"
+    // would announce the game detail screen as if it were the Regal.
     const active = tabId === activeTab;
-    const item = h(`<a class="dock__item${active ? ' is-active' : ''}"${active ? ' aria-current="page"' : ''}>
+    const current = sub ? 'true' : 'page';
+    const item = h(`<a class="dock__item${active ? ' is-active' : ''}"${active ? ` aria-current="${current}"` : ''}>
          <i class="ti ${icon}" aria-hidden="true"></i>${esc(label)}
        </a>`);
     // Every tab carries its href, so any of them can be copied or opened in a
-    // new tab — but the active one stays click-inert (no onNav), because it
-    // points at the screen you are already on and a real navigation there would
-    // be a full page reload.
-    navLink(item, roundPath(rid, tabId), active ? null : () => showRound(rid, tabId));
+    // new tab — but on a hub tab the active one stays click-inert (no onNav),
+    // because it points at the screen you are already on and a real navigation
+    // there would be a full page reload. On a sub-screen the owning tab is a
+    // live link: clicking it is how you get back up to that section.
+    navLink(item, roundPath(rid, tabId), active && !sub ? null : () => showRound(rid, tabId));
     dock.appendChild(item);
   });
-  app.appendChild(dock);
+  app.prepend(dock);
+}
+
+// Prepend the desktop-only strip to a round sub-screen, marking the tab that
+// owns it. `sub` is the router's own path segment (see HUB_TAB_OF).
+function renderSubScreenTabs(rid, sub) {
+  renderHubTabs(rid, hubTabOwning(sub), true);
 }
 
 // --- Start tab: the launchpad — identity, the one big CTA, the latest story.
