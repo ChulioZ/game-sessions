@@ -204,6 +204,7 @@ function applyStaticTexts() {
   home.setAttribute('aria-label', t('a11y.home'));
   document.getElementById('langPicker').setAttribute('aria-label', t('a11y.language'));
   document.getElementById('feedbackBtn').setAttribute('aria-label', t('feedback.button'));
+  document.getElementById('supportBtn').setAttribute('aria-label', t('support.button'));
   document.getElementById('accountBtn').setAttribute('aria-label', t('a11y.account'));
   crumbs.setAttribute('aria-label', t('a11y.breadcrumb'));
   // Shared site footer (issues #224/#134): link labels, re-localized on
@@ -228,6 +229,11 @@ function initFooter() {
     .then((r) => (r.ok ? r.json() : null))
     .then((cfg) => {
       if (cfg && cfg.footer) document.getElementById('footerLinks').hidden = false;
+      // Support link (#173): same config fetch, same degradation — no URL (or
+      // any error) leaves the button hidden. initSupport lives in the
+      // later-loaded support.js; safe here because this callback runs long
+      // after every script has loaded (frontend-script-load-order.md).
+      if (cfg && cfg.donateUrl) initSupport(cfg.donateUrl);
     })
     .catch(() => {});
 }

@@ -472,5 +472,11 @@ I18N.en = {
   'feedback.toast.error': 'Could not send. Please try again.',
   'feedback.toast.rateLimited': 'Too many messages. Please try again later.',
 
+  'support.button': 'Support Spielwirbel',
+  'support.title': 'Support Spielwirbel',
+  'support.body': 'Spielwirbel is free, ad-free and tracking-free — built for the joy of playing together. If you enjoy the app, you can support its running costs with a small donation.',
+  'support.hint': 'Donations are voluntary and unlock nothing — every feature stays free for everyone. The link opens our donation page in a new tab.',
+  'support.cta': 'Open the donation page',
+
   'list.and': 'and',
 };

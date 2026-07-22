@@ -523,6 +523,10 @@ h1, h2, h3 { font-family: var(--font-display); }
 .btn--sm { font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 10px; border-bottom-width: 3px; }
 .btn--sm:active { margin-bottom: 1.5px; }
 .btn--block { width: 100%; }
+/* .btn on an <a> (the support sheet's outbound CTA, #173): a button element is
+   inline-block by default, an anchor is inline — without this the padding
+   overflows the sheet and the label renders underlined. */
+a.btn { display: inline-block; text-decoration: none; text-align: center; box-sizing: border-box; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* ---- Cards / grids ---- */

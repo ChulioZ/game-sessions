@@ -23,6 +23,9 @@
     <button id="homeBtn" class="topbar__home" type="button" aria-label="Home"><i class="ti ti-tornado" aria-hidden="true"></i></button>
     <nav id="crumbs" class="crumbs"></nav>
     <select id="langPicker" class="lang-picker" aria-label="Language"></select>
+    <!-- Support link (issue #173): hidden until GET /api/config reports a
+         donateUrl; wired by js/support.js. -->
+    <button id="supportBtn" class="topbar__acct" type="button" hidden aria-label="Support"><i class="ti ti-heart" aria-hidden="true"></i></button>
     <!-- Feedback (issue #260): always visible, in both auth modes; wired by
          js/feedback.js. -->
     <button id="feedbackBtn" class="topbar__acct" type="button" aria-label="Feedback"><i class="ti ti-message" aria-hidden="true"></i></button>
@@ -82,6 +85,7 @@
   <script src="/js/lookup-score.js"></script>
   <script src="/js/lookup-title.js"></script>
   <script src="/js/feedback.js"></script>
+  <script src="/js/support.js"></script>
   <script src="/js/views-home.js"></script>
   <script src="/js/views-round.js"></script>
   <script src="/js/views-round-tabs.js"></script>

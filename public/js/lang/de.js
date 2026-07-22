@@ -472,5 +472,11 @@ I18N.de = {
   'feedback.toast.error': 'Konnte nicht gesendet werden. Bitte versuche es erneut.',
   'feedback.toast.rateLimited': 'Zu viele Nachrichten. Bitte versuche es später erneut.',
 
+  'support.button': 'Spielwirbel unterstützen',
+  'support.title': 'Spielwirbel unterstützen',
+  'support.body': 'Spielwirbel ist kostenlos, werbefrei und ohne Tracking — gebaut aus Freude am gemeinsamen Spielen. Wenn dir die App gefällt, kannst du den Betrieb mit einer kleinen Spende unterstützen.',
+  'support.hint': 'Spenden sind freiwillig und schalten nichts frei — alle Funktionen bleiben für alle kostenlos. Der Link öffnet unsere Spendenseite in einem neuen Tab.',
+  'support.cta': 'Spendenseite öffnen',
+
   'list.and': 'und',
 };

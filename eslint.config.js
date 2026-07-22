@@ -64,6 +64,8 @@ const frontendGlobals = {
   // feedback.js (issue #260)
   FEEDBACK_MESSAGE_MAX: 'readonly', showFeedback: 'readonly',
   setupFeedbackUi: 'readonly',
+  // support.js (issue #173)
+  showSupport: 'readonly', initSupport: 'readonly', setupSupportUi: 'readonly',
   // ranking.js + lookup-group.js + lookup-cover.js + lookup-title.js +
   // lookup-score.js + cover.js + tag-icons.js (also CommonJS modules for
   // tests — hence `module`)

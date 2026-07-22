@@ -24,6 +24,7 @@ keine 20 Personen, kein besonderes Risiko).
 | 9 | Anbieter-Cover (Hotlinking) | Besucher, deren Runde Cover verknüpft hat | IP + Browser-Header (durch den Browser des Besuchers) | Anzeige verknüpfter Cover ohne eigene Vervielfältigung | Art. 6 (1) f | Sony, Valve, Nintendo, Microsoft, BoardGameGeek (eigene Verantwortliche, keine AV) | USA/Japan | keine Speicherung bei uns |
 | 10 | Moderation/Betreiber-Panel | Nutzer im Einzelfall | Konto-/Inhaltsdaten des Einzelfalls, Moderations-Log (Löschnachweise ohne E-Mail-Adresse) | Missbrauchsbekämpfung, Art.-17-Nachweis | Art. 6 (1) c/f | Railway (DB) | USA (EU-Region; SCC) | Log-Einträge mit Personendaten: 3 Jahre ab Jahresende (`retention.md`); Löschnachweise (ohne E-Mail) dauerhaft; Inhalte gem. Maßnahme |
 | 11 | Post an die Empfangsanschrift | Absender von Briefpost | Absenderdaten, Briefinhalt | Erreichbarkeit unter ladungsfähiger Anschrift (Impressum, förmliche Zustellungen) | Art. 6 (1) c/f | ZERODOX — Christian Jahnke, Koblenz (Entgegennahme, Öffnung, Digitalisierung; **eigenständiger Verantwortlicher**, keine AV — siehe Hinweise; gewöhnliche private Briefpost wird nicht angenommen und geht an den Absender zurück) | nein (DE) | Scans bei uns: bis Abschluss der Bearbeitung; Originale beim Dienstleister 4 Wochen, dann Vernichtung (dessen AGB § 6 (5)) |
+| 12 | Spenden (Unterstützungs-Link, #173) | Spender | Im Ko-fi-Dashboard einsehbar: Name/Anzeigename, optional Nachricht und E-Mail-Adresse; Zahlungsdaten verbleiben bei Ko-fi/Stripe/PayPal und erreichen uns nie | Nachvollziehen von Spenden, ggf. Dank | Art. 6 (1) f | Ko-fi Labs Ltd. (London, UK), Stripe Payments Europe Ltd. (Irland), PayPal (Europe) S.à r.l. et Cie, S.C.A. (Luxemburg) — **eigenständige Verantwortliche**, keine AV (siehe Hinweise); die App überträgt selbst nichts (reiner Klick-Link) | UK (Angemessenheitsbeschluss) | Dashboard-Daten beim Anbieter gem. dessen Regime; eigene Aufzeichnungen: solange steuerlich erforderlich |
 
 **Hinweise**
 
@@ -45,6 +46,12 @@ keine 20 Personen, kein besonderes Risiko).
   Einordnungsrisiko liegt primär beim Dienstleister. ZERODOX wird deshalb als
   **Empfänger** (eigenständiger Verantwortlicher) geführt, nicht als
   Auftragsverarbeiter.
+- Die Spenden-Plattformen (Zeile 12: Ko-fi, Stripe, PayPal) sind — wie die
+  Cover-Anbieter in Zeile 9 — **eigenständige Verantwortliche**, keine
+  Auftragsverarbeiter: Die App bettet nichts ein und überträgt nichts; der
+  Besucher öffnet den Spenden-Link selbst, und die Spende kommt als Vertrag
+  zwischen Spender und Plattform bzw. Zahlungsdienstleister zustande. Ein AVV
+  ist daher weder nötig noch von diesen Anbietern erhältlich.
 - Es findet **kein** Tracking, keine Analyse, keine Werbung und kein Verkauf
   von Daten statt; es gibt keine automatisierte Einzelentscheidung (Art. 22).
 - Löschfristen und Prüf-Rhythmus im Detail: `retention.md`; das

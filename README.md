@@ -143,6 +143,12 @@ code and documentation are in English.
   checkbox that is never ticked for you. The operator reads what comes in from
   the moderation panel (see below) — there is no third-party feedback service
   and no analytics script involved.
+- **Support link (donations)** – when the operator sets `DONATE_URL`, a heart
+  button in the top bar opens a small sheet whose single action is a plain
+  link to the operator's donation page (new tab). Donations are voluntary and
+  unlock nothing; the app contains no payment code and embeds no third-party
+  widget — nothing is loaded from (or sent to) the donation platform until the
+  link is clicked. With `DONATE_URL` unset the button does not exist.
 
 ## Tech & architecture
 
@@ -438,6 +444,12 @@ Serving one deployment under several domains: `CANONICAL_HOST` + `REDIRECT_HOSTS
 allowlist, so it never touches the canonical host, a platform domain like
 `*.up.railway.app`, or a load-balancer health-check host. Point them at your own
 domains, or set `REDIRECT_HOSTS` empty to disable. See the block in `.env.example`.
+
+Support link (issue #173): set `DONATE_URL=https://…` to show the top-bar heart
+button that opens the donation sheet (see Features). The URL is opaque to the
+app and is served to the client through the public `GET /api/config` (as
+`donateUrl`, `null` when unset), so the button also works before login. Unset
+(the default) the feature does not exist.
 
 Per-tenant quotas (issue #139): in the public multi-tenant mode (`ACCOUNTS_ENABLED=true`)
 each tenant is capped on rounds (`MAX_ROUNDS_PER_TENANT`, default 10), games per
