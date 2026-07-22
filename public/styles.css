@@ -63,6 +63,11 @@
   --gold-soft: #fef3c7;
   --gold-edge: #d97706;
   --radius: 18px;
+  /* Room the floating hub dock needs at the page bottom. It is used by BOTH
+     things that end up under it — .app's own padding and the site footer that
+     follows .app (#324) — so the two can't drift apart if the dock is ever
+     resized. */
+  --dock-clearance: 120px;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
   --font: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-display: "Baloo 2", "Nunito", -apple-system, BlinkMacSystemFont, sans-serif;
@@ -139,7 +144,7 @@ h1, h2, h3 { font-family: var(--font-display); }
   max-width: 1000px;
   margin: 0 auto;
   /* Generous bottom padding so the floating dock never covers content. */
-  padding: 24px 20px 120px;
+  padding: 24px 20px var(--dock-clearance);
 }
 /* Shared site footer (issue #224). Muted, theme-derived link colour (no
    hardcoded tones — .claude/rules/theme-derived-colors.md). */
@@ -153,6 +158,16 @@ h1, h2, h3 { font-family: var(--font-display); }
   gap: 18px;
   font-size: 14px;
 }
+/* The dock is `position: fixed`, and .app's clearance above does NOT cover the
+   footer, because the footer is .app's SIBLING rather than a child of it. So at
+   the bottom of a hub tab the dock sat on top of the legal links and the BGG
+   attribution — the Impressum has to be "ständig verfügbar" (§ 5 DDG) and the
+   BGG logo is a licence condition, so neither may be obscured (#324). Give the
+   footer the same clearance, but only where a dock is actually rendered
+   (renderHubDock appends .dock into .app), so every other screen keeps its
+   spacing instead of growing dead space. Raising the footer above the dock
+   instead would only swap which of the two is covered. */
+.app:has(.dock) + .site-footer { padding-bottom: var(--dock-clearance); }
 .site-footer__links {
   display: flex;
   gap: 20px;
@@ -1758,7 +1773,7 @@ kbd {
 
 @media (max-width: 520px) {
   body { font-size: 17px; }
-  .app { padding: 16px 14px 120px; }
+  .app { padding: 16px 14px var(--dock-clearance); }
   .mood { width: 56px; height: 60px; }
 }
 
