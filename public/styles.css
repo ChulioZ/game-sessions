@@ -1744,7 +1744,12 @@ body.auth-screen .crumbs { display: none; }
 }
 
 /* Game detail page */
-.gd-head { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+/* `fit-content`, so the header is as wide as cover + facts + ring and no wider.
+   Stretched to the full column it spread those three across 900px and left the
+   score ring stranded at the far edge. `max-width: 100%` keeps the phone
+   behaviour: the row still fills a narrow screen and still wraps, driven by
+   .gd-info's min-width below. */
+.gd-head { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; width: fit-content; max-width: 100%; }
 .gd-img {
   position: relative;
   width: 240px;
@@ -1759,7 +1764,12 @@ body.auth-screen .crumbs { display: none; }
   font-size: 64px;
   flex: none;
 }
-.gd-info { flex: 1; min-width: 240px; }
+/* Sized to its content, NOT `flex: 1`. Growing to fill the line pushed the
+   score ring to the far right of the header — measured 453px from a short
+   title, so the game's rating read as belonging to nothing. Shrinking is still
+   allowed (`0 1 auto`), so a long title or a row of tag chips takes the room it
+   needs and the ring follows it instead of the container's edge. */
+.gd-info { flex: 0 1 auto; min-width: 240px; }
 .gd-info h1 { margin: 0 0 14px; font-size: 26px; line-height: 1.5; }
 
 /* --- Inline editing on the game detail page --- */
