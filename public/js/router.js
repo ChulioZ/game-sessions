@@ -5,9 +5,10 @@
    serves index.html for these paths (SPA fallback in lib/app.js).
 
    The stable views call syncUrl() at their start to reflect themselves in the
-   URL. The transient voting/finale/start-session screens are intentionally not
-   routed (they hold unsaved local state); cold-loading such a URL falls back to
-   the round hub. */
+   URL. The transient voting/finale/start-session screens hold unsaved local
+   state, so they can't be rebuilt from a path: they push history entries like
+   everything else (#329) but re-render themselves from memory via a *flow*
+   (below), and cold-loading such a URL falls back to the round hub. */
 
 'use strict';
 
@@ -26,6 +27,38 @@ let routing = false;
 // cold-loaded into" (idx === 0), so a deep link's Back falls back to a parent
 // instead of leaving the app.
 let navIndex = 0;
+
+// A *flow* is a run of history entries whose screens hold unsaved in-memory
+// state and therefore cannot be re-rendered from their URL (today: the session
+// flow — setup, hot-seat voting steps, finale). While one is registered it gets
+// first refusal on popstate and re-renders its own step from memory; anything
+// it doesn't recognise ends it and routes normally. A cold load registers no
+// flow, so those URLs fall through to resolveRoute() and land on the hub.
+let activeFlow = null;
+// Optional companion predicate: "may the user leave this flow right now?".
+// Answering false aborts the navigation (e.g. votes would be discarded).
+let activeGuard = null;
+
+function beginFlow(onPopstate, guard) {
+  activeFlow = onPopstate;
+  activeGuard = guard || null;
+}
+
+function endFlow() {
+  activeFlow = null;
+  activeGuard = null;
+}
+
+// Called by every in-app exit that could abandon a flow (the top-bar home
+// button, the flow's own breadcrumbs, a Back that leaves it). Returns false to
+// abort the navigation; on a permitted leave it also ends the flow, so callers
+// only ever write `if (confirmLeave()) …`. The guard does its own teardown —
+// it is the only thing that knows what "unsaved" means for that screen.
+function confirmLeave() {
+  if (activeGuard && !activeGuard()) return false;
+  endFlow();
+  return true;
+}
 
 // Canonical path for the round hub: the Start tab has the bare round URL.
 function roundPath(rid, tab) {
@@ -84,7 +117,14 @@ function resolveRoute(pathname) {
     if (sub === 'providers') return () => showProviders(rid);
     if (sub === 'game' && parts[3]) return () => showGameDetail(rid, parts[3]);
     if (sub === 'member' && parts[3]) return () => showMember(rid, parts[3]);
-    if (sub === 'session' && parts[3]) return () => showResultsById(rid, parts[3]);
+    if (sub === 'session' && parts[3]) {
+      // The flow's transient screens (…/session/new, …/vote/:step, …/finale)
+      // hold votes that only ever lived in memory, so a cold load can't restore
+      // one — and neither can any other unknown sub-path. Land on the round hub
+      // instead, where an abandoned draw is offered as an in-progress ticket.
+      if (parts[3] === 'new' || parts[4]) return () => showRound(rid, 'start');
+      return () => showResultsById(rid, parts[3]);
+    }
     // Unknown sub-path under a round -> that round's hub.
     return () => showRound(rid, 'start');
   }
@@ -117,8 +157,12 @@ async function showResultsById(rid, sid) {
 }
 
 // Back/Forward: the browser has already updated location, so restore our index
-// from the entry we landed on, then just re-render it.
+// from the entry we landed on, then just re-render it. An active flow gets the
+// entry first — it can rebuild its own step from memory, which routeTo() never
+// could — and only a path it declines falls through to normal routing.
 window.addEventListener('popstate', (e) => {
   navIndex = (e.state && typeof e.state.idx === 'number') ? e.state.idx : 0;
+  if (activeFlow && activeFlow(location.pathname)) return;
+  endFlow();
   routeTo(location.pathname);
 });

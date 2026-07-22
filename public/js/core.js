@@ -8,9 +8,13 @@ const app = document.getElementById('app');
 const crumbs = document.getElementById('crumbs');
 const toastEl = document.getElementById('toast');
 
-// Arrow so showHome (defined in a later script) is only resolved on click –
-// it does not exist yet while core.js is loading.
-document.getElementById('homeBtn').addEventListener('click', () => showHome());
+// Arrow so showHome/confirmLeave (defined in later scripts) are only resolved
+// on click – they do not exist yet while core.js is loading.
+// confirmLeave (router.js) gives a flow holding unsaved state — the vote wizard
+// — the chance to ask before this button discards it (#329).
+document.getElementById('homeBtn').addEventListener('click', () => {
+  if (confirmLeave()) showHome();
+});
 
 // Re-invoked when the language changes, to re-render the current screen.
 let currentView = () => showHome();

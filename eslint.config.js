@@ -29,6 +29,9 @@ const frontendGlobals = {
   createSwrStore: 'readonly',
   // focus-trap.js
   trapFocus: 'readonly', focusables: 'readonly', FOCUSABLE: 'readonly',
+  // session-path.js
+  sessionSetupPath: 'readonly', sessionStepPath: 'readonly',
+  sessionFinalePath: 'readonly', parseSessionPath: 'readonly',
   applyStaticTexts: 'readonly', setupLangPicker: 'readonly', initFooter: 'readonly',
   gamesSort: 'writable',
   regalFilters: 'writable', regalFiltersRid: 'writable',
@@ -103,6 +106,8 @@ const frontendGlobals = {
   routing: 'writable', navIndex: 'writable', roundPath: 'readonly',
   syncUrl: 'readonly', navBack: 'readonly', resolveRoute: 'readonly',
   routeTo: 'readonly', showResultsById: 'readonly',
+  activeFlow: 'writable', activeGuard: 'writable',
+  beginFlow: 'readonly', endFlow: 'readonly', confirmLeave: 'readonly',
 };
 
 module.exports = [

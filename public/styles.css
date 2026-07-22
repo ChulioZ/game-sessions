@@ -335,6 +335,10 @@ h1, h2, h3 { font-family: var(--font-display); }
 .ticket--live { border-color: var(--brand); box-shadow: inset 3px 0 0 0 var(--brand); }
 .ticket--live .ticket__label { color: var(--brand-dark); }
 .ticket--live .ticket__stub .ti { color: var(--brand); }
+/* Discard action for an abandoned draw (#329). It belongs to the ticket above
+   it, so it hugs that one and keeps the breathing room on the side facing the
+   next ticket — centred between two of them it reads as a separator instead. */
+.ticket__discard { margin: 6px 0 18px; }
 
 /* Floating dock: the hub's tab bar, pinned above the page bottom. */
 .dock {

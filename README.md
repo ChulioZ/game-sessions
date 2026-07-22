@@ -336,6 +336,8 @@ public/
     lookup-title.js  which title a picked provider match fills in (BGG keeps the
                      matched name, so a German search stays German)
     focus-trap.js    keeps Tab inside an open sheet + restores focus on close
+    session-path.js  URLs for the transient session-flow screens, so browser/OS
+                     Back steps through the vote wizard (issue #329)
     feedback.js      top-bar feedback button + submission sheet (issue #260)
     views-home.js    lobby + new round
     views-round.js        round hub (Start/Regal/Chronik/Pokale dock) + Start tab

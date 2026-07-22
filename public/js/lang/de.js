@@ -58,6 +58,14 @@ I18N.de = {
   'round.inProgressLabel': 'Läuft gerade',
   'round.inProgressDeciding': 'Spiel wird gewählt',
   'round.resume': 'Fortsetzen',
+  'round.draftLabel': 'Abstimmung läuft',
+  'round.draftTitleOne': '{n} Spiel ausgelost',
+  'round.draftTitle': '{n} Spiele ausgelost',
+  'round.resumeVote': 'Weiter abstimmen',
+  'round.draftDiscard': 'Abstimmung verwerfen',
+  'round.draftDiscardConfirm': 'Diese begonnene Abstimmung verwerfen? Die Auslosung wird gelöscht.',
+  'round.toast.draftDiscarded': 'Abstimmung verworfen',
+  'round.toast.draftGone': 'Die ausgelosten Spiele gibt es nicht mehr – verwerft die Abstimmung.',
 
   'hub.tab.start': 'Start',
   'hub.tab.regal': 'Regal',
@@ -276,6 +284,7 @@ I18N.de = {
   'directPlay.start': 'Los geht’s',
 
   'vote.crumb': 'Abstimmung',
+  'vote.leaveConfirm': 'Abstimmung verlassen? Die bisher abgegebenen Bewertungen gehen verloren.',
   'vote.turn': '{name}, du bist dran!',
   'vote.handoverSub': 'Die anderen schauen kurz weg.',
   'vote.go': 'Los geht’s ›',

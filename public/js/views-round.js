@@ -102,6 +102,61 @@ function renderStartTab(round, activeGames) {
   }
   app.appendChild(startBtn);
 
+  // "Vote in progress" tickets: a draw whose voting was abandoned before the
+  // hot-seat wizard POSTed its results (#329). The row is created server-side at
+  // draw time, so leaving mid-vote used to strand a `done: false` session that
+  // no screen ever showed. Offered here instead — resuming re-enters the wizard
+  // with the same drawn games (no vote was ever saved, so it honestly starts
+  // over), and the discard deletes the row.
+  // The draw stays secret until everyone has rated, so this ticket deliberately
+  // shows neither cover nor title — only how many games were drawn.
+  round.sessions
+    .filter((s) => !s.done && !s.cancelled)
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .forEach((session) => {
+      const n = (session.gameIds || []).length;
+      const ticket = h(`<button class="ticket ticket--live">
+           <span class="ticket__main">
+             <span class="ticket__img"><i class="ti ti-tornado" aria-hidden="true"></i></span>
+             <span class="ticket__info">
+               <span class="ticket__label">${esc(t('round.draftLabel'))}</span>
+               <span class="ticket__title">${esc(tn(n, 'round.draftTitleOne', 'round.draftTitle'))}</span>
+               <span class="ticket__meta">${esc(fmtDateTime(session.createdAt))}</span>
+             </span>
+           </span>
+           <span class="ticket__stub">
+             <i class="ti ti-player-play" aria-hidden="true"></i>
+             <span class="ticket__names">${esc(t('round.resumeVote'))}</span>
+           </span>
+         </button>`);
+      ticket.addEventListener('click', () => {
+        const drawn = session.gameIds
+          .map((gid) => round.games.find((g) => g.id === gid))
+          .filter(Boolean);
+        const voters = Array.isArray(session.memberIds)
+          ? round.members.filter((m) => session.memberIds.includes(m.id))
+          : round.members;
+        // Games or members can have been deleted since the draw was abandoned,
+        // leaving nothing to vote on — say so rather than opening an empty
+        // wizard; the discard below is then the only sensible action.
+        if (!drawn.length || !voters.length) return toast(t('round.toast.draftGone'));
+        startVoting(round, session, drawn, voters);
+      });
+      app.appendChild(ticket);
+
+      const discard = h(`<div class="center ticket__discard"><button class="link-btn">${esc(t('round.draftDiscard'))}</button></div>`);
+      discard.querySelector('button').addEventListener('click', async () => {
+        if (!confirm(t('round.draftDiscardConfirm'))) return;
+        try {
+          await api('DELETE', `/api/rounds/${round.id}/sessions/${session.id}`);
+          toast(t('round.toast.draftDiscarded'));
+          await fetchRoundFresh(round.id);
+          showRound(round.id, 'start');
+        } catch (e) { toast(e.message); }
+      });
+      app.appendChild(discard);
+    });
+
   // "In progress" tickets: sessions whose voting is done but that have not yet
   // reached a final state (no winner recorded, not cancelled). Shown above the
   // last-played ticket, newest first; tapping resumes on the results screen.

@@ -6,6 +6,10 @@
 
 function showStartSession(round) {
   currentView = () => showStartSession(round);
+  // Reached either from the hub CTA or by backing out of the wizard; either way
+  // the wizard (if any) is over, so drop its flow before claiming the entry.
+  endFlow();
+  syncUrl(sessionSetupPath(round.id));
   setCrumbs([
     { label: t('nav.home'), onClick: showHome },
     { label: round.name, onClick: () => showRound(round.id) },
@@ -156,13 +160,6 @@ function showStartSession(round) {
 // =================== Voting (hot-seat) ===================
 
 function startVoting(round, session, games, members) {
-  const setVotingCrumbs = () => setCrumbs([
-    { label: t('nav.home'), onClick: showHome },
-    { label: round.name, onClick: () => showRound(round.id) },
-    { label: t('vote.crumb') },
-  ]);
-  setVotingCrumbs();
-
   // votes[memberId][gameId] = { rating, retire }
   const votes = {};
   members.forEach((m) => (votes[m.id] = {}));
@@ -176,6 +173,85 @@ function startVoting(round, session, games, members) {
   });
 
   let idx = 0;
+  // True once finish() has POSTed the whole vote map; until then everything the
+  // user has entered exists only in this closure, which is what every guard
+  // below is protecting (#329).
+  let saved = false;
+  // Set by finish() so a Back out of the results screen can rebuild the finale.
+  let finaleArgs = null;
+
+  const hasVotes = () => Object.values(votes).some((byGame) => Object.keys(byGame).length > 0);
+
+  // Blocks a reload / tab close while votes are unsaved. Removed on every exit
+  // path: an abandoned closure that kept its listener would keep blocking
+  // reloads for the rest of the SPA session.
+  const unloadGuard = (e) => { if (!saved && hasVotes()) e.preventDefault(); };
+  window.addEventListener('beforeunload', unloadGuard);
+
+  // The router's leave guard (see confirmLeave in router.js): false aborts the
+  // navigation, true tears this wizard down on the way out.
+  const guardLeave = () => {
+    if (!saved && hasVotes() && !confirm(t('vote.leaveConfirm'))) return false;
+    window.removeEventListener('beforeunload', unloadGuard);
+    return true;
+  };
+
+  const setVotingCrumbs = () => setCrumbs([
+    // The breadcrumbs leave the wizard just as much as Back does, so they ask
+    // the same question rather than discarding the votes silently.
+    { label: t('nav.home'), onClick: () => { if (confirmLeave()) showHome(); } },
+    { label: round.name, onClick: () => { if (confirmLeave()) showRound(round.id); } },
+    { label: t('vote.crumb') },
+  ]);
+  setVotingCrumbs();
+
+  // Every step is a real history entry, so browser/OS Back steps back through
+  // the wizard exactly like its own "Zurück" button — which is why that button
+  // now calls history.back() too, keeping index and history in one story.
+  // Always via syncUrl(), never history.pushState: syncUrl also bumps
+  // swrRenderToken and maintains navIndex (router.js).
+  function go(next) {
+    idx = next;
+    syncUrl(sessionStepPath(round.id, session.id, idx));
+    render();
+  }
+
+  // Back/Forward inside the flow. Returns true when this wizard owns the entry.
+  function onPopstate(pathname) {
+    const at = parseSessionPath(pathname);
+    const mine = at && at.rid === round.id && at.sid === session.id;
+    if (mine && at.kind === 'vote' && at.step < steps.length) {
+      idx = at.step;
+      render();
+      return true;
+    }
+    if (mine && at.kind === 'finale' && finaleArgs) {
+      showFinale(...finaleArgs);
+      return true;
+    }
+    // Every other entry leaves the wizard, and which one it is depends on how
+    // the wizard was entered: the setup screen when it was started there, the
+    // round hub when an abandoned draw was resumed from its ticket. So the ask
+    // belongs here, on the way out, rather than on any one of those paths —
+    // guarding only the setup screen would let the resume path discard votes
+    // silently. Declining re-pushes the step we were on, leaving the user
+    // exactly where they were.
+    if (!confirmLeave()) {
+      syncUrl(sessionStepPath(round.id, session.id, idx));
+      render();
+      return true;
+    }
+    // Backing out to the setup screen re-renders the form (its entry is still
+    // the one we pushed); every other destination is the router's to resolve.
+    if (at && at.kind === 'setup' && at.rid === round.id) {
+      showStartSession(round);
+      return true;
+    }
+    return false;
+  }
+
+  beginFlow(onPopstate, guardLeave);
+
   // Re-render the current step in the new language (keeps votes/progress).
   // Also refresh the breadcrumb so its label follows the new locale.
   currentView = () => { setVotingCrumbs(); render(); };
@@ -208,9 +284,11 @@ function startVoting(round, session, games, members) {
           <button class="handover__go" id="goBtn" style="color:${color}">${esc(t('vote.go'))}</button>
           ${idx > 0 ? `<button class="handover__back" id="backBtn"><i class="ti ti-chevron-left" aria-hidden="true"></i> ${esc(t('vote.back'))}</button>` : ''}
         </div>`);
-      card.querySelector('#goBtn').addEventListener('click', () => { idx++; render(); });
+      card.querySelector('#goBtn').addEventListener('click', () => go(idx + 1));
       const back = card.querySelector('#backBtn');
-      if (back) back.addEventListener('click', () => { idx--; render(); });
+      // Through history, so the wizard's Zurück and the platform's Back are the
+      // same movement rather than two disagreeing ones.
+      if (back) back.addEventListener('click', () => history.back());
       app.appendChild(card);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -273,7 +351,7 @@ function startVoting(round, session, games, members) {
 
     const backBtn = card.querySelector('#backBtn');
     backBtn.disabled = idx === 0;
-    backBtn.addEventListener('click', () => { idx--; render(); });
+    backBtn.addEventListener('click', () => history.back());
 
     card.querySelector('#nextBtn').addEventListener('click', () => {
       const v = votes[member.id][game.id];
@@ -281,7 +359,7 @@ function startVoting(round, session, games, members) {
         return toast(t('vote.toast.needRating'));
       }
       if (idx === total - 1) finish();
-      else { idx++; render(); }
+      else go(idx + 1);
     });
 
     app.appendChild(card);
@@ -291,14 +369,20 @@ function startVoting(round, session, games, members) {
   async function finish() {
     try {
       await api('POST', `/api/rounds/${round.id}/sessions/${session.id}/results`, { votes });
+      // From here on there is nothing left to lose, so the leave guards go
+      // quiet — a Back out of the finale must not ask about discarding votes
+      // that are already on the server.
+      saved = true;
+      window.removeEventListener('beforeunload', unloadGuard);
       const fresh = await fetchRoundFresh(round.id);
       const savedSession = fresh.sessions.find((s) => s.id === session.id);
       // Nobody sees the result yet: the finale gate gathers everyone first.
-      showFinale(fresh, savedSession, games);
+      finaleArgs = [fresh, savedSession, games];
+      showFinale(...finaleArgs);
     } catch (e) { toast(e.message); }
   }
 
-  render();
+  go(0);
 }
 
 // =================== Finale: everyone gathers for the reveal ===================
@@ -307,6 +391,10 @@ function startVoting(round, session, games, members) {
 // skips the gate.
 function showFinale(round, session, games) {
   currentView = () => showFinale(round, session, games);
+  // Its own entry, so Back from the results reveal returns here rather than
+  // skipping the whole flow. The votes are already saved by this point, so the
+  // wizard's flow (still registered) lets this one go without asking.
+  syncUrl(sessionFinalePath(round.id, session.id));
   setCrumbs([
     { label: t('nav.home'), onClick: showHome },
     { label: round.name, onClick: () => showRound(round.id) },
@@ -339,7 +427,13 @@ function showFinale(round, session, games) {
       <button class="btn btn--primary btn--lg stage__reveal"><i class="ti ti-sparkles" aria-hidden="true"></i> ${esc(t('finale.reveal'))}</button>
       <div class="stage__note">${esc(t('finale.note'))}</div>
     </div>`);
-  stage.querySelector('.stage__reveal').addEventListener('click', () => showResults(round, session, games, true));
+  stage.querySelector('.stage__reveal').addEventListener('click', () => {
+    // The flow is over. Ending it here leaves its entries to resolveRoute,
+    // which maps every transient session path to the round hub — so Back out of
+    // the results lands on the round instead of replaying the wizard.
+    endFlow();
+    showResults(round, session, games, true);
+  });
   app.appendChild(stage);
   window.scrollTo(0, 0);
 }

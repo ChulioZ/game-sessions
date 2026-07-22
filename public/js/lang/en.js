@@ -58,6 +58,14 @@ I18N.en = {
   'round.inProgressLabel': 'In progress',
   'round.inProgressDeciding': 'Choosing a game',
   'round.resume': 'Resume',
+  'round.draftLabel': 'Vote in progress',
+  'round.draftTitleOne': '{n} game drawn',
+  'round.draftTitle': '{n} games drawn',
+  'round.resumeVote': 'Continue voting',
+  'round.draftDiscard': 'Discard this vote',
+  'round.draftDiscardConfirm': 'Discard this started vote? The draw will be deleted.',
+  'round.toast.draftDiscarded': 'Vote discarded',
+  'round.toast.draftGone': 'The drawn games no longer exist – discard this vote.',
 
   'hub.tab.start': 'Start',
   'hub.tab.regal': 'Shelf',
@@ -276,6 +284,7 @@ I18N.en = {
   'directPlay.start': 'Start',
 
   'vote.crumb': 'Voting',
+  'vote.leaveConfirm': 'Leave the vote? The ratings entered so far will be lost.',
   'vote.turn': '{name}, your turn!',
   'vote.handoverSub': 'Everyone else, look away for a moment.',
   'vote.go': 'Let’s go ›',
