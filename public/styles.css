@@ -256,9 +256,24 @@ h1, h2, h3 { font-family: var(--font-display); }
      simply rendered 3 columns instead of 6, which reads as "the shell is too
      narrow" rather than "this rule lost". */
   .app > *:not(.rail):not(.dock) { max-width: var(--w-read); }
+  /* Two selectors, because a grid reaches the column two different ways: most
+     screens wrap theirs in a `.section` (so the child CONTAINS the grid), but
+     the home lobby appends `.lobby-list` straight to `.app` (so the child IS
+     the grid). `:has()` alone only ever matched the first kind, which quietly
+     capped the lobby at the reading measure — 2 round cards across instead of
+     4, on the first screen anyone sees. */
+  .app > *:not(.rail):not(.dock):is(.cards, .pokale-cards, .theme-cards, .lobby-list),
   .app > *:not(.rail):not(.dock):has(.cards, .pokale-cards, .theme-cards, .lobby-list) {
     max-width: none;
   }
+
+  /* On a screen WITHOUT a rail — home, the new-round form, the session wizard —
+     capped content centres instead. Beside a rail, a left edge is anchored and
+     reads as deliberate; with no rail it is just a column shoved against the
+     left of an 1800px shell, with the self-centring site footer disagreeing
+     with it by half a screen. Alignment only: it moves no navigation, because
+     these screens render none. */
+  .app:not(:has(.rail)) > *:not(.dock) { margin-inline: auto; }
 
   /* What the rail now carries: the Start tab's hero, its big CTA and its
      Tags/Provider/Design links, and the Regal's archive footer. All of them stay
