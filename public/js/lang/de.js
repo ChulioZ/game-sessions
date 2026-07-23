@@ -425,6 +425,12 @@ I18N.de = {
   'home.onboard.title': 'Willkommen bei Spielwirbel!',
   'home.onboard.sub': 'Erstelle unten deine erste Runde und hol alle an den Tisch.',
 
+  // Inbox (issue #207)
+  'inbox.title': 'Postfach',
+  'inbox.empty': 'Noch keine Benachrichtigungen.',
+  'inbox.item': 'Benachrichtigung',
+  'inbox.unread': 'Ungelesen',
+  'inbox.dismiss': 'Entfernen',
   'auth.email': 'E-Mail',
   'auth.username': 'Nutzername',
   'auth.password': 'Passwort',

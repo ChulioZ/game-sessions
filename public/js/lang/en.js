@@ -425,6 +425,12 @@ I18N.en = {
   'home.onboard.title': 'Welcome to Spielwirbel!',
   'home.onboard.sub': 'Create your first round below and get everyone to the table.',
 
+  // Inbox (issue #207)
+  'inbox.title': 'Inbox',
+  'inbox.empty': 'No notifications yet.',
+  'inbox.item': 'Notification',
+  'inbox.unread': 'Unread',
+  'inbox.dismiss': 'Dismiss',
   'auth.email': 'E-mail',
   'auth.username': 'Username',
   'auth.password': 'Password',

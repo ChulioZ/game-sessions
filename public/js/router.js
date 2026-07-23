@@ -114,6 +114,7 @@ function navBack(fallback) {
 function resolveRoute(pathname) {
   const parts = pathname.replace(/\/+$/, '').split('/').filter(Boolean);
   if (parts.length === 0) return () => showHome();
+  if (parts[0] === 'inbox') return () => showInbox(); // #207; showInbox sends a logged-out visitor Home
   if (parts[0] === 'round') {
     if (parts[1] === 'new') return () => showNewRound();
     const rid = parts[1];

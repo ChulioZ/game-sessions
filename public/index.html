@@ -31,6 +31,11 @@
          core.js reveals it and wires it to open the contact form with the
          Feedback category preselected. -->
     <button id="feedbackBtn" class="topbar__acct" type="button" hidden aria-label="Feedback"><i class="ti ti-message" aria-hidden="true"></i></button>
+    <!-- Inbox (issue #207): the per-user notification inbox. Hidden unless
+         accounts are on and the user is logged in; wired by js/account.js
+         setupAccountUi(). Its items (round invitations #207, friend requests
+         #325) arrive in later slices, so it ships empty. -->
+    <button id="inboxBtn" class="topbar__acct" type="button" hidden aria-label="Postfach"><i class="ti ti-mail" aria-hidden="true"></i><span id="inboxDot" class="inbox-dot" hidden></span></button>
     <!-- Account menu (issue #138): hidden unless accounts are on and the user is
          logged in; wired by js/account.js setupAccountUi(). -->
     <button id="accountBtn" class="topbar__acct" type="button" hidden aria-label="Account"><i class="ti ti-user" aria-hidden="true"></i></button>
@@ -119,6 +124,7 @@
   <script src="/js/views-round-lookup.js"></script>
   <script src="/js/views-member.js"></script>
   <script src="/js/views-session.js"></script>
+  <script src="/js/views-inbox.js"></script>
   <script src="/js/router.js"></script>
   <script src="/js/main.js"></script>
   <!-- Registers the service worker; standalone IIFE, order-independent. -->

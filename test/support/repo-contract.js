@@ -929,6 +929,80 @@ module.exports = function repoContract(repo) {
     assert.deepEqual(again.refreshTokens, []);
   });
 
+  /* --------------------------------- Inbox ---------------------------------- */
+  /*
+   * The per-user notification inbox (#207). Global and un-scoped like `users`,
+   * but keyed by the RECIPIENT account id and reached from user-facing routes, so
+   * every method must scope to that id — the isolation assertions below are the
+   * point: user B's items are invisible to A, and A can neither mark nor dismiss
+   * one of B's. (Contrast the moderation methods, which deliberately cross.)
+   */
+
+  const ALICE = 'user-alice';
+  const BOB = 'user-bob';
+
+  test('inbox: add mints the item; list returns the caller\'s items newest-first', async () => {
+    const first = await repo.addInboxItem(ALICE, { type: 'round_invitation', payload: { roundName: 'Spieleabend' } });
+    assert.match(first.id, /^[0-9a-f]{16}$/);
+    assert.equal(first.userId, ALICE);
+    assert.equal(first.type, 'round_invitation');
+    assert.deepEqual(first.payload, { roundName: 'Spieleabend' });
+    assert.equal(first.read, false);
+    assert.match(first.createdAt, /^\d{4}-\d\d-\d\dT.*Z$/);
+
+    const second = await repo.addInboxItem(ALICE, { type: 'friend_request', payload: { from: 'bob' } });
+    assert.deepEqual((await repo.listInbox(ALICE)).map((i) => i.id), [second.id, first.id]); // newest first
+
+    // A missing payload defaults to an empty object, never undefined.
+    assert.deepEqual((await repo.addInboxItem(ALICE, { type: 'x' })).payload, {});
+  });
+
+  test('inbox: mark-read and dismiss operate on the caller\'s own item', async () => {
+    const item = await repo.addInboxItem(ALICE, { type: 'round_invitation', payload: {} });
+
+    const read = await repo.markInboxRead(ALICE, item.id);
+    assert.equal(read.read, true);
+    assert.equal((await repo.listInbox(ALICE)).find((i) => i.id === item.id).read, true);
+
+    const removed = await repo.dismissInboxItem(ALICE, item.id);
+    assert.equal(removed.id, item.id);
+    assert.equal((await repo.listInbox(ALICE)).find((i) => i.id === item.id), undefined);
+
+    // Gone now: both operations report not-found (null).
+    assert.equal(await repo.markInboxRead(ALICE, item.id), null);
+    assert.equal(await repo.dismissInboxItem(ALICE, item.id), null);
+  });
+
+  test('inbox: a user can never see, mark or dismiss another user\'s items', async () => {
+    const mine = await repo.addInboxItem(ALICE, { type: 'round_invitation', payload: {} });
+    await repo.addInboxItem(BOB, { type: 'round_invitation', payload: {} });
+
+    const bobList = await repo.listInbox(BOB);
+    assert.equal(bobList.every((i) => i.userId === BOB), true);
+    assert.equal(bobList.some((i) => i.id === mine.id), false);
+
+    // Bob cannot touch Alice's item — indistinguishable from not-found...
+    assert.equal(await repo.markInboxRead(BOB, mine.id), null);
+    assert.equal(await repo.dismissInboxItem(BOB, mine.id), null);
+    // ...and Alice's item is untouched by the attempts.
+    assert.equal((await repo.listInbox(ALICE)).find((i) => i.id === mine.id).read, false);
+  });
+
+  test('inbox: the per-user cap prunes the oldest on write (env MAX_INBOX_ITEMS)', async () => {
+    const CAP = 'user-cap';
+    const prev = process.env.MAX_INBOX_ITEMS;
+    process.env.MAX_INBOX_ITEMS = '3';
+    try {
+      const ids = [];
+      for (let i = 0; i < 5; i++) ids.push((await repo.addInboxItem(CAP, { type: 'x', payload: { i } })).id);
+      // Only the newest 3 survive, newest first.
+      assert.deepEqual((await repo.listInbox(CAP)).map((i) => i.id), [ids[4], ids[3], ids[2]]);
+    } finally {
+      if (prev === undefined) delete process.env.MAX_INBOX_ITEMS;
+      else process.env.MAX_INBOX_ITEMS = prev;
+    }
+  });
+
   /* ------------------------------- Moderation ------------------------------- */
   /*
    * The operator methods (#268) are the one deliberately CROSS-TENANT read path:

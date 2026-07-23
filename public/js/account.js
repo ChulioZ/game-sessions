@@ -93,6 +93,31 @@ function onSessionLost() {
   showLogin();
 }
 
+// Authenticated JSON request to an account-scoped data route (/api/account/*
+// behind requireUser — e.g. the inbox #207, friend requests #325). Attaches the
+// access token and, on a 401, refreshes once and retries before giving up to the
+// login screen. Deliberately separate from core.js api(): those requireUser
+// routes answer 'invalid_token', which api() does NOT auto-refresh (it only
+// refreshes the data gate's 'auth_required'). Returns parsed JSON (null on 204);
+// throws on any non-2xx so callers can degrade gracefully.
+async function accountApi(method, path, body, _retried) {
+  const token = getAccessToken();
+  const opts = { method, headers: {} };
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (body !== undefined) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch('/api/account' + path, opts);
+  if (res.status === 401) {
+    if (!_retried && (await refreshAccessToken())) return accountApi(method, path, body, true);
+    onSessionLost();
+    throw new Error('auth');
+  }
+  if (!res.ok) throw new Error('request_failed');
+  return res.status === 204 ? null : res.json();
+}
+
 async function logout() {
   try { await authFetch('/logout', { refreshToken: getRefreshToken() }); } catch {}
   clearTokens();
@@ -427,4 +452,35 @@ function setupAccountUi() {
     out.addEventListener('click', () => { close(); logout(); });
     el.appendChild(out);
   });
+  setupInboxUi();
+}
+
+// The inbox button (issue #207): visible only when logged in, opens the inbox
+// view, and shows an unread dot. Called from setupAccountUi so it tracks the same
+// login transitions (boot, login, logout, session-lost).
+function setupInboxUi() {
+  const btn = document.getElementById('inboxBtn');
+  if (!btn) return;
+  const loggedIn = accountsActive() && isLoggedIn();
+  btn.hidden = !loggedIn;
+  if (!loggedIn) { setInboxDot(false); return; }
+  btn.onclick = () => showInbox();
+  refreshInboxBadge();
+}
+
+// Toggle the unread dot on the inbox button.
+function setInboxDot(on) {
+  const dot = document.getElementById('inboxDot');
+  if (dot) dot.hidden = !on;
+}
+
+// Light the unread dot if any inbox item is unread. Best-effort: a failure just
+// leaves the dot as-is (accountApi bounces a dead session to login). Reused by
+// showInbox() after it marks/dismisses an item.
+async function refreshInboxBadge() {
+  if (!(accountsActive() && isLoggedIn())) return;
+  try {
+    const { items } = await accountApi('GET', '/inbox');
+    setInboxDot(items.some((i) => !i.read));
+  } catch {}
 }

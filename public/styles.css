@@ -1693,6 +1693,33 @@ body.auth-screen .topbar__context { display: none; }
 }
 .topbar__acct:hover { color: var(--brand); border-color: var(--brand-edge); }
 
+/* Inbox (#207): the unread dot on the topbar button, and the per-row unread
+   mark, both follow the round accent rather than a fixed colour
+   (.claude/rules/theme-derived-colors.md). Unread state is never conveyed by
+   colour alone — the dot is a present/absent element with an aria-label and the
+   row's title also goes bolder (.claude/rules/accessibility-contrast-and-modals.md §3). */
+#inboxBtn { position: relative; }
+.inbox-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand);
+  border: 1px solid var(--surface);
+}
+.inbox-row__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand);
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.inbox-row--unread .ds-row__date { font-weight: 800; }
+
 /* Account menu header (username + e-mail) above the logout item in the shared
    popover. The username (#320) leads: it is the account's public identity, the
    one a report or an invitation names, so it must be readable off this menu. */

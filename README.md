@@ -268,7 +268,8 @@ routes/
   auth.js            /api/auth              (shared-password login/logout/status)
   account.js         /api/account           (user accounts: register, verify
                                              e-mail, login, refresh, logout,
-                                             forgot/reset password, me —
+                                             forgot/reset password, me, and the
+                                             per-user notification inbox (#207) —
                                              404 unless ACCOUNTS_ENABLED)
   contact.js         /api/contact           (public contact form / DSA notice
                                              intake → stores every submission +
@@ -360,6 +361,7 @@ public/
     views-round-lookup.js provider lookup, add game, link provider
     views-member.js  member detail page (stats, name/color editing)
     views-session.js session setup, voting (hot-seat), finale, results
+    views-inbox.js   per-user notification inbox (#207; accounts mode only)
     router.js        URL ↔ view routing (History API): deep links, reloads
     main.js          bootstrap: route from the current URL              (loads last)
     pwa.js           registers the service worker (installable + offline)

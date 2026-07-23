@@ -292,4 +292,29 @@ router.get('/me', accounts.requireUser, async (req, res) => {
   });
 });
 
+/* --------------------------------- inbox ----------------------------------- */
+// The generic per-user notification inbox (issue #207). Actionable items are
+// written by later features (round invitations #207, friend requests #325); this
+// slice ships the read/mark/dismiss surface the account UI drives. requireUser
+// sets req.userId and every repo call scopes to it, so a caller only ever sees or
+// mutates their OWN items — another user's item id is indistinguishable from a
+// missing one (404). Reached on the module-level repo: the inbox is a global,
+// un-scoped store (keyed by account id), so it is not on req.repo.
+
+router.get('/inbox', accounts.requireUser, async (req, res) => {
+  res.json({ items: await repo.listInbox(req.userId) });
+});
+
+router.post('/inbox/:id/read', accounts.requireUser, async (req, res) => {
+  const item = await repo.markInboxRead(req.userId, req.params.id);
+  if (!item) return res.status(404).json({ error: 'not_found' });
+  res.json({ item });
+});
+
+router.delete('/inbox/:id', accounts.requireUser, async (req, res) => {
+  const item = await repo.dismissInboxItem(req.userId, req.params.id);
+  if (!item) return res.status(404).json({ error: 'not_found' });
+  res.status(204).end();
+});
+
 module.exports = router;

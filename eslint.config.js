@@ -67,6 +67,10 @@ const frontendGlobals = {
   showLogin: 'readonly', showRegister: 'readonly', showForgot: 'readonly',
   showAuthDone: 'readonly', renderVerifyLanding: 'readonly',
   renderResetLanding: 'readonly', setupAccountUi: 'readonly',
+  accountApi: 'readonly', setupInboxUi: 'readonly', setInboxDot: 'readonly',
+  refreshInboxBadge: 'readonly',
+  // views-inbox.js (issue #207)
+  showInbox: 'readonly', renderInboxItem: 'readonly',
   // support.js (issue #173)
   showSupport: 'readonly', initSupport: 'readonly', setupSupportUi: 'readonly',
   // views-landing.js (issue #322): logged-out landing page
