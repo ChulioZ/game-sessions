@@ -39,7 +39,7 @@ jobs:
       # owner has a capital) and derives tags: a :sha-<commit> always, plus :latest
       # only on the default branch.
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
