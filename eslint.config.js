@@ -69,6 +69,10 @@ const frontendGlobals = {
   renderResetLanding: 'readonly', setupAccountUi: 'readonly',
   // support.js (issue #173)
   showSupport: 'readonly', initSupport: 'readonly', setupSupportUi: 'readonly',
+  // views-landing.js (issue #322): logged-out landing page
+  showLanding: 'readonly', LANDING_FEATURES: 'readonly', LANDING_STEPS: 'readonly',
+  LANDING_SHELF: 'readonly', landingCfg: 'writable',
+  landingRevealOperatorClaims: 'readonly',
   // ranking.js + lookup-group.js + lookup-cover.js + lookup-title.js +
   // lookup-score.js + cover.js + tag-icons.js (also CommonJS modules for
   // tests — hence `module`)

@@ -1485,6 +1485,174 @@ body.auth-screen .topbar__context { display: none; }
 .auth__terms { text-align: center; font-size: 13px; margin: 10px 0 0; }
 .auth__terms a { color: var(--brand); }
 
+/* ---- Logged-out landing page (issue #322) ---- */
+/* Renders in accounts mode for a logged-out visitor at GET /. Reuses the
+   .auth-screen body class (which hides the top-bar home/context/feedback), but
+   lays out scrollable marketing sections instead of one centred card. Renders on
+   the default theme (applyBackground(null)); every colour is theme-derived
+   (.claude/rules/theme-derived-colors.md). */
+.landing {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 0 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 60px;
+}
+.landing-hero {
+  display: flex;
+  align-items: center;
+  gap: 44px;
+  padding-top: 16px;
+}
+.landing-hero__text { flex: 1 1 340px; }
+.landing-hero__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--brand);
+}
+.landing-hero__brand .ti { font-size: 26px; }
+.landing-hero__title {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 5vw, 44px);
+  line-height: 1.1;
+  margin: 16px 0 12px;
+  color: var(--ink);
+}
+.landing-hero__sub {
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin: 0 0 26px;
+  max-width: 30em;
+}
+.landing-hero__cta { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.landing-hero__visual { flex: 0 1 300px; }
+.landing-shelf {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  transform: rotate(-3deg);
+}
+.landing-shelf__cover {
+  position: relative; /* anchors + clips the .cover-ph gradient layer (#256) */
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.09);
+  font-size: 26px;
+}
+
+.landing-section__title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  text-align: center;
+  margin: 0 0 28px;
+  color: var(--ink);
+}
+
+.landing-cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.landing-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px 20px;
+}
+.landing-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--brand-tint);
+  color: var(--brand-dark);
+  font-size: 24px;
+  margin-bottom: 14px;
+}
+.landing-card__title { font-family: var(--font-display); font-size: 18px; margin: 0 0 6px; color: var(--ink); }
+.landing-card__desc { font-size: 15px; line-height: 1.45; margin: 0; }
+
+.landing-steps {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.landing-step { display: flex; gap: 16px; align-items: flex-start; }
+.landing-step__num {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+}
+.landing-step__title { font-family: var(--font-display); font-size: 18px; margin: 6px 0 4px; color: var(--ink); }
+.landing-step__desc { font-size: 15px; line-height: 1.45; margin: 0; }
+
+.landing-trust__chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+.landing-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--sunken-soft);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+.landing-chip .ti { color: var(--brand-dark); font-size: 18px; }
+/* The operator-gated EU-hosting claim ships with the `hidden` attribute and is
+   un-hidden by JS only on the configured operator instance (views-landing.js).
+   An author `display` rule beats the UA `[hidden] { display: none }`, so without
+   this the chip would show on every instance — publishing a claim that is false
+   off the operator's EU deployment. Keep it. */
+.landing-chip[hidden] { display: none; }
+
+.landing-close { text-align: center; }
+
+@media (max-width: 720px) {
+  .landing { gap: 48px; }
+  .landing-hero { flex-direction: column; text-align: center; gap: 32px; }
+  .landing-hero__brand { justify-content: center; }
+  .landing-hero__sub { margin-inline: auto; }
+  .landing-hero__cta { justify-content: center; }
+  .landing-hero__visual { order: -1; flex-basis: auto; width: 230px; }
+}
+
 .topbar__acct {
   flex: none;
   font-size: 18px;
