@@ -24,6 +24,7 @@ const request = require('supertest');
 const { app } = require('./helpers');
 const repo = require('../lib/repo');
 const { outbox } = require('../lib/mail');
+const { logger, clearLogs } = require('../lib/observability');
 
 const PASSWORD = 'correct horse battery';
 
@@ -62,6 +63,7 @@ test('the admin gate refuses everything without a valid operator session', async
     for (const [method, path] of [
       ['get', '/api/admin/me'],
       ['get', '/api/admin/status'],
+      ['get', '/api/admin/logs'],
       ['get', '/api/admin/lookup?image=/uploads/a.jpg'],
       ['post', '/api/admin/takedown'],
       ['get', '/api/admin/users'],
@@ -1087,6 +1089,29 @@ test('the operator can resolve and neutralise a username (#320)', async (t) => {
   });
 });
 
+test('the error-log card (#359) returns buffered warn/error lines, newest first', async (t) => {
+  const cookie = await adminCookie();
+
+  await t.test('an authenticated GET /logs returns the buffered lines', async () => {
+    // Deterministic: the buffer is process-global, so start it empty and emit
+    // exactly the two lines under test. info is not buffered, and the request
+    // itself logs only at info, so nothing else enters between here and the read.
+    clearLogs();
+    logger.info({ event: 'ignored_info' });
+    logger.warn({ event: 'test_warn', message: 'heads up' });
+    logger.error({ event: 'test_error', message: 'it broke', stack: 'Error: it broke\n  at t' });
+
+    const res = await request(app).get('/api/admin/logs').set('Cookie', cookie);
+    assert.equal(res.status, 200);
+    // Newest first, and info excluded by construction.
+    assert.deepEqual(res.body.entries.map((e) => e.event), ['test_error', 'test_warn']);
+    assert.equal(res.body.entries[0].level, 'error');
+    assert.equal(res.body.entries[0].message, 'it broke');
+    assert.match(res.body.entries[0].stack, /it broke/);
+    assert.match(res.body.entries[0].ts, /^\d{4}-\d\d-\d\dT/);
+  });
+});
+
 test('with no ADMIN_PASSWORD the whole surface 404s', async () => {
   const saved = process.env.ADMIN_PASSWORD;
   delete process.env.ADMIN_PASSWORD;
@@ -1105,6 +1130,10 @@ test('with no ADMIN_PASSWORD the whole surface 404s', async () => {
 
     const users = await request(plain).get('/api/admin/users');
     assert.equal(users.status, 404);
+
+    // The diagnostics log card (#359) is gated like the rest.
+    const logs = await request(plain).get('/api/admin/logs');
+    assert.equal(logs.status, 404);
 
     // Including the exports — an un-opted-in instance must not hand out its
     // feedback inbox or action log either (#288).
