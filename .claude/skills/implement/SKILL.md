@@ -24,8 +24,21 @@ go-ahead (phase 6). If a phase's exit condition isn't met, stop and report rathe
 than pushing ahead.
 
 First, be sure you understand the task. If it's a GitHub issue, read it:
-`gh issue view <N>`. If the request is ambiguous in a way that changes what you'd
-build, ask before writing code — not after.
+`gh issue view <N>` (this shows its assignees). If the request is ambiguous in a
+way that changes what you'd build, ask before writing code — not after.
+
+**Don't take over someone else's issue.** If the issue is assigned to a GitHub
+user *other than* the requesting user (`gh api user --jq .login`), stop and
+confirm with the user before doing anything — an assignee means someone has
+claimed it, and building it would collide with their work. Two cases are fine to
+proceed on without asking: an **unassigned** issue, and one **already assigned to
+the requesting user**. A third — a foreign assignment that has gone **stale** (its
+`updatedAt` is more than **5 days** ago *and* it has no linked open PR, so the
+assignee never actually started) — is *reclaimable*, but taking it over is still
+outward-facing: surface it and get the user's go-ahead (they may want to unassign
+or ping the current assignee first) rather than silently reassigning. `pick-issue`
+already applies this same staleness filter when it picks; `implement` can be
+invoked directly on an issue number, so it repeats the check here.
 
 ## Scope the whole issue — interview for decisions, don't defer them
 
@@ -71,6 +84,21 @@ git switch -c <type>/<short-slug>    # e.g. feat/session-export, fix/vote-tie
   anything unexpected before branching.
 - Pick a descriptive branch name. If implementing an issue, include its number
   (`feat/42-session-export`) so the PR links back.
+- **Claim the issue.** For a real GitHub issue — and only after the assignee
+  guard above passed — assign it to the requesting user so it's marked as taken
+  and both people and `pick-issue` skip it while you work:
+
+  ```bash
+  gh issue edit <N> --add-assignee @me
+  ```
+
+  Assigning yourself an issue already assigned to you is a harmless no-op. If the
+  assignment fails (e.g. the account lacks the permission), note it and carry on —
+  it shouldn't block the build. Skip this for a non-issue change (a directly
+  described fix with no issue number). If this is a **reclaimed stale issue**
+  (foreign assignee, confirmed above), only *add* yourself here — whether to also
+  `--remove-assignee` the previous, inactive assignee is the user's call from that
+  confirmation, not something to do automatically.
 
 ## 2. Implement — prod code plus tests
 
@@ -129,13 +157,17 @@ npm run check:syntax
 
 ```bash
 git add -A
-git commit    # clear message: what changed and why
+git commit -s   # clear message: what changed and why; -s adds the DCO Signed-off-by trailer
 git push -u origin HEAD
 gh pr create --fill   # or --title/--body; reference the issue ("Closes #42")
 ```
 
-- Write a real commit message (subject + body if the change warrants it), and end
-  it with the `Co-Authored-By: Claude … <noreply@anthropic.com>` trailer for the
+- Write a real commit message (subject + body if the change warrants it). Commit
+  with `git commit -s` so it carries the DCO `Signed-off-by` trailer that
+  `CONTRIBUTING.md` requires and that the `DCO` CI check + your phase-5 review
+  verify (it uses git's configured `user.name`/`user.email`; a username is fine,
+  but the email must be reachable and match the commit author). End the message
+  with the `Co-Authored-By: Claude … <noreply@anthropic.com>` trailer for the
   model in use (the harness states the exact line — don't hard-code a model name
   from this file).
 

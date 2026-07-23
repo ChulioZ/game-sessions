@@ -41,7 +41,10 @@ If none, say so and stop. Otherwise process each PR independently, oldest first
 ## 2. Review each PR
 
 Run the **`review-pr`** skill on each PR number — that covers mergeable state, CI
-status, diff reading, and this repo's constraints. Do that first.
+status, diff reading, and this repo's constraints. Do that first. (Its DCO
+sign-off check exempts `app/dependabot` — a bot's dependency bump isn't a
+third-party human contribution — so a Dependabot PR is never held for a missing
+`Signed-off-by`.)
 
 Then apply the **Dependabot-specific** checks on top:
 

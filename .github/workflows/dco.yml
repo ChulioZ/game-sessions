@@ -1,0 +1,77 @@
+name: DCO
+
+# Enforces the Developer Certificate of Origin sign-off that CONTRIBUTING.md
+# requires: every commit in a PR must carry a `Signed-off-by:` trailer whose
+# email matches the commit's author (or committer). This is the automated
+# backstop for the manual sign-off check in the `review-pr` skill, so a PR that
+# never goes through that skill still cannot merge unsigned.
+#
+# A stable username is fine — the DCO certifies the right to submit, not a legal
+# name, so this checks only for a matching Signed-off-by, never name "realness"
+# (which no CI can judge anyway). See CONTRIBUTING.md.
+#
+# pull_request only, on purpose: `main`'s existing history predates this policy,
+# and the squash-merge commits it produces are not signed off — running this on
+# push to main would fail permanently for no useful reason. The DCO is certified
+# at the PR-commit level, which is exactly the range this inspects.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+# Least-privilege GITHUB_TOKEN: this workflow only reads the checked-out history.
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history so BASE..HEAD resolves every commit in the PR range.
+          fetch-depth: 0
+      - name: Every commit is signed off (DCO)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          failed=0
+          # --no-merges: a merge commit (e.g. a contributor merging main back in)
+          # is not itself a contribution and needs no sign-off.
+          for sha in $(git rev-list --no-merges "$BASE_SHA".."$HEAD_SHA"); do
+            aname=$(git show -s --format='%an' "$sha")
+            aemail=$(git show -s --format='%ae' "$sha")
+            cemail=$(git show -s --format='%ce' "$sha")
+            # A bot's dependency bump (e.g. dependabot[bot]) is the maintainer's own
+            # automation, not a third-party human contribution — exempt it, matching
+            # the review-pr skill. The pattern is quoted so [bot] matches literally,
+            # not as a glob character class.
+            case "$aname" in
+              *'[bot]') echo "· $sha  skipped (bot: $aname)"; continue ;;
+            esac
+            # Match one of this commit's Signed-off-by trailer emails against the
+            # author or committer email. Literal string compare (no regex), so a
+            # '+' or '.' in the address cannot misfire.
+            ok=0
+            while IFS= read -r line; do
+              soemail=$(printf '%s' "$line" | sed -n 's/.*<\(.*\)>.*/\1/p')
+              if [ -n "$soemail" ] && { [ "$soemail" = "$aemail" ] || [ "$soemail" = "$cemail" ]; }; then
+                ok=1
+              fi
+            done < <(git show -s --format='%(trailers:key=Signed-off-by,valueonly)' "$sha")
+            if [ "$ok" -eq 1 ]; then
+              echo "· $sha  ok  ($aname <$aemail>)"
+            else
+              echo "::error::Commit $sha by $aname <$aemail> has no Signed-off-by matching its author. Fix with:  git rebase --signoff $BASE_SHA && git push --force-with-lease  (single commit: git commit --amend --signoff --no-edit)."
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo ""
+            echo "Some commits are not signed off. See CONTRIBUTING.md -> Developer Certificate of Origin."
+            exit 1
+          fi
+          echo "All commits are signed off."

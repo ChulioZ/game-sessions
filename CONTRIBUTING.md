@@ -90,5 +90,9 @@ By making a contribution to this project, I certify that:
     this project or the open source license(s) involved.
 ```
 
-Use your real name and a reachable email in the sign-off (no anonymous or
-pseudonymous contributions). That's it — thanks for contributing.
+Sign off with a stable identity and a **reachable email** — your real name or a
+consistent GitHub username is both fine; the email must be one that actually
+reaches you and that matches the commit's author. Anonymous or throwaway-identity
+contributions aren't accepted. (The DCO certifies your right to submit, not a
+legal name, which is why a username is enough.) That's it — thanks for
+contributing.
