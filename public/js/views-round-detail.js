@@ -222,7 +222,7 @@ async function showProviders(rid) {
     const row = h(`<label class="ds-row provider-row">
          <div class="ds-row__main">
            ${logo ? `<span class="provider-row__logo" aria-hidden="true">${logo}</span>` : ''}
-           <span>${esc(providerLabel(id))}</span>
+           <span class="provider-row__name" title="${esc(providerLabel(id))}">${esc(providerLabel(id))}</span>
          </div>
          <div class="ds-row__meta">
            <input type="checkbox" class="provider-row__box" ${enabled.has(id) ? 'checked' : ''} />
