@@ -113,7 +113,12 @@ async function bootApp() {
   const path = location.pathname;
   if (path === '/verify-email') return renderVerifyLanding();
   if (path === '/reset-password') return renderResetLanding();
-  if (accountsActive() && !isLoggedIn()) return showLogin();
+  if (accountsActive() && !isLoggedIn()) {
+    // A cold visitor on "/" gets the marketing landing (issue #322); a deep link
+    // (a shared /round/… URL &c.) already has context and wants in fast, so it
+    // goes straight to login and continues to the deep link after (enterApp).
+    return path === '/' ? showLanding() : showLogin();
+  }
   authScreen(false);
   setupAccountUi();
   routeTo(path);
