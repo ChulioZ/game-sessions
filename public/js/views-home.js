@@ -6,7 +6,7 @@
 async function showHome() {
   currentView = () => showHome();
   syncUrl('/');
-  setCrumbs([{ label: t('nav.home') }]);
+  setContext(''); // home: no round context
   applyBackground(null); // home: default background
   app.innerHTML = '<p class="muted">…</p>';
   // SWR: renders instantly from the cached summary (a background refresh
@@ -83,10 +83,7 @@ async function showHome() {
 async function showNewRound() {
   currentView = () => showNewRound();
   syncUrl('/round/new');
-  setCrumbs([
-    { label: t('nav.home'), path: '/', onClick: showHome },
-    { label: t('newRound.crumb') },
-  ]);
+  setContext(''); // creating a round, not inside one yet
   applyBackground(null);
   app.innerHTML = '<p class="muted">…</p>';
 

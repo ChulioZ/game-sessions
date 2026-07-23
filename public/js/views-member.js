@@ -59,11 +59,7 @@ async function showMember(rid, mid) {
   applyBackground(round.background);
   const member = round.members.find((m) => m.id === mid);
   if (!member) return showRound(rid);
-  setCrumbs([
-    { label: t('nav.home'), path: '/', onClick: showHome },
-    { label: round.name, path: roundPath(rid), onClick: () => showRound(rid) },
-    { label: member.name },
-  ]);
+  setContext(round.name);
 
   app.innerHTML = '';
   renderSubScreenTabs(round, 'member');

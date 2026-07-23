@@ -705,11 +705,7 @@ async function showArchive(rid, kind) {
   try { round = await fetchRound(rid); }
   catch { return showHome(); }
   applyBackground(round.background);
-  setCrumbs([
-    { label: t('nav.home'), path: '/', onClick: showHome },
-    { label: round.name, path: roundPath(rid), onClick: () => showRound(rid) },
-    { label: t(`${kind}.crumb`) },
-  ]);
+  setContext(round.name);
 
   // Newest first.
   const games = round.games

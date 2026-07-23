@@ -52,7 +52,7 @@ Two follow-on habits:
 
 `navLink` adds a `nav-link` class carrying `color: inherit; text-decoration: none`
 — an anchor otherwise arrives browser-blue and underlined, which none of these
-components (cards, tabs, tickets, breadcrumbs) ever wanted.
+components (cards, tabs, tickets) ever wanted.
 
 It is declared **before** the component rules on purpose. It is a plain class
 selector, so it ties on specificity with `.link-btn`, `.ticket`, `.dock__item`

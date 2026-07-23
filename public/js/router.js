@@ -50,7 +50,7 @@ function endFlow() {
 }
 
 // Called by every in-app exit that could abandon a flow (the top-bar home
-// button, the flow's own breadcrumbs, a Back that leaves it). Returns false to
+// button, the flow's own "Zurück" button, a Back that leaves it). Returns false to
 // abort the navigation; on a permitted leave it also ends the flow, so callers
 // only ever write `if (confirmLeave()) …`. The guard does its own teardown —
 // it is the only thing that knows what "unsaved" means for that screen.

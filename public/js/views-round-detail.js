@@ -30,11 +30,7 @@ async function showBackground(rid) {
   try { round = await fetchRound(rid); }
   catch { return showHome(); }
   applyBackground(round.background);
-  setCrumbs([
-    { label: t('nav.home'), path: '/', onClick: showHome },
-    { label: round.name, path: roundPath(rid), onClick: () => showRound(rid) },
-    { label: t('design.crumb') },
-  ]);
+  setContext(round.name);
 
   app.innerHTML = '';
   renderSubScreenTabs(round, 'design');
@@ -93,11 +89,7 @@ async function showTags(rid) {
   try { round = await fetchRound(rid); }
   catch { return showHome(); }
   applyBackground(round.background);
-  setCrumbs([
-    { label: t('nav.home'), path: '/', onClick: showHome },
-    { label: round.name, path: roundPath(rid), onClick: () => showRound(rid) },
-    { label: t('tags.crumb') },
-  ]);
+  setContext(round.name);
 
   app.innerHTML = '';
   renderSubScreenTabs(round, 'tags');
@@ -206,11 +198,7 @@ async function showProviders(rid) {
   try { round = await fetchRound(rid); }
   catch { return showHome(); }
   applyBackground(round.background);
-  setCrumbs([
-    { label: t('nav.home'), path: '/', onClick: showHome },
-    { label: round.name, path: roundPath(rid), onClick: () => showRound(rid) },
-    { label: t('providers.crumb') },
-  ]);
+  setContext(round.name);
 
   app.innerHTML = '';
   renderSubScreenTabs(round, 'providers');
@@ -279,11 +267,7 @@ async function showGameDetail(rid, gameId) {
   applyBackground(round.background);
   const game = round.games.find((g) => g.id === gameId);
   if (!game) return showRound(rid);
-  setCrumbs([
-    { label: t('nav.home'), path: '/', onClick: showHome },
-    { label: round.name, path: roundPath(rid), onClick: () => showRound(rid) },
-    { label: game.title },
-  ]);
+  setContext(round.name);
 
   const st = gameStats(round, gameId);
   const imgStyle = game.image ? `style="background-image:url('${coverUrl(game.image, COVER_HERO)}')"` : '';

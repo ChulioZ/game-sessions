@@ -146,14 +146,16 @@ h1, h2, h3 { font-family: var(--font-display); }
   cursor: pointer;
   padding: 4px 6px;
 }
-.crumbs {
+/* Plain round-name context label (#348). min-width:0 lets it shrink inside the
+   flex top bar so a long name ellipsis-truncates instead of overflowing. */
+.topbar__context {
   color: var(--ink-soft);
   font-size: 16px;
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.crumbs span.sep { opacity: 0.5; }
 .lang-picker {
   margin-left: auto;
   flex: none;
@@ -637,7 +639,6 @@ h1, h2, h3 { font-family: var(--font-display); }
   .topbar { gap: 10px; padding: 10px 14px; }
   .topbar__home { padding: 6px; font-size: 20px; }
   .topbar__word { display: none; }
-  .crumbs { min-width: 0; }
 
   .ticket { flex-direction: column; }
   .ticket__stub {
@@ -1456,7 +1457,7 @@ a.btn { display: inline-block; text-decoration: none; text-align: center; box-si
    message they just typed. Hide the entry point rather than offer a dead end. */
 body.auth-screen .topbar__home,
 body.auth-screen #feedbackBtn,
-body.auth-screen .crumbs { display: none; }
+body.auth-screen .topbar__context { display: none; }
 
 .auth {
   min-height: calc(100vh - 180px);

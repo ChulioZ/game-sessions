@@ -114,8 +114,8 @@ test('every member color carries white initials at AA', () => {
 // --- semantic colours used as text -----------------------------------------
 
 test('every theme accent clears AA as text on its own page and on white', () => {
-  // The accent becomes --brand, which is not only a fill: `.link-btn` paints the
-  // breadcrumbs and inline actions with it straight on the page, and the theme
+  // The accent becomes --brand, which is not only a fill: `.link-btn` paints
+  // inline actions with it straight on the page, and the theme
   // card prints each theme's name in its own accent. Sand and Pfirsich shipped
   // at 3.8:1, so choosing either put every link in the app below AA (#145).
   const failures = [];

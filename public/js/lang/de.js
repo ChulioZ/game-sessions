@@ -6,7 +6,6 @@ I18N.de = {
   'footer.impressum': 'Impressum',
   'footer.privacy': 'Datenschutz',
   'footer.terms': 'Nutzungsbedingungen',
-  'nav.home': 'Start',
   'common.back': 'Zurück',
   'common.delete': 'Löschen',
   'common.ok': 'OK',
@@ -475,7 +474,6 @@ I18N.de = {
   'a11y.home': 'Zur Startseite',
   'a11y.language': 'Sprache',
   'a11y.account': 'Konto',
-  'a11y.breadcrumb': 'Brotkrümelnavigation',
   'a11y.hubTabs': 'Rundenbereiche',
   'a11y.roundNav': 'Rundennavigation',
 

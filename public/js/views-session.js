@@ -10,11 +10,7 @@ function showStartSession(round) {
   // the wizard (if any) is over, so drop its flow before claiming the entry.
   endFlow();
   syncUrl(sessionSetupPath(round.id));
-  setCrumbs([
-    { label: t('nav.home'), path: '/', onClick: showHome },
-    { label: round.name, path: roundPath(round.id), onClick: () => showRound(round.id) },
-    { label: t('startSession.crumb') },
-  ]);
+  setContext(round.name);
   app.innerHTML = '';
   app.appendChild(h(`<div class="page-head"><h1>${esc(t('startSession.title'))}</h1></div>`));
 
@@ -196,14 +192,11 @@ function startVoting(round, session, games, members) {
     return true;
   };
 
-  const setVotingCrumbs = () => setCrumbs([
-    // The breadcrumbs leave the wizard just as much as Back does, so they ask
-    // the same question rather than discarding the votes silently.
-    { label: t('nav.home'), path: '/', onClick: () => { if (confirmLeave()) showHome(); } },
-    { label: round.name, path: roundPath(round.id), onClick: () => { if (confirmLeave()) showRound(round.id); } },
-    { label: t('vote.crumb') },
-  ]);
-  setVotingCrumbs();
+  // Plain context label; the top bar no longer offers a leave-point. Votes are
+  // still guarded on every exit: the brand mark (core.js) and the in-wizard
+  // "Zurück" both route through confirmLeave(), and beforeunload covers
+  // reload/close (#348, see .claude/rules/session-flow-history.md).
+  setContext(round.name);
 
   // Every step is a real history entry, so browser/OS Back steps back through
   // the wizard exactly like its own "Zurück" button — which is why that button
@@ -252,9 +245,9 @@ function startVoting(round, session, games, members) {
 
   beginFlow(onPopstate, guardLeave);
 
-  // Re-render the current step in the new language (keeps votes/progress).
-  // Also refresh the breadcrumb so its label follows the new locale.
-  currentView = () => { setVotingCrumbs(); render(); };
+  // Re-render the current step in the new language (keeps votes/progress). The
+  // context label is the locale-independent round name, so it needs no refresh.
+  currentView = () => { render(); };
 
   // Segmented progress: one segment per member, filled in their color.
   const perMember = games.length + 1; // intro + one card per game
@@ -395,11 +388,7 @@ function showFinale(round, session, games) {
   // skipping the whole flow. The votes are already saved by this point, so the
   // wizard's flow (still registered) lets this one go without asking.
   syncUrl(sessionFinalePath(round.id, session.id));
-  setCrumbs([
-    { label: t('nav.home'), path: '/', onClick: showHome },
-    { label: round.name, path: roundPath(round.id), onClick: () => showRound(round.id) },
-    { label: t('finale.crumb') },
-  ]);
+  setContext(round.name);
 
   const voters = Array.isArray(session.memberIds)
     ? round.members.filter((m) => session.memberIds.includes(m.id))
@@ -443,11 +432,7 @@ function showFinale(round, session, games) {
 async function showResults(round, session, gamesHint, reveal) {
   currentView = () => showResults(round, session, gamesHint);
   syncUrl(resultsPath(round.id, session.id));
-  setCrumbs([
-    { label: t('nav.home'), path: '/', onClick: showHome },
-    { label: round.name, path: roundPath(round.id), onClick: () => showRound(round.id) },
-    { label: t('result.crumb') },
-  ]);
+  setContext(round.name);
 
   // Resolve the session's game objects.
   const games = session.gameIds

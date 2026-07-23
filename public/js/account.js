@@ -149,8 +149,9 @@ function enterApp() {
 
 /* ------------------------------- auth screens ------------------------------ */
 
-// Toggle the whole-screen auth layout: hides the top-bar home/breadcrumbs (the
-// language picker stays) so a logged-out visitor sees only the auth card.
+// Toggle the whole-screen auth layout: hides the top-bar home link and context
+// label (the language picker stays) so a logged-out visitor sees only the auth
+// card.
 function authScreen(on) { document.body.classList.toggle('auth-screen', !!on); }
 
 // Shared scaffold for an auth screen: clears the view, sets the auth layout, and
@@ -159,7 +160,7 @@ function authScreen(on) { document.body.classList.toggle('auth-screen', !!on); }
 function openAuth(render, innerHtml, build) {
   currentView = render;
   authScreen(true);
-  setCrumbs([]);
+  setContext('');
   applyBackground(null);
   app.innerHTML = '';
   const wrap = h(`<div class="auth">${innerHtml}</div>`);

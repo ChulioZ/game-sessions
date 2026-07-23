@@ -45,7 +45,7 @@ async function showRound(rid, tab) {
     ]);
   } catch { return showHome(); }
   applyBackground(round.background);
-  setCrumbs([{ label: t('nav.home'), path: '/', onClick: showHome }, { label: round.name }]);
+  setContext(round.name);
 
   app.innerHTML = '';
   const activeGames = round.games.filter((g) => !g.retired && !g.completed);

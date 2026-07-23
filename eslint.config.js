@@ -19,9 +19,9 @@ const frontendGlobals = {
   getLocale: 'readonly', setLocale: 'readonly', t: 'readonly', tn: 'readonly',
   fmtDateTime: 'readonly', fmtMonth: 'readonly',
   // core.js
-  app: 'readonly', crumbs: 'readonly', toastEl: 'readonly',
+  app: 'readonly', context: 'readonly', toastEl: 'readonly',
   currentView: 'writable', h: 'readonly', esc: 'readonly', toastTimer: 'writable',
-  toast: 'readonly', api: 'readonly', setCrumbs: 'readonly', backRow: 'readonly',
+  toast: 'readonly', api: 'readonly', setContext: 'readonly', backRow: 'readonly',
   joinNames: 'readonly',
   fetchRound: 'readonly', invalidateRoundCache: 'readonly',
   fetchActivities: 'readonly', fetchRoundList: 'readonly', fetchRoundFresh: 'readonly',

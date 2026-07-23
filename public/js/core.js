@@ -5,7 +5,7 @@
 'use strict';
 
 const app = document.getElementById('app');
-const crumbs = document.getElementById('crumbs');
+const context = document.getElementById('context');
 const toastEl = document.getElementById('toast');
 
 // The brand mark is a real link to '/' (#330), so it can be opened in a new tab
@@ -177,20 +177,13 @@ async function fetchRoundFresh(rid) {
   return round;
 }
 
-// Breadcrumbs. A part with a `path` is a real link (#330); the trailing part —
-// the screen you are on — is plain text, as it always was. `onClick` carries the
-// in-app navigation, because a crumb's plain click may have to do more than
-// route (the session flow's crumbs ask before discarding votes, #329).
-function setCrumbs(parts) {
-  crumbs.innerHTML = '';
-  parts.forEach((p, i) => {
-    if (i > 0) crumbs.appendChild(h('<span class="sep">›</span>'));
-    if (p.onClick) {
-      crumbs.appendChild(navLink(h(`<a class="link-btn">${esc(p.label)}</a>`), p.path, p.onClick));
-    } else {
-      crumbs.appendChild(h(`<span>${esc(p.label)}</span>`));
-    }
-  });
+// Top-bar context label (#348). Plain, non-clickable text: the current round's
+// name while inside a round, empty on the home/auth screens. It is context, not
+// navigation — the brand mark is the sole "home" affordance, and the rail/tabs
+// plus each sub-screen's own heading carry the rest of the wayfinding. Uses
+// textContent, so a round name needs no escaping.
+function setContext(label) {
+  context.textContent = label || '';
 }
 
 /* The centred "back" block that seven round sub-screens end with — game detail,
@@ -200,8 +193,8 @@ function setCrumbs(parts) {
    through, see navBack in router.js).
 
    The `back-row` class is not decoration: from the rail breakpoint up this
-   control is redundant — the rail carries every section and the breadcrumb sits
-   at the top — so CSS hides it there, and it must be distinguishable from the
+   control is redundant — the rail carries every section — so CSS hides it
+   there, and it must be distinguishable from the
    OTHER `.section.center` blocks (the results screen's "delete session" sits in
    an identical wrapper and must keep rendering). */
 function backRow(fallback) {
@@ -232,7 +225,6 @@ function applyStaticTexts() {
   document.getElementById('feedbackBtn').setAttribute('aria-label', t('feedback.button'));
   document.getElementById('supportBtn').setAttribute('aria-label', t('support.button'));
   document.getElementById('accountBtn').setAttribute('aria-label', t('a11y.account'));
-  crumbs.setAttribute('aria-label', t('a11y.breadcrumb'));
   // Shared site footer (issues #224/#134): link labels, re-localized on
   // language change like the aria-labels above.
   document.getElementById('footerKontakt').textContent = t('footer.contact');

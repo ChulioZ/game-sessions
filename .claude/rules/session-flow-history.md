@@ -33,9 +33,10 @@ hub). Guarding a named destination is guarding the wrong thing — new entry
 points are exactly what slips past it.
 
 The same reasoning covers the non-`popstate` exits: the top-bar home button
-(`core.js`) and the wizard's own breadcrumbs go through `confirmLeave()` too,
+(`core.js`) and the wizard's own "Zurück" button go through `confirmLeave()` too,
 and `beforeunload` covers reload/tab-close. Miss one and it becomes a silent
-data-loss path again.
+data-loss path again. (The top bar no longer carries a breadcrumb leave-point —
+it shows a plain, non-clickable round-name context label since #348.)
 
 ## 2. The in-wizard "Zurück" must call `history.back()`
 

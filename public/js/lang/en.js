@@ -6,7 +6,6 @@ I18N.en = {
   'footer.impressum': 'Legal notice',
   'footer.privacy': 'Privacy',
   'footer.terms': 'Terms of use',
-  'nav.home': 'Home',
   'common.back': 'Back',
   'common.delete': 'Delete',
   'common.ok': 'OK',
@@ -475,7 +474,6 @@ I18N.en = {
   'a11y.home': 'Go to home screen',
   'a11y.language': 'Language',
   'a11y.account': 'Account',
-  'a11y.breadcrumb': 'Breadcrumb',
   'a11y.hubTabs': 'Round sections',
   'a11y.roundNav': 'Round navigation',
 
