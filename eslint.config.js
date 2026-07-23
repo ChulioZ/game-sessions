@@ -98,6 +98,7 @@ const frontendGlobals = {
   renderHubTabs: 'readonly', renderSubScreenTabs: 'readonly', renderStartTab: 'readonly',
   renderRegalTab: 'readonly', renderChronikTab: 'readonly', renderPokaleTab: 'readonly',
   activeSheet: 'writable', closeSheet: 'readonly', openSheet: 'readonly',
+  handleSheetPop: 'readonly',
   startDirectSession: 'readonly',
   showLinkProvider: 'readonly', attachLookup: 'readonly', searchProvider: 'readonly',
   enabledProviders: 'readonly', lookupDetail: 'readonly',

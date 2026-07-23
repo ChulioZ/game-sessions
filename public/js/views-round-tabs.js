@@ -223,7 +223,6 @@ async function showMoveGames(round) {
   const others = rounds.filter((r) => r.id !== round.id);
   const n = round.games.length;
 
-  closeSheet();
   const backdrop = h(`<div class="sheet-backdrop sheet-backdrop--center">
       <div class="sheet sheet--dialog" role="dialog" aria-modal="true" aria-label="${esc(t('moveGames.title'))}">
         <div class="sheet__head">
@@ -264,9 +263,8 @@ async function showMoveGames(round) {
     go.disabled = true;
     try {
       const res = await api('POST', `/api/rounds/${round.id}/games/move-to`, { targetRoundId: targetId });
-      closeSheet();
       toast(tn(res.movedGames, 'moveGames.toast.doneOne', 'moveGames.toast.done'));
-      showRound(round.id, 'regal');
+      closeSheet(() => showRound(round.id, 'regal'));
     } catch (e) {
       go.disabled = false;
       const msg =

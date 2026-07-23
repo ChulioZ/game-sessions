@@ -23,7 +23,6 @@ let supportUrl = null;
 // click is an ordinary navigation the browser (and its blockers) fully control.
 function showSupport() {
   if (!supportUrl) return;
-  closeSheet();
   const backdrop = h(`<div class="sheet-backdrop sheet-backdrop--center">
       <div class="sheet sheet--dialog" role="dialog" aria-modal="true" aria-label="${esc(t('support.title'))}">
         <div class="sheet__head">

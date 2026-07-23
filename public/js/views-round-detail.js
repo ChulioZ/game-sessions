@@ -718,24 +718,86 @@ async function showGameDetail(rid, gameId) {
 // The active sheet (backdrop element), so navigation/reopen can close it.
 let activeSheet = null;
 
+// Sheet history integration (#333). A sheet is not a routable view, but Back
+// should dismiss it — as it does on Android and increasingly on the web —
+// instead of tearing down the whole screen behind it. So opening a sheet pushes
+// ONE URL-less history marker; Back pops it and we close the sheet, swallowing
+// the navigation. State-only, not `?sheet=…`: every sheet (add game, link
+// provider, move games, feedback, support) holds transient, unsaved input a
+// reload would lose anyway, so deep-linking one buys nothing.
+//   `sheetHistory`      — a marker is currently on top of the stack.
+//   `pendingAfterClose` — a success handler that navigates AFTER the sheet
+//     closes ("add game" → Regal) passes its navigation to closeSheet(next); it
+//     must run only once the marker has popped, because history.back() fires
+//     popstate asynchronously and a synchronous push would interleave with it
+//     and corrupt the stack. handleSheetPop() runs it after the pop.
+let sheetHistory = false;
+let pendingAfterClose = null;
+
 // Register a just-appended sheet as the active one and contain the keyboard in
 // it (#145). Every sheet is aria-modal, which only constrains a screen reader —
 // without trapFocus, Tab walked out of the dialog into the page behind the
 // backdrop. Call this instead of assigning `activeSheet` directly, so no sheet
-// can be added later that silently misses the trap.
+// can be added later that silently misses the trap OR the Back-dismissal.
 function openSheet(backdrop, onKey) {
+  // Replacing an already-open sheet (a showX opened while one is up) reuses its
+  // marker — tear the old one down here, synchronously, rather than via a
+  // leading closeSheet() whose async history.back() would arrive AFTER the new
+  // sheet is open and wrongly dismiss it.
+  if (activeSheet) teardownSheet();
   const release = trapFocus(backdrop);
   activeSheet = { el: backdrop, onKey, release };
+  if (!sheetHistory) {
+    history.pushState(Object.assign({}, history.state, { sheet: true }), '');
+    sheetHistory = true;
+  }
 }
 
-function closeSheet() {
+// Remove the sheet DOM and release the focus trap. Ordering is load-bearing
+// (#145): release AFTER removing the sheet, because the trap restores focus to
+// the opener and focusing an element inside a still-attached, about-to-vanish
+// dialog would be undone a moment later.
+function teardownSheet() {
   if (!activeSheet) return;
   document.removeEventListener('keydown', activeSheet.onKey, true);
   activeSheet.el.remove();
-  // Release AFTER removing the sheet: the trap restores focus to the opener, and
-  // focusing an element inside a still-attached, about-to-vanish dialog would be
-  // undone a moment later.
   if (activeSheet.release) activeSheet.release();
   activeSheet = null;
+}
+
+// Programmatic close (Escape, backdrop, the × button, a successful submit).
+// `next`, if given, is a navigation to run once the pushed marker has been
+// consumed — pass it to closeSheet instead of navigating on the next line, so
+// the pop and the navigation don't race (see pendingAfterClose above).
+function closeSheet(next) {
+  if (!activeSheet) { if (typeof next === 'function') next(); return; }
+  teardownSheet();
+  if (sheetHistory) {
+    pendingAfterClose = (typeof next === 'function') ? next : null;
+    history.back();            // → popstate → handleSheetPop() consumes the marker, then runs next
+  } else if (typeof next === 'function') {
+    next();
+  }
+}
+
+// Called first by router.js's popstate handler (#333). Returns true when this
+// pop belongs to the sheet layer, so the router swallows it instead of routing:
+//   • a sheet is open  → Back is dismissing it: tear it down, stay on the screen.
+//   • the marker is ours → it is being consumed after a programmatic close: run
+//     any deferred navigation now that the stack is back on the underlying entry.
+function handleSheetPop() {
+  if (activeSheet) {
+    teardownSheet();
+    sheetHistory = false;
+    return true;
+  }
+  if (sheetHistory) {
+    sheetHistory = false;
+    const next = pendingAfterClose;
+    pendingAfterClose = null;
+    if (next) next();
+    return true;
+  }
+  return false;
 }
 

@@ -216,7 +216,6 @@ function attachLookup(round, input, menu, onPick, onInput) {
 
 // Opens as a bottom sheet over the current screen (usually the Regal).
 function showAddGame(round) {
-  closeSheet();
   const backdrop = h(`<div class="sheet-backdrop">
       <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(t('addGame.title'))}">
         <div class="sheet__head">
@@ -285,8 +284,7 @@ function showAddGame(round) {
   // whether any game was added while open and refresh on every close path.
   let addedWhileOpen = false;
   const dismiss = () => {
-    closeSheet();
-    if (addedWhileOpen) showRound(round.id, 'regal');
+    closeSheet(addedWhileOpen ? () => showRound(round.id, 'regal') : undefined);
   };
 
   const onKey = (e) => {
@@ -503,8 +501,7 @@ function showAddGame(round) {
         setImage(null);
         form.querySelector('#title').focus();
       } else {
-        closeSheet();
-        showRound(round.id, 'regal');
+        closeSheet(() => showRound(round.id, 'regal'));
       }
     } catch (e) { toast(e.message === 'quota_games' ? t('addGame.toast.quota') : e.message); }
   }
@@ -520,7 +517,6 @@ function showAddGame(round) {
 // differing fields (name, cover, players) to overwrite. The source link is
 // always saved; the field overrides default to "take everything".
 function showLinkProvider(round, game) {
-  closeSheet();
   const backdrop = h(`<div class="sheet-backdrop sheet-backdrop--center">
       <div class="sheet sheet--dialog" role="dialog" aria-modal="true" aria-label="${esc(t('linkProvider.title'))}">
         <div class="sheet__head">
@@ -673,9 +669,8 @@ function showLinkProvider(round, game) {
     }
     try {
       await api('PATCH', `/api/rounds/${round.id}/games/${game.id}`, body);
-      closeSheet();
       toast(t('linkProvider.linked'));
-      showGameDetail(round.id, game.id);
+      closeSheet(() => showGameDetail(round.id, game.id));
     } catch (e) { toast(e.message); }
   }
 
@@ -689,7 +684,6 @@ function showLinkProvider(round, game) {
 // no vote and no draw, landing straight on the results screen with that game
 // already chosen. Opened from the game detail page and the Pokale cards.
 function startDirectSession(round, game) {
-  closeSheet();
   const label = t('directPlay.title', { title: game.title });
   const backdrop = h(`<div class="sheet-backdrop">
       <div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(label)}">
@@ -728,8 +722,7 @@ function startDirectSession(round, game) {
         gameId: game.id,
         memberIds: [...joining],
       });
-      closeSheet();
-      showResults(round, data.session, data.games);
+      closeSheet(() => showResults(round, data.session, data.games));
     } catch (e) { toast(e.message); }
   });
 }

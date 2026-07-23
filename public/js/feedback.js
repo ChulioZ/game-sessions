@@ -21,7 +21,6 @@ const FEEDBACK_MESSAGE_MAX = 2000;
 // there is an account to attach at all, and it starts unchecked — attaching is
 // always a deliberate act, never the default (issue #260).
 function showFeedback() {
-  closeSheet();
   const canAttach = isLoggedIn();
   const backdrop = h(`<div class="sheet-backdrop sheet-backdrop--center">
       <div class="sheet sheet--dialog" role="dialog" aria-modal="true" aria-label="${esc(t('feedback.title'))}">

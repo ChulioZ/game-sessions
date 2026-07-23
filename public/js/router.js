@@ -173,6 +173,10 @@ async function showResultsById(rid, sid) {
 // could — and only a path it declines falls through to normal routing.
 window.addEventListener('popstate', (e) => {
   navIndex = (e.state && typeof e.state.idx === 'number') ? e.state.idx : 0;
+  // A sheet's marker gets first refusal (#333): if a sheet is open this pop is
+  // Back dismissing it; if we still owe a pushed marker this pop is that marker
+  // being consumed after a programmatic close. Either way the router swallows it.
+  if (handleSheetPop()) return;
   if (activeFlow && activeFlow(location.pathname)) return;
   endFlow();
   routeTo(location.pathname);
