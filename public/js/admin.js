@@ -695,8 +695,7 @@
       status.appendChild(pill);
       if (u.disabled && u.disabledReason) {
         const why = document.createElement('div');
-        why.style.color = '#8b93a6';
-        why.style.fontSize = '0.8rem';
+        why.className = 'subtext';
         why.textContent = u.disabledReason;
         status.appendChild(why);
       }
@@ -1109,8 +1108,7 @@
       for (const line of [n.url, n.reportedUsername ? `@${n.reportedUsername}` : null]) {
         if (!line) continue;
         const sub = document.createElement('div');
-        sub.style.color = '#8b93a6';
-        sub.style.fontSize = '0.8rem';
+        sub.className = 'subtext';
         sub.textContent = line;
         msg.appendChild(sub);
       }
@@ -1127,8 +1125,7 @@
       status.appendChild(pill);
       if (n.decisionNote) {
         const why = document.createElement('div');
-        why.style.color = '#8b93a6';
-        why.style.fontSize = '0.8rem';
+        why.className = 'subtext';
         why.textContent = n.decisionNote;
         status.appendChild(why);
       }

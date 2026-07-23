@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Moderation · Spielwirbel</title>
   <meta name="robots" content="noindex, nofollow" />
-  <meta name="theme-color" content="#14161c" />
+  <meta name="theme-color" content="#eef1f5" />
   <link rel="icon" href="/icons/icon-192.png" sizes="192x192" type="image/png" />
   <!-- Standalone operator moderation surface (issue #268), intentionally
        independent of the SPA — it must not ship privileged code inside the
@@ -23,66 +23,100 @@
        external file because script-src is 'self' only. -->
   <style>
     * { box-sizing: border-box; }
+    /* Light theme (#360): all colours derive from these tokens so no dark
+       literal lives in the markup. Spielwirbel orange is the primary accent;
+       red stays reserved for destructive actions. */
+    :root {
+      --page: #eef1f5;
+      --surface: #ffffff;
+      --sunken: #f3f5f9;
+      --line: #d8dde6;
+      --ink: #1f2430;
+      --ink-2: #3f4658;
+      --muted: #5f6775;
+      --accent: #c2410c;
+      --accent-ink: #ffffff;
+      --danger: #b4443f;
+      --ok-ink: #166534;   --ok-bg: rgba(22, 101, 52, 0.12);
+      --warn-ink: #854d0e; --warn-bg: rgba(133, 77, 14, 0.14);
+      --off-ink: #a3312c;  --off-bg: rgba(163, 49, 44, 0.12);
+    }
     body {
-      margin: 0; min-height: 100vh; background: #14161c; color: #e8eaf0;
+      margin: 0; min-height: 100vh; background: var(--page); color: var(--ink);
       font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       padding: 1.5rem; line-height: 1.5;
     }
-    .wrap { max-width: 780px; margin: 0 auto; }
+    .wrap { max-width: 1200px; margin: 0 auto; }
+    /* Dashboard grid (#360): the compact cards (Instanz-Status, Zuordnen, Bild
+       entfernen) share a row of columns; the wide tables carry .span-all and
+       take the full width. Collapses to a single column below 1000px so the
+       panel stays usable on a phone/tablet. */
+    #panel {
+      display: grid; grid-template-columns: 1fr; gap: 1.25rem; align-items: start;
+    }
+    #panel > * { min-width: 0; }   /* let an over-wide table scroll in its .scroll box, not stretch a column */
+    .span-all { grid-column: 1 / -1; }
+    @media (min-width: 1000px) {
+      #panel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
     .card {
-      background: #1e222c; border: 1px solid #2c3240; border-radius: 16px;
-      padding: 1.5rem; margin-bottom: 1.25rem;
+      background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+      padding: 1.5rem;
     }
     .card--login { max-width: 340px; margin: 12vh auto 0; }
     h1 { font-size: 1.2rem; margin: 0 0 0.35rem; }
-    h2 { font-size: 1rem; margin: 0 0 0.9rem; color: #aab2c4; font-weight: 600; }
-    .sub { color: #8b93a6; font-size: 0.85rem; margin: 0 0 1.5rem; }
-    label { display: block; font-size: 0.85rem; margin: 0.9rem 0 0.4rem; color: #aab2c4; }
+    h2 { font-size: 1rem; margin: 0 0 0.9rem; color: var(--ink-2); font-weight: 600; }
+    .sub { color: var(--muted); font-size: 0.85rem; margin: 0 0 1.5rem; }
+    /* Muted subtext for JS-created row detail lines (#360) — replaces the old
+       inline color/size literals in admin.js. */
+    .subtext { color: var(--muted); font-size: 0.8rem; }
+    label { display: block; font-size: 0.85rem; margin: 0.9rem 0 0.4rem; color: var(--ink-2); }
     input, textarea, select {
       width: 100%; padding: 0.65rem 0.8rem; font-size: 0.95rem; border-radius: 10px;
-      border: 1px solid #2c3240; background: #14161c; color: #e8eaf0;
+      border: 1px solid var(--line); background: var(--sunken); color: var(--ink);
       font-family: inherit;
     }
-    input:focus, textarea:focus, select:focus { outline: 2px solid #6c7ae0; outline-offset: 1px; }
+    input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
     textarea { resize: vertical; min-height: 4.5rem; }
     button {
       margin-top: 1rem; padding: 0.65rem 1.1rem; font-size: 0.95rem; font-weight: 600;
-      border: 0; border-radius: 10px; background: #6c7ae0; color: #fff; cursor: pointer;
+      border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-ink); cursor: pointer;
     }
     button:disabled { opacity: 0.55; cursor: default; }
-    button.danger { background: #b4443f; }
-    button.ghost { background: #2c3240; }
+    button.danger { background: var(--danger); color: #fff; }
+    button.ghost { background: var(--sunken); color: var(--ink); border: 1px solid var(--line); }
     button.small { margin: 0; padding: 0.4rem 0.7rem; font-size: 0.8rem; }
+    a { color: var(--accent); }
     .row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
     .msg { margin-top: 1rem; font-size: 0.87rem; padding: 0.7rem 0.85rem; border-radius: 10px; }
     .msg[hidden] { display: none; }
-    .msg--err { color: #ffb4b4; background: rgba(180, 68, 63, 0.18); }
-    .msg--ok { color: #a9e6b6; background: rgba(66, 148, 92, 0.18); }
+    .msg--err { color: var(--off-ink); background: var(--off-bg); }
+    .msg--ok { color: var(--ok-ink); background: var(--ok-bg); }
     dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 1rem; margin: 0.5rem 0 0; }
-    dt { color: #8b93a6; font-size: 0.85rem; }
+    dt { color: var(--muted); font-size: 0.85rem; }
     dd { margin: 0; font-size: 0.9rem; word-break: break-all; }
     table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
-    th, td { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid #2c3240; vertical-align: top; }
-    th { color: #8b93a6; font-weight: 600; }
-    .pill { font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: #2c3240; }
-    .pill--off { background: rgba(180, 68, 63, 0.3); color: #ffb4b4; }
+    th, td { text-align: left; padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    .pill { font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 999px; background: var(--sunken); color: var(--muted); }
+    .pill--off { background: var(--off-bg); color: var(--off-ink); }
     /* Status card (#274): green = as intended, amber = works but probably not
        what you meant, red = a real misconfiguration. */
-    .pill--ok { background: rgba(66, 148, 92, 0.28); color: #a9e6b6; }
-    .pill--warn { background: rgba(190, 140, 45, 0.28); color: #f0d08a; }
-    .status { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.75rem; }
-    .status__item { background: #14161c; border: 1px solid #2c3240; border-radius: 10px; padding: 0.7rem 0.8rem; }
-    .status__label { color: #8b93a6; font-size: 0.78rem; margin-bottom: 0.3rem; }
-    .status__note { color: #8b93a6; font-size: 0.78rem; margin-top: 0.3rem; }
+    .pill--ok { background: var(--ok-bg); color: var(--ok-ink); }
+    .pill--warn { background: var(--warn-bg); color: var(--warn-ink); }
+    .status { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; }
+    .status__item { background: var(--sunken); border: 1px solid var(--line); border-radius: 10px; padding: 0.7rem 0.8rem; }
+    .status__label { color: var(--muted); font-size: 0.78rem; margin-bottom: 0.3rem; }
+    .status__note { color: var(--muted); font-size: 0.78rem; margin-top: 0.3rem; }
     .scroll { overflow-x: auto; }
     /* "100 von 342" (#288) — a card must never hide entries silently. */
     .count { margin: -0.4rem 0 0.9rem; }
     /* Filter bar (#275): inputs shrink to fit the row instead of filling it. */
     .filters { gap: 0.5rem; margin-bottom: 0.9rem; }
     .filters input, .filters select { width: auto; flex: 1 1 8rem; min-width: 7rem; padding: 0.4rem 0.55rem; font-size: 0.85rem; }
-    .totals { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; margin: 0.75rem 0 0; color: #aab2c4; font-size: 0.85rem; }
-    .totals b { color: #e8eaf0; font-weight: 600; }
-    code { background: #14161c; padding: 0.1rem 0.35rem; border-radius: 6px; font-size: 0.85em; }
+    .totals { display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; margin: 0.75rem 0 0; color: var(--muted); font-size: 0.85rem; }
+    .totals b { color: var(--ink); font-weight: 600; }
+    code { background: var(--sunken); padding: 0.1rem 0.35rem; border-radius: 6px; font-size: 0.85em; }
     [hidden] { display: none !important; }
   </style>
 </head>
@@ -97,9 +131,10 @@
     <p class="msg msg--err" id="loginError" role="alert" hidden></p>
   </form>
 
-  <!-- Panel -->
+  <!-- Panel. Card order groups the three compact cards (status + lookup +
+       takedown) into the top band; the wide tables (.span-all) follow. -->
   <div class="wrap" id="panel" hidden>
-    <div class="row" style="justify-content: space-between; margin-bottom: 1.25rem;">
+    <div class="row span-all" style="justify-content: space-between;">
       <h1 style="margin: 0;">Moderation</h1>
       <button class="ghost small" id="logout">Abmelden</button>
     </div>
@@ -112,38 +147,6 @@
       </p>
       <div class="status" id="statusGrid"></div>
       <p class="msg msg--err" id="statusError" role="alert" hidden></p>
-    </section>
-
-    <section class="card">
-      <h2>Fehlerprotokoll (Warn/Error)</h2>
-      <p class="sub" style="margin-bottom: 0.9rem;">
-        Die letzten Warn- und Fehlermeldungen dieser laufenden Instanz — im
-        Arbeitsspeicher, nicht dauerhaft gespeichert und beim Neustart geleert.
-        Anfragen-Logs (Info) sind bewusst nicht enthalten. Hinweis: Eine
-        Fehlermeldung kann in seltenen Fällen sensible Werte enthalten.
-      </p>
-      <p class="sub count" id="logsCount" hidden></p>
-      <div class="scroll"><table id="logsTable"><tbody></tbody></table></div>
-      <div class="row" style="margin-top: 1rem;">
-        <button class="ghost small" id="logsReload">Neu laden</button>
-      </div>
-      <p class="msg msg--err" id="logsError" role="alert" hidden></p>
-    </section>
-
-    <section class="card">
-      <h2>Meldungen</h2>
-      <p class="sub" style="margin-bottom: 0.9rem;">
-        Gespeicherte Kontakt- und DSA-Meldungen (Art. 16). „Bild zuordnen“ übernimmt
-        einen gemeldeten /uploads-Pfad in die Suche unten; die Entscheidung wird
-        gespeichert und auf Wunsch der meldenden Person mitgeteilt (Art. 16 Abs. 5).
-      </p>
-      <p class="sub count" id="noticesCount" hidden></p>
-      <div class="scroll"><table id="noticesTable"><tbody></tbody></table></div>
-      <div class="row" style="margin-top: 1rem;">
-        <button class="ghost small" id="noticesMore" hidden>Mehr laden</button>
-        <button class="ghost small" id="noticesCsv">CSV herunterladen</button>
-      </div>
-      <p class="msg msg--err" id="noticesError" role="alert" hidden></p>
     </section>
 
     <section class="card">
@@ -191,7 +194,39 @@
       </div>
     </section>
 
-    <section class="card" id="contentCard" hidden>
+    <section class="card span-all">
+      <h2>Fehlerprotokoll (Warn/Error)</h2>
+      <p class="sub" style="margin-bottom: 0.9rem;">
+        Die letzten Warn- und Fehlermeldungen dieser laufenden Instanz — im
+        Arbeitsspeicher, nicht dauerhaft gespeichert und beim Neustart geleert.
+        Anfragen-Logs (Info) sind bewusst nicht enthalten. Hinweis: Eine
+        Fehlermeldung kann in seltenen Fällen sensible Werte enthalten.
+      </p>
+      <p class="sub count" id="logsCount" hidden></p>
+      <div class="scroll"><table id="logsTable"><tbody></tbody></table></div>
+      <div class="row" style="margin-top: 1rem;">
+        <button class="ghost small" id="logsReload">Neu laden</button>
+      </div>
+      <p class="msg msg--err" id="logsError" role="alert" hidden></p>
+    </section>
+
+    <section class="card span-all">
+      <h2>Meldungen</h2>
+      <p class="sub" style="margin-bottom: 0.9rem;">
+        Gespeicherte Kontakt- und DSA-Meldungen (Art. 16). „Bild zuordnen“ übernimmt
+        einen gemeldeten /uploads-Pfad in die Suche unten; die Entscheidung wird
+        gespeichert und auf Wunsch der meldenden Person mitgeteilt (Art. 16 Abs. 5).
+      </p>
+      <p class="sub count" id="noticesCount" hidden></p>
+      <div class="scroll"><table id="noticesTable"><tbody></tbody></table></div>
+      <div class="row" style="margin-top: 1rem;">
+        <button class="ghost small" id="noticesMore" hidden>Mehr laden</button>
+        <button class="ghost small" id="noticesCsv">CSV herunterladen</button>
+      </div>
+      <p class="msg msg--err" id="noticesError" role="alert" hidden></p>
+    </section>
+
+    <section class="card span-all" id="contentCard" hidden>
       <h2>Texte der Runde</h2>
       <p class="sub" style="margin-bottom: 0.9rem;">
         Von Nutzer:innen verfasste Texte. „Redigieren“ überschreibt den Text mit
@@ -202,13 +237,13 @@
       <p class="msg" id="contentMsg" role="alert" hidden></p>
     </section>
 
-    <section class="card">
+    <section class="card span-all">
       <h2>Konten</h2>
       <div class="scroll"><table id="usersTable"><tbody></tbody></table></div>
       <p class="msg msg--err" id="usersError" role="alert" hidden></p>
     </section>
 
-    <section class="card">
+    <section class="card span-all">
       <h2>Feedback</h2>
       <p class="sub count" id="feedbackCount" hidden></p>
       <div class="scroll"><table id="feedbackTable"><tbody></tbody></table></div>
@@ -219,7 +254,7 @@
       <p class="msg msg--err" id="feedbackError" role="alert" hidden></p>
     </section>
 
-    <section class="card">
+    <section class="card span-all">
       <h2>Protokoll</h2>
       <!-- Filtering (#275): the log is also what gets handed over on a
            law-enforcement request, where "every action ever" is the wrong
