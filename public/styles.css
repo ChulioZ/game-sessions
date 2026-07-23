@@ -2067,6 +2067,30 @@ body.auth-screen .topbar__context { display: none; }
    than forcing the overflow back. */
 .ds-list--tiles .ds-row { flex-wrap: wrap; row-gap: 10px; }
 .ds-list--tiles .ds-row__main { min-width: 0; }
+/* Tag tiles (#347): the chip is the subject of the tile, so its count and
+   edit/delete controls must read as secondary. As full-size `.btn.btn--ghost`
+   they wrapped onto their own line (see the wrap rule above) and a ~44px pair
+   of buttons dwarfed the ~24px chip — the hierarchy was inverted. The controls
+   become compact, low-emphasis icon buttons (the `.tl-act__del` pattern) and
+   the chip is nudged up a touch. Scoped to `.tag-row` so the shared
+   `.ds-list--tiles` / provider tiles and the base `.tag--custom` chip elsewhere
+   (session filter, add-game sheet, game detail) are untouched. */
+.tag-row .tag--custom { font-size: 15px; padding: 5px 12px; }
+.tag-row .ds-row__meta { gap: 2px; }
+.tag-row__count { font-size: 12px; margin-right: 4px; }
+.tag-act {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+.tag-act .ti { font-size: 15px; display: block; }
+.tag-act:hover { background: var(--sunken); color: var(--ink); }
+.tag-act--danger:hover { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); color: var(--danger); }
 .ds-row {
   display: flex;
   align-items: center;

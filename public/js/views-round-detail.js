@@ -138,14 +138,14 @@ async function showTags(rid) {
     const list = h('<div class="ds-list ds-list--tiles"></div>');
     tags.forEach((tg) => {
       const n = round.games.filter((g) => (g.tagIds || []).includes(tg.id)).length;
-      const row = h(`<div class="ds-row">
+      const row = h(`<div class="ds-row tag-row">
            <div class="ds-row__main"><span class="tag tag--custom"><i class="ti ${tagIconClass(tg.icon)}" aria-hidden="true"></i>${esc(tg.name)}</span></div>
-           <div class="ds-row__meta"><span class="muted">${esc(tn(n, 'tags.gamesOne', 'tags.games'))}</span></div>
+           <div class="ds-row__meta"><span class="muted tag-row__count">${esc(tn(n, 'tags.gamesOne', 'tags.games'))}</span></div>
          </div>`);
       // Change an existing tag's icon (#255) — the Tags screen is the only
       // surface that edits a tag; the popover and add-game sheet only create
       // and assign. Expands the picker inline rather than opening a dialog.
-      const edit = h(`<button class="btn btn--ghost" aria-label="${esc(t('tags.editIcon'))}" title="${esc(t('tags.editIcon'))}"><i class="ti ti-pencil" aria-hidden="true"></i></button>`);
+      const edit = h(`<button class="tag-act" aria-label="${esc(t('tags.editIcon'))}" title="${esc(t('tags.editIcon'))}"><i class="ti ti-pencil" aria-hidden="true"></i></button>`);
       edit.addEventListener('click', () => {
         const open = row.nextElementSibling;
         if (open && open.classList.contains('icon-picker')) { // second click closes it
@@ -167,7 +167,7 @@ async function showTags(rid) {
         row.after(p.grid);
       });
       row.querySelector('.ds-row__meta').appendChild(edit);
-      const del = h(`<button class="btn btn--ghost" aria-label="${esc(t('tags.delete'))}" style="color:var(--danger)"><i class="ti ti-trash" aria-hidden="true"></i></button>`);
+      const del = h(`<button class="tag-act tag-act--danger" aria-label="${esc(t('tags.delete'))}"><i class="ti ti-trash" aria-hidden="true"></i></button>`);
       del.addEventListener('click', async () => {
         if (n > 0 && !confirm(t('tags.deleteConfirm', { name: tg.name }))) return;
         try {
