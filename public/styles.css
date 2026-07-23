@@ -2261,6 +2261,18 @@ body.auth-screen .topbar__context { display: none; }
    the chip is nudged up a touch. Scoped to `.tag-row` so the shared
    `.ds-list--tiles` / provider tiles and the base `.tag--custom` chip elsewhere
    (session filter, add-game sheet, game detail) are untouched. */
+/* #355: settle the tag tiles into a FIXED two-line shape so tile height no
+   longer varies with name length. Stacking the row — chip on line 1, the count
+   + edit/delete as a compact footer on line 2 — makes every tile the same
+   height; only the chip width varies. Before this, the `.ds-row` `space-between`
+   line wrapped its meta onto a second line ONLY for a long name, so short and
+   long tags rendered as one- and two-line tiles side by side (ragged heights).
+   `flex-direction: column` is the whole mechanism: the chip stays centered as
+   the subject (#347) and the footer anchors to the tile bottom because
+   `align-items`/`justify-content` keep coming from `.ds-row` unchanged (a
+   deliberate no-override — restating them here would tie on specificity and
+   lose to `.ds-row`'s later declaration anyway). */
+.tag-row { flex-direction: column; }
 .tag-row .tag--custom { font-size: 15px; padding: 5px 12px; }
 .tag-row .ds-row__meta { gap: 2px; }
 .tag-row__count { font-size: 12px; margin-right: 4px; }
@@ -2297,7 +2309,15 @@ body.auth-screen .topbar__context { display: none; }
    Scoped to .provider-row — the plain .ds-row__main stacks its children (the
    Chronik rows put a date over a status), so making it a flex row globally
    would lay those out side by side. */
+/* #355: keep every provider tile to a SINGLE line so their heights don't vary
+   with label length either (the sibling of the tag-tile settling above). The
+   name ellipsis-truncates as a safety net, with the full label kept in `title`;
+   at the >=280px tile width the current labels all fit, so nothing is actually
+   clipped — this just stops a long label wrapping the name to two lines (or
+   pushing the checkbox onto its own line) and making that one tile taller. */
+.provider-row { flex-wrap: nowrap; }
 .provider-row .ds-row__main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.provider-row__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .provider-row__logo { width: 22px; height: 22px; flex: none; display: inline-flex; }
 .provider-row__logo svg { width: 100%; height: 100%; display: block; }
 .provider-row__box { width: 18px; height: 18px; accent-color: var(--brand); cursor: pointer; }
