@@ -22,6 +22,8 @@ const {
   errorHandler,
   trackEvent,
   EVENTS,
+  recentLogs,
+  clearLogs,
 } = require('../lib/observability');
 
 // Capture everything written to stdout while `fn` runs, restoring afterwards.
@@ -454,4 +456,84 @@ test('tag_created fires for a new tag but not for a deduped duplicate', async ()
     assert.equal(res.status, 201);
   });
   assert.deepEqual(duplicate, []);
+});
+
+/* ---------------------------------------------------------------------------
+ * The in-memory warn/error ring buffer (issue #359) backing the admin panel's
+ * error-log card. Filled at the emit() seam, INDEPENDENT of LOG_LEVEL — so
+ * these run under LOG_LEVEL=silent (no stdout noise) and assert the buffer
+ * filled anyway. Each starts with clearLogs() because the buffer is
+ * process-global and shared with the rest of this file.
+ * ------------------------------------------------------------------------- */
+
+test('the ring buffer captures warn + error but never info, even when silent', async () => {
+  await withEnv('LOG_LEVEL', 'silent', async () => {
+    clearLogs();
+    logger.info({ event: 'boring' });
+    logger.warn({ event: 'careful' });
+    logger.error({ event: 'broken', message: 'it broke', stack: 'Error: it broke\n  at x' });
+  });
+  const entries = recentLogs();
+  assert.equal(entries.length, 2);
+  // Newest first.
+  assert.deepEqual(entries.map((e) => e.event), ['broken', 'careful']);
+  assert.equal(entries[0].level, 'error');
+  assert.equal(entries[0].message, 'it broke');
+  assert.equal(entries[0].stack, 'Error: it broke\n  at x');
+  assert.equal(entries[1].level, 'warn');
+  // info is never buffered, and each entry carries an ISO timestamp.
+  assert.ok(!entries.some((e) => e.event === 'boring'));
+  assert.match(entries[0].ts, /^\d{4}-\d\d-\d\dT/);
+});
+
+test('the ring buffer is bounded and evicts the oldest first', async () => {
+  await withEnv('LOG_LEVEL', 'silent', async () => {
+    clearLogs();
+    for (let i = 0; i < 250; i += 1) logger.error({ event: 'e', message: `#${i}` });
+  });
+  const entries = recentLogs();
+  // Capped at LOG_BUFFER_MAX (200), newest first, so the oldest 50 were dropped.
+  assert.equal(entries.length, 200);
+  assert.equal(entries[0].message, '#249');
+  assert.equal(entries[entries.length - 1].message, '#50');
+});
+
+test('a malformed (non-object) fields value never throws and still records', async () => {
+  await withEnv('LOG_LEVEL', 'silent', async () => {
+    clearLogs();
+    // Nothing here should throw; each still lands as one entry at its level.
+    logger.error('a bare string');
+    logger.warn(undefined);
+  });
+  const entries = recentLogs();
+  assert.equal(entries.length, 2);
+  assert.deepEqual(entries.map((e) => e.level), ['warn', 'error']);
+});
+
+test('captureError lands in the ring buffer as an error line with the stack', async () => {
+  await withEnv('LOG_LEVEL', 'silent', () =>
+    withEnv('ERROR_WEBHOOK_URL', undefined, async () => {
+      clearLogs();
+      await captureError(new Error('kaboom detail'), { method: 'GET', path: '/x' });
+    }));
+  const [entry] = recentLogs();
+  assert.equal(entry.level, 'error');
+  assert.equal(entry.event, 'unhandled_error');
+  assert.equal(entry.message, 'kaboom detail');
+  assert.match(entry.stack, /kaboom detail/);
+  assert.equal(entry.path, '/x');
+});
+
+test('clearLogs empties the buffer and recentLogs returns a detached array', async () => {
+  await withEnv('LOG_LEVEL', 'silent', async () => {
+    clearLogs();
+    logger.warn({ event: 'x' });
+  });
+  const first = recentLogs();
+  assert.equal(first.length, 1);
+  // Mutating the returned array must not reach the buffer.
+  first.push({ event: 'injected' });
+  assert.equal(recentLogs().length, 1);
+  clearLogs();
+  assert.deepEqual(recentLogs(), []);
 });

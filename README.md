@@ -289,7 +289,8 @@ routes/
                                              statements of reasons,
                                              account suspend/restore, GDPR
                                              export + erasure, filterable action
-                                             log, user feedback —
+                                             log, user feedback, recent
+                                             warn/error logs —
                                              404 unless ADMIN_PASSWORD)
   lookup.js          …/lookup               (search/game — provider proxy: PS Store, BGG, Steam, Nintendo, Xbox;
                                              round-scoped, refuses a provider the round disabled)

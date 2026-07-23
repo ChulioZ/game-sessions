@@ -29,7 +29,7 @@ const mail = require('../lib/mail');
 const quota = require('../lib/quota');
 const { instanceStatus } = require('../lib/status');
 const { CSV_BOM, toCsv } = require('../lib/csv');
-const { logger } = require('../lib/observability');
+const { logger, recentLogs } = require('../lib/observability');
 
 const router = express.Router();
 
@@ -91,6 +91,18 @@ router.use(admin.requireAdmin);
 // that guarantee is kept; don't widen the response here.
 router.get('/status', async (req, res) => {
   res.json({ status: await instanceStatus() });
+});
+
+/* ----------------------------------- logs ---------------------------------- */
+
+// The most recent warn/error lines this process has emitted (issue #359),
+// newest first, from the in-memory ring buffer in lib/observability.js — so the
+// operator can see "what just went wrong on this instance" without leaving for
+// Railway's log search. Global and ephemeral (per-process, no store, cleared on
+// restart): read from the module-level observability seam, no tenant scoping,
+// like the moderation-log / feedback / notices cards.
+router.get('/logs', (req, res) => {
+  res.json({ entries: recentLogs() });
 });
 
 /* --------------------------------- lookup ---------------------------------- */

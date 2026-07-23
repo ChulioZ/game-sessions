@@ -115,6 +115,22 @@
     </section>
 
     <section class="card">
+      <h2>Fehlerprotokoll (Warn/Error)</h2>
+      <p class="sub" style="margin-bottom: 0.9rem;">
+        Die letzten Warn- und Fehlermeldungen dieser laufenden Instanz — im
+        Arbeitsspeicher, nicht dauerhaft gespeichert und beim Neustart geleert.
+        Anfragen-Logs (Info) sind bewusst nicht enthalten. Hinweis: Eine
+        Fehlermeldung kann in seltenen Fällen sensible Werte enthalten.
+      </p>
+      <p class="sub count" id="logsCount" hidden></p>
+      <div class="scroll"><table id="logsTable"><tbody></tbody></table></div>
+      <div class="row" style="margin-top: 1rem;">
+        <button class="ghost small" id="logsReload">Neu laden</button>
+      </div>
+      <p class="msg msg--err" id="logsError" role="alert" hidden></p>
+    </section>
+
+    <section class="card">
       <h2>Meldungen</h2>
       <p class="sub" style="margin-bottom: 0.9rem;">
         Gespeicherte Kontakt- und DSA-Meldungen (Art. 16). „Bild zuordnen“ übernimmt

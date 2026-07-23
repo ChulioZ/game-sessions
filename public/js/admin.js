@@ -104,6 +104,7 @@
     panel.hidden = false;
     $('password').value = '';
     loadStatus();
+    loadLogs();
     loadNotices();
     loadUsers();
     loadFeedback();
@@ -248,6 +249,107 @@
       grid.appendChild(item);
     }
   }
+
+  // ---- error/warn logs (#359) ----------------------------------------------
+
+  // The most recent warn/error lines this process emitted, newest first, from
+  // the in-memory ring buffer (lib/observability.js). Diagnostics only:
+  // read-only, no paging (the buffer is bounded), refreshed by its own "Neu
+  // laden" button rather than any mutation.
+  //
+  // Every value is rendered with textContent (via cell() and .textContent
+  // below) — a log message or stack can embed a game title or other
+  // attacker-influenced text, and this page runs with operator privileges.
+  async function loadLogs() {
+    const body = $('logsTable').querySelector('tbody');
+    body.replaceChildren();
+    hide($('logsError'));
+
+    let entries;
+    try {
+      ({ entries } = await api('/logs'));
+    } catch (err) {
+      show($('logsError'), message(err), 'err');
+      return;
+    }
+
+    const head = document.createElement('tr');
+    ['Zeitpunkt', 'Stufe', 'Ereignis', 'Meldung'].forEach((h) => cell(head, h, { head: true }));
+    body.appendChild(head);
+
+    $('logsCount').textContent = `${entries.length} Einträge`;
+    $('logsCount').hidden = !entries.length;
+
+    if (!entries.length) {
+      const row = document.createElement('tr');
+      cell(row, 'Keine Warn- oder Fehlermeldungen seit dem letzten Neustart.', { colSpan: 4 });
+      body.appendChild(row);
+      return;
+    }
+
+    for (const e of entries) body.appendChild(logRow(e));
+  }
+
+  // Fields already shown in their own column — everything else falls into the
+  // expandable detail block below.
+  const LOG_SHOWN = new Set(['ts', 'level', 'event', 'message', 'stack']);
+
+  // The stack trace first, then any remaining context fields (method, path,
+  // err, name, …) as `key: value` lines. '' when there is nothing extra, so a
+  // row with only the four columns shows no empty <details>.
+  function logDetail(e) {
+    const parts = [];
+    if (e.stack) parts.push(String(e.stack));
+    for (const [k, v] of Object.entries(e)) {
+      if (LOG_SHOWN.has(k) || v == null) continue;
+      parts.push(`${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`);
+    }
+    return parts.join('\n');
+  }
+
+  // One log line: a level pill (ERROR reuses the red 'off' pill, WARN the amber
+  // 'warn' one), the event name, the message, and — hidden in a <details> so a
+  // long stack doesn't dominate the table — the stack plus any extra context.
+  function logRow(e) {
+    const row = document.createElement('tr');
+    cell(row, fmt(e.ts));
+
+    const level = cell(row, '');
+    const pill = document.createElement('span');
+    pill.className = `pill pill--${e.level === 'error' ? 'off' : 'warn'}`;
+    pill.textContent = String(e.level || '').toUpperCase();
+    level.appendChild(pill);
+
+    cell(row, e.event || '—');
+
+    const msg = cell(row, '');
+    msg.style.wordBreak = 'break-word';
+    const text = document.createElement('div');
+    text.style.whiteSpace = 'pre-wrap';
+    text.textContent = e.message || '—';
+    msg.appendChild(text);
+
+    const detail = logDetail(e);
+    if (detail) {
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = 'Details';
+      summary.style.cursor = 'pointer';
+      summary.style.fontSize = '0.8rem';
+      details.appendChild(summary);
+      const pre = document.createElement('pre');
+      pre.style.whiteSpace = 'pre-wrap';
+      pre.style.wordBreak = 'break-word';
+      pre.style.margin = '0.4rem 0 0';
+      pre.style.fontSize = '0.8rem';
+      pre.textContent = detail;
+      details.appendChild(pre);
+      msg.appendChild(details);
+    }
+    return row;
+  }
+
+  $('logsReload').addEventListener('click', loadLogs);
 
   // ---- lookup --------------------------------------------------------------
 
