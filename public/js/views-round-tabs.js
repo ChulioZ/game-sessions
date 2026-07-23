@@ -65,21 +65,51 @@ function renderRegalTab(round, activeGames) {
     // exclude, where included tags combine with AND and excluded tags reject a
     // game carrying any of them. Ids of since-deleted tags are pruned from the
     // persisted map so they can't invisibly filter everything out.
-    const chips = h('<div class="filter-chips"></div>');
     const roundTags = round.tags || [];
     const tagFilter = regalFilters.tags;
     [...tagFilter.keys()].forEach((x) => { if (!roundTags.some((tg) => tg.id === x)) tagFilter.delete(x); });
     if (roundTags.length) {
+      // Below 860px the chips are collapsed behind a "Filter" button so the cover
+      // grid stays visible; from 860px up they show inline as before. The
+      // phone-vs-wide switch is purely CSS (scoped to `.regal-filter`, since the
+      // `.filter-chips` class is shared with the game-detail/add-game/session tag
+      // pickers) — the JS only toggles the `is-open` class and keeps the badge in
+      // sync. (#349)
+      const filterWrap = h('<div class="regal-filter"></div>');
+      const chips = h('<div class="filter-chips"></div>');
+      const toggle = h(`<button class="filter-toggle" type="button" aria-expanded="false">
+           <i class="ti ti-tags" aria-hidden="true"></i><span>${esc(t('games.filter'))}</span>
+           <span class="filter-toggle__badge" aria-hidden="true" hidden></span>
+         </button>`);
+      const badge = toggle.querySelector('.filter-toggle__badge');
+      // The count of actively-filtering tags is shown two ways so it is never
+      // conveyed by colour alone while collapsed: the badge (sighted) and the
+      // button's aria-label (screen readers). The badge is aria-hidden so the
+      // label doesn't announce the number twice.
+      function syncFilterBadge() {
+        const n = tagFilter.size;
+        badge.textContent = n;
+        badge.hidden = n === 0;
+        toggle.setAttribute('aria-label', t('games.filterLabel', { n }));
+      }
+      toggle.addEventListener('click', () => {
+        const open = filterWrap.classList.toggle('is-open');
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
       roundTags.forEach((tg) => {
         const chip = h('<button class="chip"></button>');
         paintTagChip(chip, tg.name, tagFilter.get(tg.id), tg.icon);
         chip.addEventListener('click', () => {
           paintTagChip(chip, tg.name, cycleTagState(tagFilter, tg.id), tg.icon);
+          syncFilterBadge();
           renderGames();
         });
         chips.appendChild(chip);
       });
-      gamesSec.appendChild(chips);
+      syncFilterBadge();
+      filterWrap.appendChild(toggle);
+      filterWrap.appendChild(chips);
+      gamesSec.appendChild(filterWrap);
     }
 
     // Build the cards once and remember them by game id. When re-sorting we only

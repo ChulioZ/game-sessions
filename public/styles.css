@@ -763,6 +763,59 @@ h1, h2, h3 { font-family: var(--font-display); }
 }
 .filter-chips__sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; flex: none; }
 
+/* Regal tag-filter (#349): on phones the chips collapse behind a "Filter" button
+   so the cover grid stays visible; from 860px up they show inline as today. The
+   860/859 split is the same breakpoint the dock and `.vote--split` use — the two
+   media blocks below are kept adjacent (min === max + 1) per
+   .claude/rules/responsive-hub-tabs.md. Everything is scoped to `.regal-filter`
+   so the game-detail / add-game / session tag chips (same `.filter-chips` class)
+   are untouched. */
+.regal-filter { margin: 2px 0 16px; }
+.regal-filter .filter-chips { margin: 0; }
+.filter-toggle {
+  display: none; /* shown only in the narrow block below; inert on wide screens */
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.filter-toggle .ti { font-size: 16px; }
+.filter-toggle:hover { border-color: var(--brand-edge); }
+/* Accent fill + white text, matching `.chip.is-on` (an audited pair) so the
+   collapsed count stays legible on every theme. */
+.filter-toggle__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+/* The explicit `display` above beats the UA sheet's `[hidden] { display:none }`,
+   so the no-active-filters badge would still show its "0" — restore the hide
+   (same trap as `.icon-picker[hidden]`). */
+.filter-toggle__badge[hidden] { display: none; }
+@media (max-width: 859px) {
+  .regal-filter .filter-toggle { display: inline-flex; }
+  .regal-filter .filter-chips { display: none; margin-top: 10px; }
+  .regal-filter.is-open .filter-chips { display: flex; }
+}
+@media (min-width: 860px) {
+  .regal-filter .filter-toggle { display: none; }
+}
+
 /* ---- Buttons ----
    Chunky and pressable: a thicker bottom border acts as the button's "base";
    pressing pushes the face down onto it. The :active margin compensates the

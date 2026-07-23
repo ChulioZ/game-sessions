@@ -129,6 +129,8 @@ I18N.en = {
   'games.completed': '“{title}” marked as completed',
   'games.search': 'Search games',
   'games.noMatch': 'No games match “{q}”.',
+  'games.filter': 'Filter',
+  'games.filterLabel': 'Filter tags ({n} active)',
 
   'moveGames.link': 'Move games',
   'moveGames.title': 'Move all games',

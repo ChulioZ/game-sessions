@@ -129,6 +129,8 @@ I18N.de = {
   'games.completed': '„{title}“ als durchgespielt markiert',
   'games.search': 'Spiele suchen',
   'games.noMatch': 'Keine Spiele passen zu „{q}“.',
+  'games.filter': 'Filter',
+  'games.filterLabel': 'Nach Tags filtern ({n} aktiv)',
 
   'moveGames.link': 'Spiele verschieben',
   'moveGames.title': 'Alle Spiele verschieben',
