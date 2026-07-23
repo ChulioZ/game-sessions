@@ -210,6 +210,29 @@ module.exports = function repoContract(repo) {
     assert.deepEqual(again.members[0], { id: alice.id, name: 'Alice', color: '#d85a30' });
   });
 
+  test('createMember appends a seat to an existing round; unknown round/tenant is null; parity holds', async () => {
+    const round = await freshRound(); // members: Alice, Bob
+    const before = (await repo.getRound(T, round.id)).members.length;
+
+    const plain = await repo.createMember(T, round.id, { name: 'Charlie' });
+    assert.match(plain.id, /^[0-9a-f]{16}$/);
+    // No color/userId written -> those keys are ABSENT, not null (jsonb parity).
+    assert.deepEqual(plain, { id: plain.id, name: 'Charlie' });
+
+    const linked = await repo.createMember(T, round.id, { name: 'Dana', userId: 'acct-1', color: '#123456' });
+    assert.equal(linked.userId, 'acct-1');
+    assert.equal(linked.color, '#123456');
+
+    // Both land in the round, appended after the originals, in order.
+    const members = (await repo.getRound(T, round.id)).members;
+    assert.equal(members.length, before + 2);
+    assert.deepEqual(members.slice(-2).map((m) => m.name), ['Charlie', 'Dana']);
+
+    // Missing round, or another tenant's round, is null (indistinguishable).
+    assert.equal(await repo.createMember(T, 'nope', { name: 'X' }), null);
+    assert.equal(await repo.createMember(OTHER, round.id, { name: 'X' }), null);
+  });
+
   test('listRoundSummaries: lastPlayed picks the newest finished session by createdAt and follows the design', async () => {
     const round = await freshRound();
     const a = await repo.createGame(T, round.id, gameFields({ title: 'First' }));
@@ -1001,6 +1024,49 @@ module.exports = function repoContract(repo) {
       if (prev === undefined) delete process.env.MAX_INBOX_ITEMS;
       else process.env.MAX_INBOX_ITEMS = prev;
     }
+  });
+
+  /* ------------------------------ Round grants ------------------------------ */
+  /*
+   * Per-round access grants (#207). Global and un-scoped — a grant is cross-tenant
+   * by nature (it points a grantee at another tenant's round), so no tenant
+   * argument, mirroring the user/inbox methods. This pins the store; the resolver
+   * that turns a grant into access is a later slice.
+   */
+
+  test('round grants: unique per (round, user); read by user and by round; delete', async () => {
+    const g1 = await repo.createGrant({ roundId: 'round-1', ownerTenantId: 'owner-t', userId: 'user-x' });
+    assert.match(g1.id, /^[0-9a-f]{16}$/);
+    assert.equal(g1.roundId, 'round-1');
+    assert.equal(g1.userId, 'user-x');
+    assert.equal(g1.ownerTenantId, 'owner-t');
+    assert.equal(g1.memberId, null); // default
+    assert.equal(g1.role, 'member'); // default
+    assert.match(g1.createdAt, /^\d{4}-\d\d-\d\dT.*Z$/);
+
+    // A second grant for the SAME (round, user) is refused, not duplicated.
+    assert.equal(
+      await repo.createGrant({ roundId: 'round-1', ownerTenantId: 'owner-t', userId: 'user-x' }),
+      'grant_exists',
+    );
+
+    // Same user on a DIFFERENT round, and a DIFFERENT user on the same round, are fine.
+    const g2 = await repo.createGrant({ roundId: 'round-2', ownerTenantId: 'owner-t', userId: 'user-x', memberId: 'seat-9', role: 'editor' });
+    assert.equal(g2.memberId, 'seat-9');
+    assert.equal(g2.role, 'editor');
+    await repo.createGrant({ roundId: 'round-1', ownerTenantId: 'owner-t', userId: 'user-y' });
+
+    // Read by user: user-x holds two (round-1, round-2).
+    assert.deepEqual((await repo.listGrantsForUser('user-x')).map((g) => g.roundId).sort(), ['round-1', 'round-2']);
+    // Read by round: round-1 has two grantees (user-x, user-y).
+    assert.deepEqual((await repo.listGrantsForRound('round-1')).map((g) => g.userId).sort(), ['user-x', 'user-y']);
+
+    // Delete one grant; it disappears from both reads, and re-deleting is null.
+    const removed = await repo.deleteGrant('round-1', 'user-x');
+    assert.equal(removed.userId, 'user-x');
+    assert.deepEqual((await repo.listGrantsForUser('user-x')).map((g) => g.roundId), ['round-2']);
+    assert.equal((await repo.listGrantsForRound('round-1')).some((g) => g.userId === 'user-x'), false);
+    assert.equal(await repo.deleteGrant('round-1', 'user-x'), null);
   });
 
   /* ------------------------------- Moderation ------------------------------- */
