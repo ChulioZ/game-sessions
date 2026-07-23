@@ -54,6 +54,9 @@
        .claude/rules/spa-fallback-absolute-asset-paths.md; link labels are set in
        applyStaticTexts() so they re-localize on language change. -->
   <footer class="site-footer" role="contentinfo">
+   <!-- The footer is a full-bleed tinted band (#326); this inner wrapper carries
+        the centred content column so its width lines up with .app above it. -->
+   <div class="site-footer__inner">
     <div class="site-footer__links" id="footerLinks" hidden>
       <a href="/kontakt.html" id="footerKontakt"></a>
       <a href="/impressum" id="footerImpressum"></a>
@@ -80,6 +83,7 @@
     <a class="site-footer__bgg" href="https://boardgamegeek.com" target="_blank" rel="noopener noreferrer">
       <img src="/icons/powered-by-bgg.png" width="900" height="264" alt="Powered by BGG" />
     </a>
+   </div>
   </footer>
 
   <!-- Small toast for feedback. A permanent aria-live region (#145): it stays in

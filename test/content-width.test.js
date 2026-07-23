@@ -50,9 +50,12 @@ const rulesUnder = (re) => mediaBlocks()
 test('the page and its footer take their width from the same variable', () => {
   // A hardcoded px in either drifts from the other the moment the width is
   // re-tuned, and the footer silently stops lining up with the column above it
-  // — the same reasoning as the shared --dock-clearance (#324).
+  // — the same reasoning as the shared --dock-clearance (#324). Since #326 the
+  // footer itself is a full-bleed tinted band, so the column-width constraint
+  // lives on its centred inner wrapper (.site-footer__inner); that is the
+  // element that must share --w-content with .app.
   assert.ok(rootPx('--w-content'), ':root does not declare --w-content');
-  for (const sel of ['.app', '.site-footer']) {
+  for (const sel of ['.app', '.site-footer__inner']) {
     const body = bodyOf(sel);
     assert.ok(body, `${sel} rule not found`);
     assert.match(body, /max-width:\s*var\(--w-content\)/,

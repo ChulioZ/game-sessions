@@ -179,16 +179,26 @@ h1, h2, h3 { font-family: var(--font-display); }
   padding: 24px 20px 40px;
 }
 /* Shared site footer (issue #224). Muted, theme-derived link colour (no
-   hardcoded tones — .claude/rules/theme-derived-colors.md). */
+   hardcoded tones — .claude/rules/theme-derived-colors.md).
+   #326: a full-bleed tinted band with a top border, so the footer reads as a
+   distinct region instead of blending into the page content above it. Both the
+   tint and the border come from the round theme via the sunken/line families,
+   so the footer follows every design. The band spans edge to edge; the width
+   that lines its content up with the page column lives on .site-footer__inner
+   below (which is why the width test asserts against the inner wrapper). */
 .site-footer {
+  padding: 32px 20px 40px;
+  background: var(--sunken);
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+}
+.site-footer__inner {
   max-width: var(--w-content);
   margin: 0 auto;
-  padding: 0 20px 40px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 18px;
-  font-size: 14px;
 }
 
 /* EVERY screen shares one width, and that is currently load-bearing.
@@ -228,7 +238,7 @@ h1, h2, h3 { font-family: var(--font-display); }
    in-flow strip (#331) render exactly as before. */
 @media (min-width: 1280px) {
   .app,
-  .app + .site-footer { max-width: var(--w-shell); }
+  .app + .site-footer .site-footer__inner { max-width: var(--w-shell); }
 
   /* The grid is conditioned on a rail actually being present, because Home
      renders none — it keeps the full shell as a single column. This condition
