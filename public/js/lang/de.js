@@ -6,6 +6,8 @@ I18N.de = {
   'footer.impressum': 'Impressum',
   'footer.privacy': 'Datenschutz',
   'footer.terms': 'Nutzungsbedingungen',
+  'footer.trustHosting': 'EU-Hosting · DSGVO-konform',
+  'footer.trustNoTracking': 'Kein Tracking, keine Werbung, keine Fremd-Skripte',
   'common.back': 'Zurück',
   'common.delete': 'Löschen',
   'common.ok': 'OK',

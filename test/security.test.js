@@ -39,6 +39,19 @@ test('helmet sets security headers on every response', async () => {
   for (const src of sources) assert.ok(imgSrc.includes(src), `img-src lists ${src}`);
 });
 
+// Structural truth-pin for the footer's "no tracking, no ads, no third-party
+// scripts" trust claim (#323): scripts, fonts and network connections must all
+// be same-origin only. If someone adds a third-party <script>, web font or
+// beacon host to the CSP, this fails — so the public claim can't silently drift
+// out of true (see .claude/rules/keep-legal-docs-current.md).
+test('script-src, font-src and connect-src are self-only (backs the footer trust claim)', async () => {
+  const csp = (await request(app).get('/')).headers['content-security-policy'];
+  for (const directive of ['script-src', 'font-src', 'connect-src']) {
+    const value = csp.match(new RegExp(`${directive} ([^;]*)`))[1].trim();
+    assert.equal(value, "'self'", `${directive} must be exactly 'self', got: ${value}`);
+  }
+});
+
 test('the global rate limit returns 429 once the ceiling is exceeded', async () => {
   process.env.RATE_LIMIT_MAX = '3';
   const limited = createApp();

@@ -6,6 +6,8 @@ I18N.en = {
   'footer.impressum': 'Legal notice',
   'footer.privacy': 'Privacy',
   'footer.terms': 'Terms of use',
+  'footer.trustHosting': 'Hosted in the EU · GDPR-compliant',
+  'footer.trustNoTracking': 'No tracking, no ads, no third-party scripts',
   'common.back': 'Back',
   'common.delete': 'Delete',
   'common.ok': 'OK',

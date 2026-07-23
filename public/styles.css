@@ -377,6 +377,22 @@ h1, h2, h3 { font-family: var(--font-display); }
 .site-footer__links[hidden] { display: none; }
 .site-footer__links a { color: var(--ink-soft); text-decoration: none; }
 .site-footer__links a:hover { text-decoration: underline; }
+/* Trust claims (#323): two muted, non-interactive statements with an accent
+   icon. Subordinate to the links above (smaller, no underline), theme-derived
+   colours per .claude/rules/theme-derived-colors.md. The [hidden] guard restores
+   the attribute's effect against the explicit flex below — same reasoning as the
+   links (.claude/rules/hidden-attribute-vs-display-rule.md). */
+.site-footer__trust {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.site-footer__trust[hidden] { display: none; }
+.site-footer__trust-item { display: inline-flex; align-items: center; gap: 6px; }
+.site-footer__trust-item .ti { font-size: 15px; color: var(--brand); }
 /* "Powered by BGG" (#117). BGG's XML API terms require the logo at a size where
    its text stays easily legible, so don't shrink this below ~120px wide and
    don't fade it into the background. */

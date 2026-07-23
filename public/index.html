@@ -60,6 +60,23 @@
       <a href="/datenschutz" id="footerPrivacy"></a>
       <a href="/nutzungsbedingungen" id="footerTerms"></a>
     </div>
+    <!-- Trust claims (#323): two verifiable statements — EU hosting / GDPR and
+         no tracking/ads/third-party scripts. Gated on the SAME cfg.footer flag
+         as the links (initFooter in core.js): the EU-hosting claim is only true
+         on the operator's configured instance, so a self-hoster shows nothing.
+         Labels set in applyStaticTexts() so they re-localize on language change.
+         Starts hidden; the [hidden] guard in styles.css beats the flex display
+         (.claude/rules/hidden-attribute-vs-display-rule.md). -->
+    <div class="site-footer__trust" id="footerTrust" hidden>
+      <span class="site-footer__trust-item">
+        <i class="ti ti-shield" aria-hidden="true"></i>
+        <span id="footerTrustHosting"></span>
+      </span>
+      <span class="site-footer__trust-item">
+        <i class="ti ti-eye-off" aria-hidden="true"></i>
+        <span id="footerTrustNoTracking"></span>
+      </span>
+    </div>
     <a class="site-footer__bgg" href="https://boardgamegeek.com" target="_blank" rel="noopener noreferrer">
       <img src="/icons/powered-by-bgg.png" width="900" height="264" alt="Powered by BGG" />
     </a>

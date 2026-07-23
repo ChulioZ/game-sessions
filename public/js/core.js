@@ -231,6 +231,9 @@ function applyStaticTexts() {
   document.getElementById('footerImpressum').textContent = t('footer.impressum');
   document.getElementById('footerPrivacy').textContent = t('footer.privacy');
   document.getElementById('footerTerms').textContent = t('footer.terms');
+  // Trust claims (#323), same re-localization as the links above.
+  document.getElementById('footerTrustHosting').textContent = t('footer.trustHosting');
+  document.getElementById('footerTrustNoTracking').textContent = t('footer.trustNoTracking');
 }
 
 // Shared footer LINK visibility (issues #224/#134). The links start hidden in
@@ -248,6 +251,11 @@ function initFooter() {
     .then((cfg) => {
       if (cfg && cfg.footer) {
         document.getElementById('footerLinks').hidden = false;
+        // Trust claims (#323): revealed on the same operator-instance gate as
+        // the links — the EU-hosting claim is only true where the operator has
+        // configured the public surfaces, so an unconfigured instance shows it
+        // no more than it shows the legal links.
+        document.getElementById('footerTrust').hidden = false;
         // Feedback entry point (#321): the top-bar button opens the public
         // contact form with the Feedback category preselected and the current
         // SPA screen passed along. Gated on the SAME cfg.footer flag as the
