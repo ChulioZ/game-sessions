@@ -246,7 +246,22 @@ function initFooter() {
   fetch('/api/config')
     .then((r) => (r.ok ? r.json() : null))
     .then((cfg) => {
-      if (cfg && cfg.footer) document.getElementById('footerLinks').hidden = false;
+      if (cfg && cfg.footer) {
+        document.getElementById('footerLinks').hidden = false;
+        // Feedback entry point (#321): the top-bar button opens the public
+        // contact form with the Feedback category preselected and the current
+        // SPA screen passed along. Gated on the SAME cfg.footer flag as the
+        // footer links — the contact page is hidden while mail/Impressum are
+        // unconfigured, so its entry point must be too. Revealed and wired here
+        // together, so a hidden button is never clickable, and only once
+        // (initFooter runs a single time from main.js).
+        const fb = document.getElementById('feedbackBtn');
+        fb.hidden = false;
+        fb.addEventListener('click', () => {
+          const q = new URLSearchParams({ category: 'feedback', path: location.pathname });
+          location.assign('/kontakt.html?' + q.toString());
+        });
+      }
       // Support link (#173): same config fetch, same degradation — no URL (or
       // any error) leaves the button hidden. initSupport lives in the
       // later-loaded support.js; safe here because this callback runs long

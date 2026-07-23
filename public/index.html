@@ -26,9 +26,11 @@
     <!-- Support link (issue #173): hidden until GET /api/config reports a
          donateUrl; wired by js/support.js. -->
     <button id="supportBtn" class="topbar__acct" type="button" hidden aria-label="Support"><i class="ti ti-heart" aria-hidden="true"></i></button>
-    <!-- Feedback (issue #260): always visible, in both auth modes; wired by
-         js/feedback.js. -->
-    <button id="feedbackBtn" class="topbar__acct" type="button" aria-label="Feedback"><i class="ti ti-message" aria-hidden="true"></i></button>
+    <!-- Feedback (issues #260/#321): hidden until GET /api/config reports the
+         contact channel is configured (same footer gate); initFooter() in
+         core.js reveals it and wires it to open the contact form with the
+         Feedback category preselected. -->
+    <button id="feedbackBtn" class="topbar__acct" type="button" hidden aria-label="Feedback"><i class="ti ti-message" aria-hidden="true"></i></button>
     <!-- Account menu (issue #138): hidden unless accounts are on and the user is
          logged in; wired by js/account.js setupAccountUi(). -->
     <button id="accountBtn" class="topbar__acct" type="button" hidden aria-label="Account"><i class="ti ti-user" aria-hidden="true"></i></button>
@@ -86,7 +88,6 @@
   <script src="/js/lookup-cover.js"></script>
   <script src="/js/lookup-score.js"></script>
   <script src="/js/lookup-title.js"></script>
-  <script src="/js/feedback.js"></script>
   <script src="/js/support.js"></script>
   <script src="/js/round-rail.js"></script>
   <script src="/js/views-home.js"></script>

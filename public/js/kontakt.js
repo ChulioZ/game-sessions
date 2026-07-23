@@ -16,10 +16,10 @@
       intro: 'Schreib uns über dieses Formular — wir antworten dir per E-Mail.',
       reportNote: 'Auch Meldungen rechtswidriger Inhalte (Notice-and-Action, Art. 16 DSA) nimmst du über dieses Formular vor — wähle dazu unten den passenden Grund.',
       name: 'Name (optional)',
-      email: 'E-Mail (für unsere Antwort)',
-      emailOptional: 'E-Mail (bei dieser Meldung optional)',
+      email: 'E-Mail (optional — für unsere Antwort)',
       category: 'Worum geht es?',
       catGeneral: 'Allgemeine Anfrage',
+      catFeedback: 'Feedback zur App',
       catCopyright: 'Meldung: Urheberrechtsverletzung (z. B. fremdes Cover)',
       catCsam: 'Meldung: Darstellung sexuellen Missbrauchs von Kindern',
       catHate: 'Meldung: Volksverhetzung / verbotene Kennzeichen',
@@ -35,9 +35,10 @@
       submit: 'Senden',
       sending: 'Wird gesendet …',
       ok: 'Danke! Deine Nachricht wurde gesendet.',
+      okFeedback: 'Danke für dein Feedback!',
       okReport: 'Danke! Deine Meldung ist eingegangen — die Eingangsbestätigung kommt per E-Mail.',
       okReportAnon: 'Danke! Deine Meldung ist eingegangen und wird geprüft.',
-      errValidation: 'Bitte gib eine gültige E-Mail-Adresse und eine Nachricht ein.',
+      errValidation: 'Bitte gib eine Nachricht ein (und, falls du eine Antwort möchtest, eine gültige E-Mail-Adresse).',
       errGoodFaith: 'Bitte bestätige die Richtigkeit deiner Angaben.',
       errRate: 'Zu viele Anfragen. Bitte versuche es später noch einmal.',
       errGeneric: 'Senden fehlgeschlagen. Bitte versuche es später noch einmal.',
@@ -51,10 +52,10 @@
       intro: 'Write to us with this form — we reply by e-mail.',
       reportNote: 'Reports of illegal content (notice and action, Art. 16 DSA) are also submitted through this form — pick the matching reason below.',
       name: 'Name (optional)',
-      email: 'E-mail (for our reply)',
-      emailOptional: 'E-mail (optional for this report)',
+      email: 'E-mail (optional — for our reply)',
       category: 'What is this about?',
       catGeneral: 'General inquiry',
+      catFeedback: 'Feedback about the app',
       catCopyright: 'Report: copyright infringement (e.g. someone else’s cover art)',
       catCsam: 'Report: child sexual abuse material',
       catHate: 'Report: hate speech / banned symbols',
@@ -70,9 +71,10 @@
       submit: 'Send',
       sending: 'Sending …',
       ok: 'Thanks! Your message has been sent.',
+      okFeedback: 'Thanks for your feedback!',
       okReport: 'Thanks! Your report has been received — a confirmation is on its way by e-mail.',
       okReportAnon: 'Thanks! Your report has been received and will be reviewed.',
-      errValidation: 'Please enter a valid e-mail address and a message.',
+      errValidation: 'Please enter a message (and a valid e-mail address if you would like a reply).',
       errGoodFaith: 'Please confirm the accuracy of your report.',
       errRate: 'Too many requests. Please try again later.',
       errGeneric: 'Sending failed. Please try again later.',
@@ -83,9 +85,11 @@
   };
 
   // Select values match the server's CATEGORIES allowlist (routes/contact.js);
-  // '' is an ordinary contact message, anything else a DSA Art. 16 report.
+  // '' is an ordinary contact message, 'feedback' is store-only product feedback
+  // (#321), and the remaining six are DSA Art. 16 reports.
   const CATEGORY_OPTIONS = [
     ['', 'catGeneral'],
+    ['feedback', 'catFeedback'],
     ['copyright', 'catCopyright'],
     ['csam', 'catCsam'],
     ['hate', 'catHate'],
@@ -93,6 +97,10 @@
     ['privacy', 'catPrivacy'],
     ['other', 'catOther'],
   ];
+
+  // The six report categories. Only these reveal the Art. 16(2) fields and
+  // require the good-faith statement — 'feedback' and '' (general) do not.
+  const REPORT_CATEGORIES = ['copyright', 'csam', 'hate', 'defamation', 'privacy', 'other'];
 
   const form = document.getElementById('contactForm');
   const okEl = document.getElementById('ok');
@@ -122,22 +130,25 @@
 
   let lang = resolveLang();
 
+  // The feedback button (#321) links here as
+  // /kontakt.html?category=feedback&path=<SPA screen>. Preselect the category and
+  // carry the path along with a feedback submission. Both are guarded below: an
+  // unknown category selects nothing, and the path is capped like the server does.
+  const params = new URLSearchParams(location.search);
+  const initialCategory = params.get('category') || '';
+  const feedbackPath = (params.get('path') || '').slice(0, 200);
+
   // Flipped by the /api/config probe below when the channel is not configured
   // yet (mail unset / Impressum address missing — the same all-or-nothing gate
   // that hides the site footer). The intro then carries the notice, so a
   // language toggle keeps showing it.
   let available = true;
 
-  // Reveal the Art. 16(2) report fields for a report category, and relax the
-  // e-mail requirement for a CSAM report only (Art. 16(3) DSA allows those to
-  // be anonymous — the server enforces the same rule).
+  // Reveal the Art. 16(2) report fields only for a report category — 'feedback'
+  // and '' (general) keep them hidden. E-mail is optional for every category
+  // (#321), so nothing here toggles its requirement any more.
   function applyCategory() {
-    const category = fields.category.value;
-    reportFields.hidden = !category;
-    const anonymousOk = category === 'csam';
-    fields.email.required = !anonymousOk;
-    document.getElementById('t-email-label').textContent =
-      anonymousOk ? STR[lang].emailOptional : STR[lang].email;
+    reportFields.hidden = !REPORT_CATEGORIES.includes(fields.category.value);
   }
 
   function applyLang() {
@@ -199,13 +210,15 @@
     const email = fields.email.value.trim();
     const message = fields.message.value.trim();
     const category = fields.category.value;
-    // A CSAM report may be anonymous (Art. 16(3) DSA); everything else needs an
-    // address — the server enforces the same pair of rules.
-    if ((!email && category !== 'csam') || !message) {
+    const isReport = REPORT_CATEGORIES.includes(category);
+    // E-mail is optional for every category (#321) — only the message is
+    // required here. The server still rejects a malformed address if one is typed.
+    if (!message) {
       showError(s.errValidation);
       return;
     }
-    if (category && !fields.goodFaith.checked) {
+    // Art. 16(2)(d): only a report needs the good-faith accuracy statement.
+    if (isReport && !fields.goodFaith.checked) {
       showError(s.errGoodFaith);
       return;
     }
@@ -221,12 +234,13 @@
           email,
           subject: fields.subject.value.trim(),
           message,
-          ...(category ? {
-            category,
+          ...(category ? { category } : {}),
+          ...(isReport ? {
             url: fields.url.value.trim(),
             reportedUsername: fields.reportedUsername.value.trim(),
             goodFaith: fields.goodFaith.checked,
           } : {}),
+          ...(category === 'feedback' ? { path: feedbackPath, locale: lang } : {}),
           website: fields.website.value, // honeypot (empty for real users)
         }),
       });
@@ -234,7 +248,10 @@
         form.reset();
         applyCategory(); // reset() collapsed the category — re-hide the report fields
         errEl.hidden = true;
-        okEl.textContent = category ? (email ? s.okReport : s.okReportAnon) : s.ok;
+        okEl.textContent =
+          category === 'feedback' ? s.okFeedback
+            : isReport ? (email ? s.okReport : s.okReportAnon)
+              : s.ok;
         okEl.hidden = false;
       } else if (res.status === 429) {
         showError(s.errRate);
@@ -255,6 +272,13 @@
   });
 
   applyLang();
+
+  // Preselect the category the feedback button (or a deep link) asked for,
+  // validated against the known options so a stray value can't select nothing.
+  if (initialCategory && CATEGORY_OPTIONS.some(([value]) => value === initialCategory)) {
+    fields.category.value = initialCategory;
+    applyCategory();
+  }
 
   // Availability gate (#224): a direct visit while the channel cannot deliver
   // yet should say so up front instead of offering a form whose submit can only

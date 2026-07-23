@@ -41,14 +41,19 @@ const EMAIL_RE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
 
 // The report categories mirror the Nutzungsbedingungen §5 prohibited-content
 // list — each resolved notice's Art. 17 statement of reasons points back at a
-// named clause there, so the intake asks in the same terms. An absent category
-// means an ordinary contact message, not a notice.
-const CATEGORIES = ['copyright', 'csam', 'hate', 'defamation', 'privacy', 'other'];
+// named clause there, so the intake asks in the same terms.
+const REPORT_CATEGORIES = ['copyright', 'csam', 'hate', 'defamation', 'privacy', 'other'];
+// 'feedback' (#321) is a category too — the top-bar feedback button opens this
+// form with it preselected — but it is NOT a report: it is stored as ordinary
+// product feedback (repo.createFeedback), never as a notice and never mailed.
+// An absent category is a plain contact message; a report is one of the six above.
+const CATEGORIES = ['feedback', ...REPORT_CATEGORIES];
 
 // Message/subject/name/url are capped so a single POST can't ship an unbounded
-// blob. The e-mail is OPTIONAL at the schema level: the route below requires it
-// for everything except a CSAM report — Art. 16(3) DSA exempts exactly that
-// case from the identity requirement, and the published ToS §6 says so.
+// blob. The e-mail is OPTIONAL for every category since #321 (anonymous
+// submission everywhere): without it there is simply no reply, and — for a
+// report — no Art. 16(4)/(5) acknowledgement or decision mail, both of which
+// those duties condition on contact details being present anyway.
 const contactSchema = z.object({
   name: z.string().max(200).optional(),
   email: z.preprocess(
@@ -79,6 +84,21 @@ const contactSchema = z.object({
     z.string().max(60, 'reported_username_too_long').optional(),
   ),
   goodFaith: z.boolean().optional(),
+  // Feedback context (#321), mirroring the retired routes/feedback.js: which SPA
+  // screen the message was written on, and the UI language. Both are lenient —
+  // an oversized path is truncated and an unknown locale dropped, never a 400,
+  // so a metadata field can't cost the message. Ignored for every non-feedback
+  // submission.
+  path: z.preprocess(
+    (v) => String(v || '').trim().slice(0, 200),
+    z.string(),
+  ).optional(),
+  locale: z.preprocess(
+    (v) => (['de', 'en'].includes(String(v || '').toLowerCase())
+      ? String(v).toLowerCase()
+      : undefined),
+    z.string().optional(),
+  ),
 });
 
 // Where contact mail is delivered. CONTACT_TO, falling back to MAIL_FROM (the
@@ -110,16 +130,36 @@ router.post('/', async (req, res) => {
   const body = validateBody(contactSchema, req, res);
   if (!body) return; // 400 already sent
 
-  const isReport = Boolean(body.category);
-
-  // The e-mail is required unless this is a CSAM report (Art. 16(3) DSA allows
-  // those to be anonymous; every other notice needs a notifier to acknowledge
-  // and to send the Art. 16(5) decision to).
-  if (!body.email && body.category !== 'csam') {
-    return res.status(400).json({ error: 'invalid_email' });
+  // Feedback (#321) shares this endpoint but is NOT a notice: the top-bar button
+  // opens the form with this category preselected. It is stored as ordinary
+  // product feedback and nothing else — no notice row, no operator mail — and so
+  // handled BEFORE the production mail-unconfigured guard below (feedback never
+  // needed mail to deliver). The endpoint is public/unauthenticated, so there is
+  // no tenant to attribute; the e-mail is kept only when the visitor typed one.
+  // Same store shape as the retired routes/feedback.js (context.path/locale),
+  // minus the account identity a token-authenticated route could attach.
+  if (body.category === 'feedback') {
+    const entry = await repo.createFeedback({
+      message: body.message,
+      context: {
+        path: body.path || null,
+        locale: body.locale || null,
+        tenantId: null,
+        ...(body.email ? { email: body.email } : {}),
+      },
+      createdAt: new Date().toISOString(),
+    });
+    logger.info({ event: 'feedback_submitted', tenantId: null });
+    return res.json({ ok: true, id: entry.id });
   }
+
+  const isReport = REPORT_CATEGORIES.includes(body.category);
+
   // Art. 16(2)(d): a notice must carry the statement that it is made in good
-  // faith and the information is accurate — the form's required checkbox.
+  // faith and the information is accurate — the form's required checkbox. The
+  // e-mail is optional for every category (see the schema comment): a report
+  // without one still creates a notice and an operator mail, only without an
+  // acknowledgement to send back.
   if (isReport && body.goodFaith !== true) {
     return res.status(400).json({ error: 'good_faith_required' });
   }

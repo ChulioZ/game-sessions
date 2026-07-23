@@ -143,13 +143,12 @@ code and documentation are in English.
   **offline** (the shell and static assets are cached; live round data still
   needs the network). In keeping with the no-build-step stance, the manifest,
   service worker and icons are plain static files.
-- **Feedback** – a button in the top bar opens a short form for telling the
-  operator what is missing, confusing or broken, together with the screen it was
-  written on. Submissions are **anonymous by default**: when accounts are on,
-  attaching your e-mail address so the operator can reply is a separate, opt-in
-  checkbox that is never ticked for you. The operator reads what comes in from
-  the moderation panel (see below) — there is no third-party feedback service
-  and no analytics script involved.
+- **Feedback** – a button in the top bar opens the contact form with a
+  **Feedback** category preselected, together with the screen it was written on
+  (issue #321). Submissions are **anonymous by default**: giving an e-mail
+  address so the operator can reply is optional, for every category. The operator
+  reads what comes in from the moderation panel (see below) — there is no
+  third-party feedback service and no analytics script involved.
 - **Support link (donations)** – when the operator sets `DONATE_URL`, a heart
   button in the top bar opens a small sheet whose single action is a plain
   link to the operator's donation page (new tab). Donations are voluntary and
@@ -274,8 +273,10 @@ routes/
   contact.js         /api/contact           (public contact form / DSA notice
                                              intake → stores every submission +
                                              e-mails the operator + acknowledges
-                                             reports; no auth, own rate limit,
-                                             honeypot; fails loud in production)
+                                             reports; also the 'feedback' category
+                                             (#321), stored-only via the feedback
+                                             store, no mail; no auth, own rate
+                                             limit, honeypot; fails loud in prod)
   legal.js           /impressum, /datenschutz,
                      /nutzungsbedingungen    (server-rendered legal pages,
                                              identity from IMPRESSUM_* env;
@@ -290,9 +291,6 @@ routes/
                                              export + erasure, filterable action
                                              log, user feedback —
                                              404 unless ADMIN_PASSWORD)
-  feedback.js        /api/feedback          (in-app user feedback: submit one
-                                             message; read side lives on
-                                             /api/admin — issue #260)
   lookup.js          …/lookup               (search/game — provider proxy: PS Store, BGG, Steam, Nintendo, Xbox;
                                              round-scoped, refuses a provider the round disabled)
   rounds.js          /api/rounds            (list, detail, create, delete)
@@ -348,7 +346,6 @@ public/
     nav-link.js      turns a nav element into a real <a href> that still routes
                      in-app on a plain click, so Cmd/middle-click opens a new
                      tab and "Copy link address" works (issue #330)
-    feedback.js      top-bar feedback button + submission sheet (issue #260)
     round-rail.js    the desktop navigation rail (from 1280px): round identity,
                      the four sections, both archives and the settings screens
     views-home.js    lobby + new round
@@ -533,9 +530,8 @@ The panel opens with an **Instanz-Status** card: how the running instance is
 delivery, image/data backends, pending migrations, quota ceilings, canonical
 host, whether built `dist/` assets are served, and the running version. Every
 field is a derived boolean, enum or number — **no secret value is ever
-returned**. A **Feedback** card shows what users sent through the in-app
-feedback button (with the sender's address only where they opted in); tune
-submissions per IP with `FEEDBACK_RATE_LIMIT_MAX` (per 15 min, default 10).
+returned**. A **Feedback** card shows what users sent through the contact form's
+Feedback category (with the sender's address only where they provided one).
 The Feedback and Protokoll cards page rather than truncate (`100 von 342`,
 **Mehr laden**) and export *every* entry as UTF-8 CSV (BOM included, so Excel
 renders umlauts correctly).

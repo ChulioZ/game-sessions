@@ -899,10 +899,14 @@ test('redaction blanks user text, logs the original and deletes nothing (#275)',
   });
 
   await t.test('feedback text redacts by id alone, leaving the rest of the entry', async () => {
-    const posted = await request(app).post('/api/feedback')
-      .set('Authorization', `Bearer ${owner.token}`)
-      .send({ message: 'illegal feedback text' });
-    assert.equal(posted.status, 201);
+    // Seeded through the repo: POST /api/feedback was retired in #321 (feedback
+    // now arrives via the contact form), and what is under test here is
+    // redaction, not the submit path.
+    await repo.createFeedback({
+      message: 'illegal feedback text',
+      context: { path: '/round/x', locale: 'de', tenantId: owner.user.tenantId },
+      createdAt: new Date().toISOString(),
+    });
 
     const before = await request(app).get('/api/admin/feedback').set('Cookie', cookie);
     const entry = before.body.entries[0];

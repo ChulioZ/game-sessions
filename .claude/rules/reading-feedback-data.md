@@ -21,8 +21,9 @@ feedback review in that turn** ("what has come in?", "cluster the feedback",
 
 - **Only on an explicit ask, that turn.** A past request doesn't authorize a
   later unprompted read, and neither does working on feedback-adjacent code.
-  Implementing a change to `routes/feedback.js` is *not* a reason to read
-  submissions.
+  Implementing a change to the feedback path (since #321 the `feedback` category
+  in `routes/contact.js`, or the admin read side in `routes/admin.js`) is *not* a
+  reason to read submissions.
 - **Only the feedback rows.** `data.feedback` in the JSON backend, the
   `feedback` table in Postgres, or `GET /api/admin/feedback`. This does **not**
   extend to rounds, sessions, games, members, ratings or `data/uploads/` — read

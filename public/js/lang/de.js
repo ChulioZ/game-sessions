@@ -477,18 +477,9 @@ I18N.de = {
   'a11y.hubTabs': 'Rundenbereiche',
   'a11y.roundNav': 'Rundennavigation',
 
+  // The feedback button (aria-label) opens the contact form since #321; the
+  // in-app sheet's keys were removed with it.
   'feedback.button': 'Feedback',
-  'feedback.title': 'Dein Feedback',
-  'feedback.sub': 'Was fehlt, verwirrt oder funktioniert nicht? Wir lesen jede Nachricht.',
-  'feedback.label': 'Deine Nachricht',
-  'feedback.placeholder': 'Was möchtest du uns sagen?',
-  'feedback.attachIdentity': 'Meine E-Mail-Adresse anhängen, damit ihr antworten könnt',
-  'feedback.attachHint': 'Ohne diese Angabe bleibt dein Feedback anonym.',
-  'feedback.submit': 'Feedback senden',
-  'feedback.toast.needMessage': 'Bitte gib eine Nachricht ein',
-  'feedback.toast.sent': 'Danke! Dein Feedback ist angekommen.',
-  'feedback.toast.error': 'Konnte nicht gesendet werden. Bitte versuche es erneut.',
-  'feedback.toast.rateLimited': 'Zu viele Nachrichten. Bitte versuche es später erneut.',
 
   'support.button': 'Spielwirbel unterstützen',
   'support.title': 'Spielwirbel unterstützen',

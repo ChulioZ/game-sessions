@@ -1450,11 +1450,11 @@ a.btn { display: inline-block; text-decoration: none; text-align: center; box-si
 
 /* ---- Onboarding / account auth (issue #138) ---- */
 /* Auth screens take over the view; the top bar keeps only the language picker. */
-/* #feedbackBtn is in here because it is otherwise ALWAYS visible (unlike
-   #accountBtn, which starts `hidden` and is only revealed once logged in). On
-   the auth screen the caller has no token, so POST /api/feedback would 401 and
-   api()'s session-lost handling would bounce them to login — discarding the
-   message they just typed. Hide the entry point rather than offer a dead end. */
+/* #feedbackBtn is hidden here too: since #321 it navigates to the public contact
+   form (so it would work logged-out), but the auth screen is a focused funnel
+   that already hides the home button and round context — a feedback entry point
+   in that stripped-down top bar would be out of place. It is revealed on the app
+   proper by initFooter() (core.js) when the contact channel is configured. */
 body.auth-screen .topbar__home,
 body.auth-screen #feedbackBtn,
 body.auth-screen .topbar__context { display: none; }
@@ -2185,27 +2185,8 @@ kbd {
 /* ---- Shared small helpers ---- */
 .field__hint { margin-top: 6px; font-size: 14px; }
 
-/* ---- Feedback sheet (issue #260) ---- */
-.feedback__text { font-size: 16px; resize: vertical; min-height: 110px; }
-/* The identity opt-in reads as one row, so the label sits beside the box rather
-   than above it — hence overriding .field label's block display. */
-.feedback__opt {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-weight: 500;
-  cursor: pointer;
-}
-.feedback__opt input { margin-top: 3px; accent-color: var(--brand); flex: none; }
-/* Honeypot: removed from view and from the a11y tree, but NOT display:none —
-   some bots skip hidden fields, which would defeat the trap. */
-.feedback__hp {
-  position: absolute;
-  left: -9999px;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
+/* The in-app feedback sheet (#260) was retired in #321 — the feedback button now
+   opens the public contact form, so its .feedback__* styles were removed here. */
 
 /* External link back to a game's provider page (game detail). */
 .link-out {

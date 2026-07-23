@@ -148,25 +148,92 @@ test('an unknown category is a 400, never silently demoted to a plain message', 
   assert.equal(res.body.error, 'invalid_category');
 });
 
-test('a CSAM report may be anonymous (Art. 16(3)); everything else needs an e-mail', async () => {
-  const anonymous = { message: 'Report about account X', category: 'csam', goodFaith: true };
-  const ok = await request(app).post('/api/contact').send(anonymous);
-  assert.equal(ok.status, 200);
-  const notice = await lastNotice();
-  assert.equal(notice.email, null);
-  assert.equal(notice.category, 'csam');
-  // No address, no acknowledgement — the operator mail is the only send, with
-  // no reply-to (there is nobody to reply to).
-  const operator = outbox[outbox.length - 1];
-  assert.match(operator.subject, /Meldung/);
-  assert.equal(operator.replyTo, undefined);
+test('e-mail is optional for every category — anonymous submission everywhere (#321)', async () => {
+  process.env.CONTACT_TO = 'ops@example.com';
 
-  const rejected = await request(app).post('/api/contact')
-    .send({ message: 'anonymous general mail', category: 'copyright', goodFaith: true });
-  assert.equal(rejected.status, 400);
-  assert.equal(rejected.body.error, 'invalid_email');
+  // A CSAM report may always be anonymous (Art. 16(3) DSA): operator mail, no
+  // reply-to, no acknowledgement.
+  const csam = await request(app).post('/api/contact')
+    .send({ message: 'Report about account X', category: 'csam', goodFaith: true });
+  assert.equal(csam.status, 200);
+  assert.equal((await lastNotice()).email, null);
+  assert.equal(outbox[outbox.length - 1].replyTo, undefined);
+
+  // Since #321 every OTHER report may be anonymous too: it still creates a notice
+  // and an operator mail, only without an acknowledgement to send back.
+  const before = outbox.length;
+  const report = await request(app).post('/api/contact')
+    .send({ message: 'anonymous copyright report', category: 'copyright', goodFaith: true });
+  assert.equal(report.status, 200);
+  const notice = await lastNotice();
+  assert.equal(notice.category, 'copyright');
+  assert.equal(notice.email, null);
+  // Exactly one mail — the operator delivery, no acknowledgement (no address).
+  assert.equal(outbox.length, before + 1);
+  assert.equal(outbox[outbox.length - 1].replyTo, undefined);
+
+  // And a plain message with no address at all is accepted and stored.
   const plain = await request(app).post('/api/contact').send({ message: 'no address at all' });
-  assert.equal(plain.status, 400);
+  assert.equal(plain.status, 200);
+  assert.equal((await lastNotice()).email, null);
+});
+
+// --- Feedback category (#321): the retired in-app feedback sheet now posts here.
+
+const storedFeedback = async (message) =>
+  (await repo.listFeedback(500)).find((e) => e.message === message);
+
+test('the feedback category is stored in the feedback store, not as a notice, and never mails (#321)', async () => {
+  const beforeMail = outbox.length;
+  const beforeNotices = await repo.countContactNotices();
+  const res = await request(app).post('/api/contact').send({
+    message: 'The Regal filter is confusing',
+    category: 'feedback',
+    path: '/round/abc/regal',
+    locale: 'de',
+  });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.ok, true);
+
+  // Stored as feedback with its context, no tenant (the endpoint is public) and
+  // no e-mail (none was typed) — the retired routes/feedback.js store shape.
+  const entry = await storedFeedback('The Regal filter is confusing');
+  assert.ok(entry);
+  assert.equal(entry.context.path, '/round/abc/regal');
+  assert.equal(entry.context.locale, 'de');
+  assert.equal(entry.context.tenantId, null);
+  assert.equal(entry.context.email, undefined);
+
+  // Not a report: no notice row and no mail of any kind.
+  assert.equal(await repo.countContactNotices(), beforeNotices);
+  assert.equal(outbox.length, beforeMail);
+});
+
+test('feedback keeps a typed e-mail but needs no good-faith statement (#321)', async () => {
+  const res = await request(app).post('/api/contact').send({
+    message: 'Please reply about the bug',
+    category: 'feedback',
+    email: 'writer@example.com',
+  });
+  assert.equal(res.status, 200);
+  assert.equal((await storedFeedback('Please reply about the bug')).context.email, 'writer@example.com');
+});
+
+test('an unknown feedback locale is dropped but the message is kept (#321)', async () => {
+  const res = await request(app).post('/api/contact')
+    .send({ message: 'Odd locale feedback', category: 'feedback', locale: 'fr' });
+  assert.equal(res.status, 200);
+  assert.equal((await storedFeedback('Odd locale feedback')).context.locale, null);
+});
+
+test('feedback works in production with mail unconfigured — never the 502 guard (#321)', async () => {
+  process.env.NODE_ENV = 'production';
+  // No BREVO_API_KEY / MAIL_FROM → mail.isConfigured() is false, which 502s a
+  // report but must never block store-only feedback.
+  const res = await request(app).post('/api/contact')
+    .send({ message: 'prod feedback', category: 'feedback' });
+  assert.equal(res.status, 200);
+  assert.ok(await storedFeedback('prod feedback'));
 });
 
 test('a filled honeypot returns a fake 200, sends nothing and stores nothing', async () => {
