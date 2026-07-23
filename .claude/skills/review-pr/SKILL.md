@@ -77,7 +77,54 @@ specifically, a PR is suspect if it:
 - calls `app.listen()` in `lib/app.js`, or reassigns the `store` `data` object;
 - commits anything under `data/`.
 
-## 5. Verify locally when the change warrants it
+## 5. Contributor terms — commits must be DCO-signed off (CONTRIBUTING.md)
+
+`CONTRIBUTING.md` requires every commit in a contribution to be **signed off**
+under the Developer Certificate of Origin: a `Signed-off-by: Name <email>`
+trailer (added with `git commit -s`) whose email is reachable and matches the
+commit's author. A stable **GitHub username is fine** — the DCO certifies the
+right to submit, not a legal name — so don't reject handles; anonymous /
+throwaway identities are what fail. Opening the PR also licenses the change under
+Apache-2.0, but that grant is automatic on submission; the **sign-off is the part
+you can actually verify**, so verify it. The `DCO` CI check
+(`.github/workflows/dco.yml`) is the authoritative gate — read its result in
+`gh pr checks` — and this quick view lists any commit missing the trailer
+locally:
+
+```bash
+gh pr view <PR> --json commits \
+  --jq '.commits[] | select((.messageBody // "") | test("Signed-off-by:") | not)
+        | "UNSIGNED " + (.oid[0:7]) + "  " + .messageHeadline'
+```
+
+- **Empty output = every commit is signed off.** Any `UNSIGNED …` line is a
+  blocker: the PR is **NOT SAFE** until it's signed off. The fix is the
+  **contributor's**, not yours (only the author can certify the DCO) —
+  `git rebase --signoff main && git push --force-with-lease`, or for a single
+  commit `git commit --amend --signoff --no-edit && git push --force-with-lease`.
+  Report it; never add someone else's sign-off for them.
+- The trailer's email should **match the commit's author/committer email** (the
+  CI check enforces exactly this). A `Signed-off-by` with no email, or one that
+  belongs to someone other than the author, doesn't count — flag it rather than
+  passing it silently. A username in place of a real name is fine and not a
+  reason to flag.
+- **Exemption — the maintainer's own automation is not a third-party DCO
+  contribution.** A **Dependabot** PR (author `app/dependabot`) is the
+  maintainer's dependency automation, not a human contribution, so a missing
+  `Signed-off-by` on its bot commits is **not** a blocker — don't fail a
+  Dependabot PR on sign-off. (PRs opened by the `implement` skill already sign
+  off their commits, so a self-authored PR passes this check normally.)
+- The rest of `CONTRIBUTING.md`'s pre-PR checklist (branch off main, tests
+  updated, i18n parity, README) overlaps phase 4's constraints and is covered
+  there; sign-off is the one piece phase 4 doesn't check.
+
+Note on squash-merge: this repo squash-merges, and GitHub may not carry a
+`Signed-off-by` trailer from the PR's commits into the final squashed `main`
+commit. The DCO is satisfied at the **PR-commit** level — which is exactly what
+the check above inspects — so a missing trailer on the eventual squash commit is
+a separate repo-config matter, not a review blocker.
+
+## 6. Verify locally when the change warrants it
 
 Green remote CI usually covers this, but verify locally when the diff touches
 runtime behavior, or when you want proof beyond CI:
@@ -91,7 +138,7 @@ npm test && npm run lint && npm run check:syntax
 For UI-affecting changes, verify in a browser (see the preview workflow), not
 just tests. Return to the base branch afterward (`git checkout main`).
 
-## 6. Deliver the verdict
+## 7. Deliver the verdict
 
 State one of:
 

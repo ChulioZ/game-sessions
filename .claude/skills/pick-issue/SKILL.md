@@ -31,7 +31,7 @@ Open work comes in several forms — collect all of them:
 
 ```bash
 gh issue list --state open --limit 100 \
-  --json number,title,labels,body,createdAt,updatedAt,comments
+  --json number,title,labels,body,assignees,createdAt,updatedAt,comments
 gh pr list --state open --limit 100 \
   --json number,title,labels,body,author,isDraft,createdAt,updatedAt,url
 gh api "repos/{owner}/{repo}/dependabot/alerts?state=open&per_page=100" \
@@ -91,6 +91,25 @@ Partition the PRs by author, then sort into candidate types:
 
 Skip (leave out of the pool entirely):
 
+- **Any issue assigned to a *different* GitHub user — unless the assignment has
+  gone stale.** A foreign assignee (its `assignees`, fetched above, names a login
+  that isn't the requesting user — `gh api user --jq .login`) normally means
+  someone has claimed it, so picking it would collide with their work: skip it.
+  **But an assignment must not block an issue forever if the assignee never
+  actually works on it.** Treat a foreign-assigned issue as *stale, and pickable
+  again*, when **both** hold:
+    - **no sign of active work** — its `updatedAt` is **more than 5 days** ago (no
+      comments, commits, or edits since); **and**
+    - **no linked open PR.** A PR that closes the issue is already handled above
+      (the issue is dropped from the pool and the PR reviewed instead), so an
+      in-progress PR means "genuinely being worked on — never reclaim".
+
+  A stale-assigned issue re-enters the pool and is ranked normally, but **flag it
+  in the shortlist** (e.g. "assigned to @x, stale 5d") so the hand-off to
+  `implement` knows it is a *reclaim*, not a free issue. An **unassigned** issue,
+  or one already assigned to the requesting user, is always pickable regardless of
+  age. (All of this applies to issues, not PRs — a contributor's PR is expected to
+  have a non-you author and is handled by `review-pr`.)
 - Issues labeled `wontfix`, `invalid`, `duplicate`, or `question` awaiting the
   user's answer.
 - **Draft PRs** (`isDraft: true`) — not ready for review yet.
@@ -263,8 +282,9 @@ Only pause instead of handing off when:
 Invoke the appropriate skill with the chosen item:
 
 - **An issue →** invoke the **`implement`** skill on it (pass the issue number;
-  `implement` reads it with `gh issue view <N>`, branches, builds, opens the PR,
-  reviews, and — if safe — merges). If the issue is still underspecified, run
+  `implement` reads it with `gh issue view <N>`, **claims it by assigning it to
+  the requesting user**, branches, builds, opens the PR, reviews, and — if safe —
+  merges). If the issue is still underspecified, run
   **`create-issue`**'s interview first (or ask the user) so `implement` gets a
   clear spec. Any decisions the issue merely *needs from* the user (a host, an
   approach, a value) are for `implement` to **drive to completion via interview**,
@@ -324,7 +344,9 @@ Invoke the appropriate skill with the chosen item:
       only* and let them merge on their own timing — merge it yourself only if the
       user asked you to.
   - **NOT SAFE** → do **not** merge or approve. Report each blocker `review-pr`
-    named; the contributor clears it.
+    named; the contributor clears it. A **missing DCO sign-off**
+    (`CONTRIBUTING.md` — `review-pr` phase 5) is a common one on outside PRs: the
+    contributor signs off and force-pushes; never add the sign-off for them.
 
 Hand off exactly one chosen item; don't start several builds/reviews at once, and
 don't chain a second action after the first. In particular, once you pick a
