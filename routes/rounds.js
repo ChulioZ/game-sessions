@@ -68,6 +68,14 @@ router.post('/', async (req, res) => {
 });
 
 router.delete('/:rid', async (req, res) => {
+  // A grant lets a grantee act WITHIN a shared round, never destroy the owner's
+  // whole round — that stays owner-only (#207). req.grant is set by
+  // resolveRoundGrant only when the caller reached this round through a grant
+  // rather than owning it; without a grant this is undefined and owners delete
+  // normally. (Per-action roles are #137; deleting the round is the one clear
+  // owner-only line this slice draws.)
+  if (req.grant) return res.status(403).json({ error: 'not_owner' });
+
   // The data layer hands back the cover paths the round freed — it is the only
   // place that can still see them, since the games cascade away with the round.
   const deleted = await req.repo.deleteRound(req.params.rid);

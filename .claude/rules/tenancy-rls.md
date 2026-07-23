@@ -50,8 +50,12 @@ and the traps that cost effort:
   privilege) — that's why the Postgres test files' cleanup keeps working as-is.
 
 - **Registration mints a personal tenant** (`routes/account.js`): each new user
-  gets a fresh `tenantId`. Sharing a tenant (invites/memberships) is #207;
-  roles within one are #137. Both were reclassified 2026-07-19 as **not
+  gets a fresh `tenantId`, and the tenant stays **1:1 with an account** — round
+  sharing (#207) does **not** put two accounts in one tenant. Instead a grantee
+  *acts as* the owner's tenant for the duration of a request to a granted round
+  (per-round `round_grants`, resolved in `lib/tenant.js` — see
+  `.claude/rules/round-grant-resolver.md`), so **RLS stays un-widened**. Roles
+  within a shared round are #137. Both were reclassified 2026-07-19 as **not
   go-live blockers** (docs/production-readiness.md §12 — neither carries a
   GitHub blocking relation to the go-live issue #219 in either direction) —
   because "member" is already decoupled from "user" (a name-only seat the
